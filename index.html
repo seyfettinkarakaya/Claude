@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>YüzmeSK</title>
+  <meta name="description" content="Havuz kenarı idman programı">
+  <meta name="theme-color" content="#000000">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="YüzmeSK">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+
+  <!-- Kurulum: Apps Script adresi ve token -->
+  <section id="screen-setup" class="screen" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="setup-back" aria-label="Geri" hidden>‹</button>
+      <h1 class="topbar-title">Kurulum</h1>
+    </header>
+    <div class="scroll pad">
+      <p class="muted">Apps Script web uygulamasının adresini ve gizli anahtarı girin. Bilgiler yalnızca bu cihazda saklanır.</p>
+      <label class="field">
+        <span>Apps Script adresi</span>
+        <input id="setup-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
+      </label>
+      <label class="field">
+        <span>Gizli anahtar (token)</span>
+        <input id="setup-token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tokenUret() çıktısı">
+      </label>
+      <p id="setup-msg" class="msg" hidden></p>
+      <button id="setup-save" class="btn btn-primary btn-block">Kaydet ve bağlan</button>
+    </div>
+  </section>
+
+  <!-- Gün seçimi -->
+  <section id="screen-days" class="screen" hidden>
+    <header class="topbar">
+      <h1 class="topbar-title brand">YüzmeSK</h1>
+      <button class="icon-btn" id="days-refresh" aria-label="Yenile">↻</button>
+      <button class="icon-btn" id="days-settings" aria-label="Ayarlar">⚙︎</button>
+    </header>
+    <div class="scroll pad" id="days-scroll">
+      <div id="days-banners"></div>
+      <div id="days-list"></div>
+    </div>
+    <div class="bottom-bar" id="days-today-bar" hidden>
+      <button class="btn btn-primary btn-block btn-xl" id="days-today-btn">Bugünün idmanını aç</button>
+    </div>
+  </section>
+
+  <!-- Program (havuz kenarı) -->
+  <section id="screen-program" class="screen" hidden>
+    <header class="prog-head">
+      <div class="prog-row">
+        <button class="icon-btn" id="prog-back" aria-label="Gün seçimi">‹</button>
+        <div class="prog-clock" id="prog-clock">00:00</div>
+        <div class="prog-count" id="prog-count">0 / 0</div>
+      </div>
+      <div class="prog-progress">
+        <div class="bar"><div class="bar-fill" id="prog-bar"></div></div>
+        <div class="prog-dist" id="prog-dist">0 / 0 m</div>
+      </div>
+    </header>
+    <div class="wheel" id="wheel"></div>
+    <footer class="prog-controls">
+      <button class="btn btn-primary btn-xl btn-block" id="btn-complete">Seti Tamamla</button>
+      <div class="btn-row">
+        <button class="btn btn-go" id="btn-session">İdmana Başla</button>
+        <button class="btn" id="btn-stopwatch">Kronometre</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- Kronometre -->
+  <section id="screen-stopwatch" class="screen sw" hidden>
+    <div class="sw-strip">
+      <button class="icon-btn" id="sw-close" aria-label="Kapat">✕</button>
+      <div class="sw-set" id="sw-set"></div>
+    </div>
+    <div class="sw-display" id="sw-display">
+      <div class="sw-time" id="sw-time"><span id="sw-main">0:00</span><span class="sw-tenth" id="sw-tenth">.0</span></div>
+      <div class="sw-state" id="sw-state"></div>
+    </div>
+    <div class="sw-laps-wrap">
+      <div class="sw-avg" id="sw-avg"></div>
+      <ol class="sw-laps" id="sw-laps"></ol>
+    </div>
+    <div class="sw-buttons">
+      <button class="btn btn-go" id="sw-startstop">Başlat</button>
+      <button class="btn" id="sw-reset">Sıfırla</button>
+      <button class="btn" id="sw-save">Kaydet</button>
+    </div>
+    <button class="sw-lapzone" id="sw-lap">TUR</button>
+  </section>
+
+  <!-- Seans sonu formu -->
+  <section id="screen-form" class="screen" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="form-back" aria-label="Programa dön">‹</button>
+      <h1 class="topbar-title">Seans Sonu</h1>
+    </header>
+    <div class="scroll pad" id="form-scroll">
+      <div class="form-grid2">
+        <label class="field">
+          <span>Süre (ss:dd:ss)</span>
+          <input id="f-sure" type="text" inputmode="numeric" autocomplete="off" placeholder="01:24:08">
+        </label>
+        <label class="field">
+          <span>Mesafe (m)</span>
+          <input id="f-mesafe" type="number" inputmode="numeric" min="0" step="25">
+        </label>
+      </div>
+
+      <div class="field">
+        <span>Havuz</span>
+        <div class="seg" id="f-havuz">
+          <button data-v="25">25 m</button>
+          <button data-v="50">50 m</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>RPE</span>
+        <div class="rpe-grid" id="f-rpe"></div>
+      </div>
+
+      <div class="field">
+        <span>MSI <small class="muted">(isteğe bağlı — dokunulmayan bölge kaydedilmez)</small></span>
+        <div class="msi" id="f-msi"></div>
+      </div>
+
+      <label class="field">
+        <span>Açıklama</span>
+        <textarea id="f-aciklama" rows="4" placeholder="Seans notu"></textarea>
+      </label>
+
+      <p id="form-msg" class="msg" hidden></p>
+      <button class="btn btn-primary btn-xl btn-block" id="form-save">Kaydet</button>
+    </div>
+  </section>
+
+  <!-- Onay -->
+  <section id="screen-done" class="screen" hidden>
+    <div class="done-wrap">
+      <div class="done-icon" id="done-icon">✓</div>
+      <h2 id="done-title">Kaydedildi</h2>
+      <p id="done-text" class="muted"></p>
+      <button class="btn btn-primary btn-xl btn-block" id="done-back">Gün seçimine dön</button>
+    </div>
+  </section>
+
+  <!-- Diyalog -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <noscript>YüzmeSK için JavaScript gerekli.</noscript>
+</body>
+</html>
