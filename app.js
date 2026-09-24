@@ -1,10 +1,10 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=3';
-import { Wheel } from './wheel.js?v=3';
+import * as data from './data.js?v=4';
+import { Wheel } from './wheel.js?v=4';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '3';
+export const APP_VERSION = '4';
 
 const $ = (id) => document.getElementById(id);
 
@@ -37,6 +37,7 @@ const state = {
   swFrame: null,
   swShown: '',
   doneTimer: null,
+  sentDates: new Set(), // bu açılışta kuyruktan gönderilen günler
 };
 
 // ---------------------------------------------------------------------------
@@ -276,8 +277,9 @@ async function showDays({ auto = false } = {}) {
   state.dates = data.getCachedDates();
   state.datesInfo = { loading: true };
   renderDays();
-  // Önce bekleyen kayıtları gönder: yoksa liste, az önce kaydedilen günü hâlâ içerebilir.
-  await flushQueue().catch(() => {});
+  // Liste gönderimi beklemez; kuyrukta olan veya az önce gönderilen günler
+  // visibleDates() ile gizlenir.
+  flushQueue();
   try {
     const r = await data.getDates();
     state.dates = r.dates;
@@ -295,8 +297,8 @@ async function showDays({ auto = false } = {}) {
 
 /** Kuyrukta bekleyen (kaydedilmiş ama gönderilmemiş) günler listede görünmez. */
 function visibleDates() {
-  const queued = new Set(data.getQueue().map((q) => q.payload.tarih));
-  return (state.dates || []).filter((d) => !queued.has(d.tarih));
+  const hidden = new Set([...data.getQueue().map((q) => q.payload.tarih), ...state.sentDates]);
+  return (state.dates || []).filter((d) => !hidden.has(d.tarih));
 }
 
 function renderDays() {
@@ -437,10 +439,7 @@ async function flushQueue(verbose = false) {
     return;
   }
   const sent = [...r.sent, ...r.duplicates];
-  if (sent.length && state.dates) {
-    const gone = new Set(sent.map((x) => x.tarih));
-    state.dates = state.dates.filter((d) => !gone.has(d.tarih));
-  }
+  for (const x of sent) state.sentDates.add(x.tarih);
   if (sent.length) toast(`Bekleyen kayıt gönderildi: ${sent.map((x) => fmtDateTR(x.tarih)).join(', ')}`, 4000);
   else if (verbose && r.remaining) toast('Hâlâ gönderilemedi. Bağlantı gelince tekrar denenecek.');
   if (state.screen === 'days') renderDays();

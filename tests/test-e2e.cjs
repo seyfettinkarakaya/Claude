@@ -205,7 +205,7 @@ const server = http.createServer((req, res) => {
   await page.click('#modal-actions button:has-text("Seansı kapat")');
   await page.waitForSelector('#screen-days:not([hidden])');
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 3');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 4');
 
   // Dar ekran: yatay taşma olmamalı
   await page.setViewportSize({ width: 320, height: 568 });
