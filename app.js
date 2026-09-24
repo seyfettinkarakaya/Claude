@@ -268,7 +268,8 @@ async function showDays({ auto = false } = {}) {
   state.dates = data.getCachedDates();
   state.datesInfo = { loading: true };
   renderDays();
-  flushQueue();
+  // Önce bekleyen kayıtları gönder: yoksa liste, az önce kaydedilen günü hâlâ içerebilir.
+  await flushQueue().catch(() => {});
   try {
     const r = await data.getDates();
     state.dates = r.dates;
@@ -970,16 +971,25 @@ async function saveForm() {
   const btn = $('form-save');
   btn.disabled = true;
   btn.textContent = 'Kaydediliyor…';
+  let result;
   try {
-    const result = await data.finishSession(payload);
-    endSessionLocally();
-    showDone({ ok: true, result });
+    result = await data.finishSession(payload);
   } catch (err) {
     await handleSaveError(err, payload);
+    return;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Kaydet';
   }
+  // Kayıt tabloya yazıldı; buradan sonraki yerel temizlik hatası kaydı etkilemez.
+  try {
+    endSessionLocally();
+  } catch {
+    data.clearSession();
+    state.session = null;
+    state.plan = null;
+  }
+  showDone({ ok: true, result });
 }
 
 async function handleSaveError(err, payload) {

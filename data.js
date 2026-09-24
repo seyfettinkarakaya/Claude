@@ -110,23 +110,34 @@ async function call(action, body = {}) {
 // Tarihler ve program
 // ---------------------------------------------------------------------------
 
+/** Tarih listesini dizi olarak döndürür; tanınmayan biçimde null. */
+function asDateList(v) {
+  if (Array.isArray(v)) return v;
+  if (v && Array.isArray(v.dates)) return v.dates;
+  return null;
+}
+
 /** { dates, fromCache, error } döner. Ağ yoksa son yüklenen liste kullanılır. */
 export async function getDates() {
   try {
-    const dates = await call('getDates');
+    const raw = await call('getDates');
+    const dates = asDateList(raw);
+    if (!dates) {
+      throw new ApiError('BAD_RESPONSE', `Tarih listesi beklenmeyen biçimde geldi: ${JSON.stringify(raw).slice(0, 120)}`);
+    }
     store(KEYS.dates, { dates, savedAt: Date.now() });
     prunePlans(dates.map((d) => d.tarih));
     return { dates, fromCache: false, error: null };
   } catch (err) {
-    const cached = load(KEYS.dates, null);
-    if (cached && err.transient) return { dates: cached.dates, fromCache: true, error: err };
+    const cached = getCachedDates();
+    if (cached && err.transient) return { dates: cached, fromCache: true, error: err };
     throw err;
   }
 }
 
 export function getCachedDates() {
   const cached = load(KEYS.dates, null);
-  return cached ? cached.dates : null;
+  return cached ? asDateList(cached.dates) : null;
 }
 
 /** { plan, fromCache, error } döner. Ağ yoksa o günün son yüklenen kopyası kullanılır. */
@@ -160,14 +171,14 @@ function prunePlans(keepDates) {
 
 /** Kaydedilen (veya kuyruğa alınan) bir günü yerel listelerden çıkarır. */
 export function forgetDate(tarih) {
-  const cached = load(KEYS.dates, null);
-  if (cached) {
-    cached.dates = cached.dates.filter((d) => d.tarih !== tarih);
-    store(KEYS.dates, cached);
-  }
+  const dates = getCachedDates();
+  if (dates) store(KEYS.dates, { dates: dates.filter((d) => d && d.tarih !== tarih), savedAt: Date.now() });
+  else store(KEYS.dates, null); // bozuk önbellek: at, sunucudan yeniden yüklenir
   const plans = load(KEYS.plans, {});
-  delete plans[tarih];
-  store(KEYS.plans, plans);
+  if (plans && typeof plans === 'object') {
+    delete plans[tarih];
+    store(KEYS.plans, plans);
+  }
 }
 
 // ---------------------------------------------------------------------------

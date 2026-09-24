@@ -176,6 +176,20 @@ const server = http.createServer((req, res) => {
   // Aynı seansı tekrar göndermek → DUPLICATE (sunucu tarafı)
   assert.strictEqual(env.call({ action: 'finishSession', tarih: '2026-09-24', seans: {}, setler: [] }).error, 'DUPLICATE');
 
+  // Bozuk tarih önbelleği + kuyrukta bekleyen kayıt: gönderim takılmamalı, liste çizilmeli
+  await page.evaluate(() => {
+    localStorage.removeItem('ysk.session');
+    localStorage.setItem('ysk.dates', JSON.stringify({ dates: { bozuk: true }, savedAt: 1 }));
+    localStorage.setItem('ysk.queue', JSON.stringify([{ id: 'q1', createdAt: 1, tries: 0, lastError: null,
+      payload: { tarih: '2026-09-20', seans: { sure: '00:30:00', mesafe: 300, havuz: 25, rpe: '', msi: '', aciklama: '' },
+        setler: [{ sira: 1, tamamlandi: true, gercek: '', kulac: '', nabiz: '', rpe: '', msi: '', not: '' }] } }]));
+  });
+  await page.reload();
+  await page.waitForFunction(() => !document.querySelector('.banner-warn') && document.querySelector('#days-list').textContent.trim() !== '');
+  assert.strictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('ysk.queue')).length), 0);
+  assert.ok(env.sheets.seans.data.some((r, i) => i > 0 && r[2] === 300), 'kuyruktaki kayıt gönderilmeli');
+  assert.match(await page.textContent('#days-list'), /Planlanmış idman yok/);
+
   // Dar ekran: yatay taşma olmamalı
   await page.setViewportSize({ width: 320, height: 568 });
   await page.click('.day-card:not(.is-past)').catch(()=>{});
