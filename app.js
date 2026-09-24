@@ -1,7 +1,10 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js';
-import { Wheel } from './wheel.js';
+import * as data from './data.js?v=3';
+import { Wheel } from './wheel.js?v=3';
+
+// Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
+export const APP_VERSION = '3';
 
 const $ = (id) => document.getElementById(id);
 
@@ -210,12 +213,17 @@ function doneDistance() {
   return state.plan.setler.reduce((sum, s, i) => sum + (state.session.done[setKey(s, i)] ? setDist(s) : 0), 0);
 }
 
+/** Seansı cihazdan kaldırır. Hata fırlatmaz: kullanıcıyı hiçbir ekranda kilitlememeli. */
 function endSessionLocally() {
   const tarih = state.session && state.session.tarih;
-  data.clearSession();
-  if (tarih) data.forgetDate(tarih);
   state.session = null;
   state.plan = null;
+  data.clearSession();
+  try {
+    if (tarih) data.forgetDate(tarih);
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -420,7 +428,14 @@ async function manageQueue() {
 
 async function flushQueue(verbose = false) {
   if (!data.getQueue().length) return;
-  const r = await data.flushQueue();
+  let r;
+  try {
+    r = await data.flushQueue();
+  } catch (err) {
+    if (verbose) toast(`Gönderilemedi: ${err.message}`, 4000);
+    if (state.screen === 'days') renderDays();
+    return;
+  }
   const sent = [...r.sent, ...r.duplicates];
   if (sent.length && state.dates) {
     const gone = new Set(sent.map((x) => x.tarih));
@@ -981,14 +996,7 @@ async function saveForm() {
     btn.disabled = false;
     btn.textContent = 'Kaydet';
   }
-  // Kayıt tabloya yazıldı; buradan sonraki yerel temizlik hatası kaydı etkilemez.
-  try {
-    endSessionLocally();
-  } catch {
-    data.clearSession();
-    state.session = null;
-    state.plan = null;
-  }
+  endSessionLocally();
   showDone({ ok: true, result });
 }
 
@@ -1025,7 +1033,7 @@ async function handleSaveError(err, payload) {
 }
 
 function queueAndClose(payload, err) {
-  data.enqueue(payload, err);
+  data.enqueue(payload, { code: err.code || 'CLIENT', message: err.message });
   endSessionLocally();
   showDone({ ok: false });
 }
@@ -1115,6 +1123,15 @@ function wire() {
   $('form-save').addEventListener('click', saveForm);
 
   $('done-back').addEventListener('click', () => showDays());
+  $('app-version').textContent = `Sürüm ${APP_VERSION}`;
+
+  // Beklenmeyen bir hata sessiz kalmasın ve ekranı kilitlemesin.
+  const report = (msg) => {
+    toast(`Beklenmeyen hata: ${msg}`, 6000);
+    $('modal').hidden = true;
+  };
+  window.addEventListener('error', (e) => report(e.message));
+  window.addEventListener('unhandledrejection', (e) => report((e.reason && e.reason.message) || String(e.reason)));
 
   window.addEventListener('resize', () => { if (state.screen === 'stopwatch') fitStopwatch(); });
   window.addEventListener('online', () => flushQueue());

@@ -56,7 +56,11 @@ function store(key, value) {
 // ---------------------------------------------------------------------------
 
 export function getConfig() {
-  return load(KEYS.config, { apiUrl: '', token: '' });
+  const c = load(KEYS.config, null);
+  return {
+    apiUrl: c && typeof c.apiUrl === 'string' ? c.apiUrl : '',
+    token: c && typeof c.token === 'string' ? c.token : '',
+  };
 }
 
 export function setConfig({ apiUrl, token }) {
@@ -144,7 +148,10 @@ export function getCachedDates() {
 export async function getPlan(tarih) {
   try {
     const plan = await call('getPlan', { tarih });
-    const plans = load(KEYS.plans, {});
+    if (!plan || !Array.isArray(plan.setler)) {
+      throw new ApiError('BAD_RESPONSE', `Program beklenmeyen biçimde geldi: ${JSON.stringify(plan).slice(0, 120)}`);
+    }
+    const plans = loadPlans();
     plans[tarih] = { ...plan, savedAt: Date.now() };
     store(KEYS.plans, plans);
     return { plan, fromCache: false, error: null };
@@ -156,15 +163,20 @@ export async function getPlan(tarih) {
 }
 
 export function getCachedPlan(tarih) {
+  const p = loadPlans()[tarih];
+  return p && Array.isArray(p.setler) ? p : null;
+}
+
+function loadPlans() {
   const plans = load(KEYS.plans, {});
-  return plans[tarih] || null;
+  return plans && typeof plans === 'object' && !Array.isArray(plans) ? plans : {};
 }
 
 function prunePlans(keepDates) {
   const keep = new Set(keepDates);
   const session = loadSession();
   if (session) keep.add(session.tarih);
-  const plans = load(KEYS.plans, {});
+  const plans = loadPlans();
   for (const k of Object.keys(plans)) if (!keep.has(k)) delete plans[k];
   store(KEYS.plans, plans);
 }
@@ -174,11 +186,9 @@ export function forgetDate(tarih) {
   const dates = getCachedDates();
   if (dates) store(KEYS.dates, { dates: dates.filter((d) => d && d.tarih !== tarih), savedAt: Date.now() });
   else store(KEYS.dates, null); // bozuk önbellek: at, sunucudan yeniden yüklenir
-  const plans = load(KEYS.plans, {});
-  if (plans && typeof plans === 'object') {
-    delete plans[tarih];
-    store(KEYS.plans, plans);
-  }
+  const plans = loadPlans();
+  delete plans[tarih];
+  store(KEYS.plans, plans);
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +196,11 @@ export function forgetDate(tarih) {
 // ---------------------------------------------------------------------------
 
 export function loadSession() {
-  return load(KEYS.session, null);
+  const s = load(KEYS.session, null);
+  const ok = s && typeof s === 'object' && typeof s.tarih === 'string' &&
+    s.done && typeof s.done === 'object' && s.results && typeof s.results === 'object' &&
+    s.sw && Array.isArray(s.sw.laps);
+  return ok ? s : null;
 }
 
 export function saveSession(session) {
@@ -206,7 +220,9 @@ export function finishSession(payload) {
 }
 
 export function getQueue() {
-  return load(KEYS.queue, []);
+  const q = load(KEYS.queue, []);
+  if (!Array.isArray(q)) return [];
+  return q.filter((x) => x && typeof x.id === 'string' && x.payload && typeof x.payload.tarih === 'string');
 }
 
 export function enqueue(payload, error) {

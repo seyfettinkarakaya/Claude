@@ -190,6 +190,23 @@ const server = http.createServer((req, res) => {
   assert.ok(env.sheets.seans.data.some((r, i) => i > 0 && r[2] === 300), 'kuyruktaki kayıt gönderilmeli');
   assert.match(await page.textContent('#days-list'), /Planlanmış idman yok/);
 
+  // Zaten kayıtlı seans + bozuk önbellek: "Seansı kapat" ana sayfaya dönmeli
+  const addRow = (sh, row) => { const i = sh.getLastRow(); sh._row(i); sh.data[i] = row; };
+  addRow(env.sheets.Plan, ['2026-09-27', 1, 'WU', 1, 500, 'FR', 'Swim', '', '', '', '', '', '', '', '', '', '']);
+  addRow(env.sheets.seans, ['2026-09-27', '', 0, 25, '', '', '']);
+  await page.click('#days-refresh');
+  await page.click('.day-card[data-tarih="2026-09-27"]');
+  await page.waitForSelector('#screen-program:not([hidden])');
+  await page.evaluate(() => localStorage.setItem('ysk.dates', JSON.stringify({ dates: 'bozuk' })));
+  await page.click('#btn-session'); await page.click('#btn-complete'); await page.click('#btn-session');
+  await page.waitForSelector('#screen-form:not([hidden])');
+  await page.click('#form-save');
+  await page.waitForSelector('#modal:not([hidden]) >> text=Bu seans zaten kayıtlı');
+  await page.click('#modal-actions button:has-text("Seansı kapat")');
+  await page.waitForSelector('#screen-days:not([hidden])');
+  assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 3');
+
   // Dar ekran: yatay taşma olmamalı
   await page.setViewportSize({ width: 320, height: 568 });
   await page.click('.day-card:not(.is-past)').catch(()=>{});
