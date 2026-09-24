@@ -172,7 +172,7 @@ const server = http.createServer((req, res) => {
   await page.waitForTimeout(300);
   const left = await page.$$eval('.day-card .day-date', els => els.map(e => e.textContent));
   assert.deepStrictEqual(left, ['20 Eylül Pazar'], 'gönderilen gün listeden kalkmalı');
-  assert.deepStrictEqual(env.sheets.eski.data.slice(1).map(r => r[4]), [200, 100, 400]);
+  assert.deepStrictEqual(env.sheets.eski.data.slice(1).map(r => r[4]), [400, 200, 100]); // en yeni seans en üstte
   // Aynı seansı tekrar göndermek → DUPLICATE (sunucu tarafı)
   assert.strictEqual(env.call({ action: 'finishSession', tarih: '2026-09-24', seans: {}, setler: [] }).error, 'DUPLICATE');
 

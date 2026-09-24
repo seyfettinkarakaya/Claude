@@ -7,10 +7,12 @@ class Sheet {
   getLastColumn(){ return this.w; }
   getMaxRows(){ return this.maxRows; }
   insertRowsAfter(a,n){ this.maxRows+=n; }
+  insertRowsBefore(r,n){ for(let i=0;i<n;i++){ this.data.splice(r-1,0,Array(this.w).fill('')); this.fmt.splice(r-1,0,Array(this.w).fill('HEADER')); } this.maxRows+=n; }
   deleteRow(r){ this.deleteRows(r,1); }
   deleteRows(r,n){ if(this.failOn==='delete') throw new Error('delete failed'); this.data.splice(r-1,n); this.fmt.splice(r-1,n); }
   getRange(r,c,nr=1,nc=1){ const sh=this; return {
     getValues(){ return Array.from({length:nr},(_,i)=>{const row=sh.data[r-1+i]||[]; return Array.from({length:nc},(_,j)=> row[c-1+j]===undefined?'':row[c-1+j]);}); },
+    copyFormatToRange(target,c1,c2,r1,r2){ const src=sh.fmt[r-1]; for(let rr=r1;rr<=r2;rr++){ sh._row(rr-1); for(let cc=c1;cc<=c2;cc++) sh.fmt[rr-1][cc-1]=src[cc-1]; } },
     getDisplayValues(){ return this.getValues().map(row=>row.map(v=> v instanceof Date? v.toISOString() : String(v))); },
     getNumberFormats(){ return Array.from({length:nr},(_,i)=>{sh._row(r-1+i); return Array.from({length:nc},(_,j)=>sh.fmt[r-1+i][c-1+j]);}); },
     setNumberFormats(f){ f.forEach((row,i)=>{sh._row(r-1+i); row.forEach((v,j)=>{ if(typeof v!=='string') throw new Error('bad fmt'); sh.fmt[r-1+i][c-1+j]=v;});}); return this; },

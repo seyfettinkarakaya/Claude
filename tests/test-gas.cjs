@@ -60,4 +60,19 @@ env.sheets.Plan.failOn='delete'; r = env.call(payload); assert.ok(r.ok && r.data
 // Eksik zorunlu sütun
 env = fresh(); env.sheets.Plan.data[0][1]='Sira '; r = env.call({action:'getPlan',tarih:'2026-09-24'}); assert.ok(r.ok, 'normalize edilmiş başlık');
 env.sheets.Plan.data[0][1]='X'; r = env.call({action:'getPlan',tarih:'2026-09-24'}); assert.strictEqual(r.error,'MISSING_COLUMN');
+// eski: yeni seans 2. satırdan itibaren en üste, set sırası korunur, biçim veri satırından
+env = fresh();
+const E = env.sheets.eski;
+E.data.push(['eski-satir', 9, 'CD', 1, 100, 'FR', 'Swim', '', '', '', '', '', '', '', '', '', '']);
+E.fmt.push(E.data[1].map(() => 'VERI'));
+r = env.call(payload); assert.ok(r.ok, JSON.stringify(r));
+assert.deepStrictEqual(E.data.slice(1).map(x => x[1]), [1, 3, 9], 'yeni setler üstte, Sıra sırasıyla');
+assert.ok(!E.fmt[1].includes('HEADER') && E.fmt[1][12] === 'VERI', 'biçim başlıktan değil ilk veri satırından');
+// seans yazımı başarısız → üste eklenen blok tamamen kalkar, tepede boş satır kalmaz
+env = fresh(); const E2 = env.sheets.eski;
+E2.data.push(['eski-satir', 9, 'CD', 1, 100, 'FR', 'Swim', '', '', '', '', '', '', '', '', '', '']); E2.fmt.push(E2.data[1].map(() => 'VERI'));
+env.sheets.seans.failOn = 'write';
+r = env.call(payload); assert.strictEqual(r.error, 'SERVER');
+assert.deepStrictEqual(E2.data.slice(1).filter(x => x.some(v => v !== '')).map(x => x[0]), ['eski-satir']);
+assert.strictEqual(E2.data[1][0], 'eski-satir', 'tepede boş satır kalmamalı');
 console.log('Code.gs testleri: TAMAM');

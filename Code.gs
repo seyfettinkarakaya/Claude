@@ -256,7 +256,7 @@ function finishSession_(req) {
     // 2) eski sayfasına yaz.
     if (done.length) {
       var eskiRows = done.map(function (d) { return buildEskiRow_(plan, eski, d.row, d.sonuc, tz); });
-      eskiWritten = appendRows_(eski, eskiRows);
+      eskiWritten = writeRows_(eski, eskiRows, true); // en yeni seans en üstte
     }
 
     // 3) Doğrula.
@@ -268,7 +268,7 @@ function finishSession_(req) {
     }
 
     // 4) seans sayfasına tek satır.
-    seansWritten = appendRows_(seans, [buildSeansRow_(seans, tarih, seansIn, tz)]);
+    seansWritten = writeRows_(seans, [buildSeansRow_(seans, tarih, seansIn, tz)], false);
     SpreadsheetApp.flush();
     if (countDateInColumn_(seans.sheet, seansTarihCol, tarih, tz) !== 1) {
       throw appError_('WRITE_MISMATCH', 'seans satırı doğrulanamadı.');
@@ -423,23 +423,53 @@ function countDateInColumn_(sheet, c, tarih, tz) {
 }
 
 /**
- * Satırları sayfanın sonuna ekler. Biçimler: kaynak biçimi > değerin kendi
- * biçimi > bir üstteki satırın biçimi. Yazılan aralığı döndürür.
+ * Satırları yazar. atTop: başlığın hemen altına (2. satırdan itibaren) eklenir,
+ * mevcut satırlar aşağı kayar; değilse sayfanın sonuna eklenir.
+ * Biçimler: kaynak biçimi > değerin kendi biçimi > komşu veri satırının biçimi.
+ * Yazılan aralığı döndürür.
  */
-function appendRows_(t, rows) {
+function writeRows_(t, rows, atTop) {
   var sheet = t.sheet;
   var width = t.headers.length;
-  var start = sheet.getLastRow() + 1;
-  var end = start + rows.length - 1;
-  if (sheet.getMaxRows() < end) sheet.insertRowsAfter(sheet.getMaxRows(), end - sheet.getMaxRows());
+  var n = rows.length;
+  var start;
+  var neighborRow = null; // biçimi örnek alınacak mevcut veri satırı
 
-  var range = sheet.getRange(start, 1, rows.length, width);
-  var prevFormats = start > 2 ? sheet.getRange(start - 1, 1, 1, width).getNumberFormats()[0] : null;
+  if (atTop) {
+    var hadData = sheet.getLastRow() >= 2;
+    start = 2;
+    sheet.insertRowsBefore(2, n);
+    if (hadData) {
+      neighborRow = 2 + n;
+      // Yeni satırlar başlığın değil, ilk veri satırının görünümünü alsın.
+      sheet.getRange(neighborRow, 1, 1, width).copyFormatToRange(sheet, 1, width, start, start + n - 1);
+    }
+  } else {
+    start = sheet.getLastRow() + 1;
+    var end = start + n - 1;
+    if (sheet.getMaxRows() < end) sheet.insertRowsAfter(sheet.getMaxRows(), end - sheet.getMaxRows());
+    if (start > 2) neighborRow = start - 1;
+  }
+
+  try {
+    writeValues_(sheet, rows, start, width, neighborRow);
+  } catch (err) {
+    // Üste eklenen satırlar bu çağrınındır: yazma yarıda kaldıysa boş kalmasınlar.
+    if (atTop) sheet.deleteRows(start, n);
+    throw err;
+  }
+  return { sheet: sheet, start: start, count: n, inserted: Boolean(atTop) };
+}
+
+function writeValues_(sheet, rows, start, width, neighborRow) {
+  var n = rows.length;
+  var range = sheet.getRange(start, 1, n, width);
+  var neighborFormats = neighborRow ? sheet.getRange(neighborRow, 1, 1, width).getNumberFormats()[0] : null;
   var ownFormats = range.getNumberFormats();
 
   var formats = rows.map(function (r, ri) {
     return r.formats.map(function (f, i) {
-      var base = prevFormats ? prevFormats[i] : ownFormats[ri][i];
+      var base = neighborFormats ? neighborFormats[i] : ownFormats[ri][i];
       if (!f) return base;
       // Sütun zaten bir süre biçimi kullanıyorsa (ör. "mm:ss") onu koru.
       if (r.values[i] !== '' && isDurationFormat_(f) && isDurationFormat_(base)) return base;
@@ -449,7 +479,6 @@ function appendRows_(t, rows) {
 
   range.setNumberFormats(formats);
   range.setValues(rows.map(function (r) { return r.values; }));
-  return { sheet: sheet, start: start, count: rows.length };
 }
 
 function isDurationFormat_(f) {
@@ -460,6 +489,11 @@ function isDurationFormat_(f) {
 function rollback_(written, tarihCol, tarih, tz) {
   if (!written) return;
   try {
+    if (written.inserted) {
+      // Üste eklenen blok tamamen bu çağrınındır; olduğu gibi kaldırılır.
+      written.sheet.deleteRows(written.start, written.count);
+      return;
+    }
     var vals = written.sheet.getRange(written.start, tarihCol + 1, written.count, 1).getValues();
     for (var i = written.count - 1; i >= 0; i--) {
       if (dateKey_(vals[i][0], tz) === tarih) written.sheet.deleteRow(written.start + i);

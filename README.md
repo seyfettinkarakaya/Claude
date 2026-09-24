@@ -126,6 +126,8 @@ kaydedilmez (boş ≠ 0); seçili değere tekrar dokunmak seçimi kaldırır. MS
 1. `eski` (veya `seans`) sayfasında o tarih varsa **DUPLICATE** döner, hiçbir şey yazılmaz.
 2. Tamamlanan setler, Plan'daki satırları kaynak alınarak **orijinal Sıra değerine göre**
    `eski`'ye eklenir; Gerçek/Kulaç/Nabız/RPE/MSI/Not uygulamadan gelen değerlerle dolar.
+   Satırlar başlığın hemen altına (2. satırdan itibaren) eklenir, böylece en yeni seans
+   en üstte durur; yeni satırlar mevcut ilk veri satırının biçimini alır.
 3. Yazılan satır sayısı doğrulanır; tutmazsa **WRITE_MISMATCH**.
 4. `seans` sayfasına tek satır eklenir.
 5. Ancak 2–4 başarılıysa o tarihin **tüm** Plan satırları silinir.
