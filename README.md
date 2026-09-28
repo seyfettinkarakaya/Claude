@@ -92,20 +92,30 @@ Ayarlar gün seçimi ekranındaki ⚙︎ düğmesinden sonradan değiştirilebil
 alttaki **Bugünün idmanını aç** düğmesiyle tek dokunuşta açılır. Tek tarih varsa doğrudan
 programa geçilir. Geçmiş tarihler "Geçmiş planlar" başlığı altında soluk görünür.
 
-**Program.** Setler tekerlek gibi kayar; ortadaki set aktiftir. Başka bir sete kaydırın ya
-da soluk görünen komşu sete dokunun. **Seti Tamamla** aktif seti işaretler ve sıradaki
-işaretsiz sete geçer; işaretli sette düğme **İşareti Kaldır** olur. Sıra serbesttir.
-**İdmana Başla** süreyi başlatır, ardından düğme **İdmanı Bitir** olur. Program ekranı
-açıkken ekran sönmez (Screen Wake Lock; desteklenmiyorsa sessizce devam eder).
+**Program (metro hattı).** Setler bir metro hattının durakları gibi dizilir; hat her
+bloğun renginde. Aktif durak "peron"da büyük bir kart olarak açılır (Tekrar × Mesafe,
+Stil · Tür, açıklama, Hedef, Dinlen, Alet ve set / yığımlı mesafe); üstünde ve altında
+ikişer durak görünür. Yukarı/aşağı kaydırdıkça hat akar ve bir sonraki durak perona gelir;
+bırakınca en yakın durağa oturur. Hattın solundaki süreler yığımlı hedef süredir:
+o sete kadar tekrar × (hedef + dinlen) toplamı. Üstte Şu an (geçen süre), Mesafe
+(yapılan / toplam) ve Son durak (toplam hedef süre); altında her set için blok renginde,
+mesafesine oranlı bir ilerleme çubuğu. Alttaki bar: **Kronometre** · **Seti Tamamla**
+(işaretli sette **İşareti Kaldır**) · **Başla** / **Bitir**. Program ekranı açıkken ekran
+sönmez (Screen Wake Lock; desteklenmiyorsa sessizce devam eder).
 
 **Kronometre.**
-- Büyük alt alan (ve çalışırken süre göstergesinin kendisi): durmuşken **BAŞLAT**, çalışırken **TUR**.
+- Süre göstergesi ekranın %70'ini kaplar; yüzerken bir bakışta okunur.
+- Altında hedef çubuğu ve üç değer: **Hedefe** kalan (dururken son turun hedefe **Fark**ı),
+  **Çıkışa** kalan (hedef + dinlen aralığıyla bir sonraki tekrarın başlamasına kalan süre)
+  ve **Son tur**. Hedefin altı yeşil, üstü kırmızı.
+- Büyük sarı düğme (ve çalışırken göstergenin kendisi): durmuşken **BAŞLAT**, çalışırken **TUR**.
 - **Durdur** o ana kadarki süreyi de tur olarak kaydeder. Böylece:
   - aralıklı tekrarlar için *Başlat → Durdur, Başlat → Durdur…*
   - kesintisiz ara dereceler için *Başlat → Tur → Tur → Durdur*
   aynı tur listesini üretir.
-- **Kaydet**: önce set sorulur (aktif set en üstte), sonra
-  *Ortalama → Gerçek* veya *Ortalama → Gerçek, turlar → Not*. Tek turda ikinci seçenek çıkmaz.
+- **Kaydet** alttan bir panel açar: set (aktif set seçili, *Değiştir* ile başka set),
+  turlar (hedeften hızlı olanlar yeşil), ortalama ve iki seçenek:
+  *Ortalama → Gerçek* veya *Ortalama + turlar → Not*. Tek turda ikinci seçenek çıkmaz.
   Süreli kaydedilen set tamamlandı olarak işaretlenir (programda kaldırılabilir).
 - Gerçek değeri `dd:ss.d` (ör. `01:23.4`) olarak gider ve süre biçiminde yazılır.
 

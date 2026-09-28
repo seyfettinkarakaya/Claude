@@ -1,10 +1,10 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=5';
-import { Wheel } from './wheel.js?v=5';
+import * as data from './data.js?v=6';
+import { Wheel } from './wheel.js?v=6';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '5';
+export const APP_VERSION = '6';
 
 const $ = (id) => document.getElementById(id);
 
@@ -37,6 +37,7 @@ const state = {
   swFrame: null,
   swShown: '',
   doneTimer: null,
+  sheet: null,      // kronometre Kaydet paneli durumu
   sentDates: new Set(), // bu açılışta kuyruktan gönderilen günler
 };
 
@@ -236,7 +237,7 @@ function newSession(tarih) {
     results: {},
     pos: 0,
     screen: 'program',
-    sw: { running: false, segStart: null, segAcc: 0, laps: [] },
+    sw: newSw(),
     form: null,
   };
 }
@@ -547,46 +548,51 @@ function resumeSession() {
 // Program ekranı
 // ---------------------------------------------------------------------------
 
-// Kart düzeni:
-//   şerit : blok rengi, blok adı, set no
-//   1. satır: Tekrar × Mesafe Stil  Tür
-//   2. satır: Açıklama
-//   3. satır: Hedef · Dinlen · Alet
-//   4. satır: Mesafe set / yığımlı · Süre set / yığımlı (küçük)
+// Durak düzeni (metro tekerleği):
+//   satır : yığımlı hedef süre · durak noktası · "Tekrar × Mesafe Stil Tür"
+//   kart  : blok · ad · n/N; Tekrar × Mesafe; Stil · Tür; açıklama;
+//           Hedef / Dinlen; Alet · set mesafesi / yığımlı mesafe
+// Yığımlı süre = o sete kadar tekrar × (hedef + dinlen) toplamı.
+const hexA = (hex, a) => {
+  const h = hex.replace('#', '');
+  return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`;
+};
+
 function renderItem(node, s, i, cum) {
   const k = setKey(s, i);
   const isDone = Boolean(state.session.done[k]);
   const r = state.session.results[k] || {};
   const blok = String(s.blok || '').trim().toUpperCase();
   const b = blokOf(s);
-  const chip = (label, value) => `<div class="w-chip"><small>${label}</small><b>${esc(value)}</b></div>`;
-  const chips = [
-    s.hedef ? chip('HEDEF', s.hedef) : '',
-    s.dinlen ? chip('DİNLEN', s.dinlen) : '',
-    s.alet ? chip('ALET', s.alet) : '',
-  ].join('');
+  const n = state.plan.setler.length;
   const c = cum[i];
+  const styleTur = [s.stil, s.tur].filter(Boolean).join(' · ');
+  const rowName = [setTitle(s), s.tur].filter(Boolean).join(' ');
+  const tile = (label, value) => `<div class="w-tile"><small>${label}</small><b>${esc(value)}</b></div>`;
+  const tiles = [s.hedef ? tile('HEDEF', s.hedef) : '', s.dinlen ? tile('DİNLEN', s.dinlen) : ''].join('');
 
   node.className = `w-item${isDone ? ' is-done' : ''}`;
-  node.style.setProperty('--blok', b.renk);
-  node.style.setProperty('--blok-ink', b.ink);
+  node.style.setProperty('--c', b.renk);
+  node.style.setProperty('--c-soft', hexA(b.renk, 0.35));
+  node.style.setProperty('--c-glow', hexA(b.renk, 0.55));
+  node.style.setProperty('--c-wash', hexA(b.renk, 0.12));
   node.innerHTML = `
-    <div class="w-top">
-      <span class="w-blok">${esc(blok)}${b.ad ? ` · ${esc(b.ad.toLocaleUpperCase('tr'))}` : ''}</span>
-      <span class="w-no">${isDone ? '✓ ' : ''}Set ${i + 1}</span>
+    <div class="w-line"></div>
+    <div class="w-dot"></div>
+    <div class="w-row">
+      <span class="w-tm">${c.time ? fmtDur(c.time) : ''}</span>
+      <span class="w-nm">${esc(rowName)}</span>
     </div>
-    <div class="w-main">
-      <span class="w-dot"></span><span class="w-check">✓</span>
-      <span class="w-title">${esc(setTitle(s))}</span>
-      ${s.tur ? `<span class="w-tur">${esc(s.tur)}</span>` : ''}
-    </div>
-    <div class="w-detail">
-      ${s.aciklama ? `<div class="w-desc">${esc(s.aciklama)}</div>` : ''}
-      ${chips ? `<div class="w-chips">${chips}</div>` : ''}
-      ${r.gercek ? `<div class="w-result">⏱ Gerçek ${esc(r.gercek)}</div>` : ''}
-      <div class="w-sums">
-        <span>Mesafe ${fmtNum(setDist(s))} / ${fmtNum(c.dist)}</span>
-        <span>Süre ${fmtDur(setTime(s))} / ${fmtDur(c.time)}</span>
+    <div class="w-ctm">${c.time ? fmtDur(c.time) : ''}${setTime(s) ? `<small>+${fmtDur(setTime(s))}</small>` : ''}</div>
+    <div class="w-card">
+      <div class="w-tag">${isDone ? '✓ TAMAMLANDI · ' : ''}${esc(blok)}${b.ad ? ` · ${esc(b.ad.toLocaleUpperCase('tr'))}` : ''} · ${i + 1}/${n}</div>
+      <div class="w-title">${esc(`${Number(s.tekrar) || 1} × ${s.mesafe}`)}</div>
+      ${styleTur ? `<div class="w-sub">${esc(styleTur)}</div>` : ''}
+      ${s.aciklama ? `<div class="w-desc">${esc(s.aciklama)}</div>` : '<div class="w-desc"></div>'}
+      ${tiles ? `<div class="w-tiles">${tiles}</div>` : ''}
+      <div class="w-foot">
+        <span>${s.alet ? `Alet <b>${esc(s.alet)}</b>` : ''}${r.gercek ? `${s.alet ? ' · ' : ''}Gerçek <b class="w-gercek">${esc(r.gercek)}</b>` : ''}</span>
+        <span>${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span>
       </div>
     </div>`;
 }
@@ -603,7 +609,9 @@ function openProgram() {
         if (!state.session) return;
         state.session.pos = i;
         persist();
+        updateAmbient(i);
         updateControls();
+        updateBar();
       },
     });
   }
@@ -614,34 +622,44 @@ function openProgram() {
     return node;
   });
   state.wheel.setItems(nodes, state.session.pos || 0);
+  updateAmbient(state.wheel.index);
   updateProgram();
   startTicker();
+}
+
+/** Arka plan ve peron, aktif bloğun rengine bürünür. */
+function updateAmbient(i) {
+  const set = state.plan && state.plan.setler[i];
+  if (!set) return;
+  const c = blokOf(set).renk;
+  $('screen-program').style.setProperty('--amb', hexA(c, 0.12));
 }
 
 function refreshItem(i) {
   const node = state.wheel.items[i];
   if (node) renderItem(node, state.plan.setler[i], i, cumulative(state.plan.setler));
-  state.wheel.layout();
+  state.wheel.render();
+}
+
+function updateBar() {
+  if (!state.session || !state.plan) return;
+  const active = state.wheel ? state.wheel.index : -1;
+  // Her set bir parça: blok renginde, mesafesiyle orantılı; yapılanlar parlak.
+  $('prog-bar').innerHTML = state.plan.setler.map((s, i) => {
+    const cls = state.session.done[setKey(s, i)] ? ' is-on' : (i === active ? ' is-cur' : '');
+    const c = blokOf(s).renk;
+    return `<span class="seg${cls}" style="flex-grow:${Math.max(1, setDist(s))};background:${c};--g:${c}"></span>`;
+  }).join('');
 }
 
 function updateProgram() {
   if (!state.session || !state.plan) return;
   const sets = state.plan.setler;
-  const total = sets.length;
   const totalDist = sets.reduce((a, s) => a + setDist(s), 0);
   const totalTime = sets.reduce((a, s) => a + setTime(s), 0);
-  const dist = doneDistance();
-  const time = sets.reduce((a, s, i) => a + (state.session.done[setKey(s, i)] ? setTime(s) : 0), 0);
-  const pct = totalDist ? Math.round((dist / totalDist) * 100) : 0;
-
-  $('prog-count').textContent = `${doneCount()} / ${total}`;
-  $('prog-dist').textContent = `${fmtNum(dist)} / ${fmtNum(totalDist)} m · %${pct}`;
-  $('prog-time').textContent = totalTime ? `Hedef ${fmtDur(time)} / ${fmtDur(totalTime)}` : '';
-  // İlerleme çubuğu: her set bir parça, blok renginde; yapılmayanlar soluk.
-  $('prog-bar').innerHTML = sets.map((s, i) => {
-    const on = state.session.done[setKey(s, i)] ? ' is-on' : '';
-    return `<span class="seg${on}" style="flex-grow:${Math.max(1, setDist(s))};background:${blokOf(s).renk}"></span>`;
-  }).join('');
+  $('prog-dist').innerHTML = `${fmtNum(doneDistance())}<span class="dim">/${fmtNum(totalDist)}</span>`;
+  $('prog-end').textContent = totalTime ? fmtDur(totalTime) : '—';
+  updateBar();
   updateClock();
   updateControls();
 }
@@ -654,21 +672,23 @@ function updateClock() {
   el.classList.toggle('is-idle', !s.startedAt);
 }
 
+const ICON_PLAY = '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
+const ICON_FLAG = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>';
+
 function updateControls() {
   const s = state.session;
   if (!s || !state.plan || !state.wheel) return;
   const i = state.wheel.index;
   const set = state.plan.setler[i];
-  const isDone = set && s.done[setKey(set, i)];
-  const btn = $('btn-complete');
-  btn.textContent = isDone ? 'İşareti Kaldır' : 'Seti Tamamla';
-  btn.classList.toggle('btn-primary', !isDone);
-  btn.classList.toggle('btn-secondary', Boolean(isDone));
+  const isDone = Boolean(set && s.done[setKey(set, i)]);
+  $('btn-complete-text').textContent = isDone ? 'İşareti Kaldır' : 'Seti Tamamla';
+  $('btn-complete').classList.toggle('is-undo', isDone);
 
   const sb = $('btn-session');
-  sb.textContent = s.startedAt ? 'İdmanı Bitir' : 'İdmana Başla';
-  sb.classList.toggle('btn-go', !s.startedAt);
-  sb.classList.toggle('btn-danger', Boolean(s.startedAt));
+  sb.innerHTML = s.startedAt ? `${ICON_FLAG}<span>Bitir</span>` : `${ICON_PLAY}<span>Başla</span>`;
+  sb.classList.toggle('is-go', !s.startedAt);
+  sb.classList.toggle('is-end', Boolean(s.startedAt));
+  sb.setAttribute('aria-label', s.startedAt ? 'İdmanı Bitir' : 'İdmana Başla');
 }
 
 function startTicker() {
@@ -751,24 +771,36 @@ async function onProgramBack() {
 // Durdur: çalışan segmenti de tur olarak kaydeder ve durur. Böylece hem
 // "Başlat–Durdur" ile tekrar tekrar ölçüm hem de sürekli "Tur" ile ara
 // dereceler aynı tur listesine düşer.
+//
+// Çıkışa: hedef + dinlen aralığıyla ("@1:50") bir sonraki tekrarın başlamasına
+// kalan süre; son tekrarın başladığı andan sayılır.
 // ---------------------------------------------------------------------------
 
 const sw = () => state.session.sw;
+const newSw = () => ({ running: false, segStart: null, segAcc: 0, laps: [], repStart: null });
 
 function swSegment(now = Date.now()) {
   const w = sw();
   return w.segAcc + (w.running && w.segStart ? now - w.segStart : 0);
 }
 
+function swSet() {
+  const i = state.session.swSet != null ? state.session.swSet : (state.wheel ? state.wheel.index : state.session.pos || 0);
+  return { i, set: state.plan.setler[i] };
+}
+
+const fmtSigned = (sec) => `${sec < 0 ? '−' : '+'}${Math.abs(sec).toFixed(1)}`;
+
 function openStopwatch() {
   state.session.screen = 'stopwatch';
+  state.session.swSet = state.wheel ? state.wheel.index : state.session.pos || 0;
   persist();
   show('stopwatch');
-  const i = state.wheel ? state.wheel.index : state.session.pos || 0;
-  const set = state.plan.setler[i];
-  $('sw-set').textContent = set
-    ? `${setTitle(set)}${set.hedef ? ` · Hedef ${set.hedef}` : ''}`
+  const { set } = swSet();
+  $('sw-set').innerHTML = set
+    ? `<b>${esc([setTitle(set), set.tur].filter(Boolean).join(' · '))}</b>${set.hedef ? ` · Hedef ${esc(set.hedef)}` : ''}`
     : '';
+  $('sw-sheet').hidden = true;
   state.swShown = '';
   renderSw();
   fitStopwatch();
@@ -776,6 +808,7 @@ function openStopwatch() {
 }
 
 function closeStopwatch() {
+  state.session.swSet = null;
   openProgram();
 }
 
@@ -793,40 +826,93 @@ function stopSwLoop() {
   state.swFrame = null;
 }
 
+const setText = (id, text) => {
+  const el = $(id);
+  if (el.textContent !== text) el.textContent = text;
+};
+
 function renderSwTime() {
   const w = sw();
-  const ms = w.running ? swSegment() : (w.laps.length ? w.laps[w.laps.length - 1] : 0);
+  const now = Date.now();
+  const { set } = swSet();
+  const hedef = set ? parseSec(set.hedef) : 0;
+  const aralik = set ? hedef + parseSec(set.dinlen) : 0;
+  const laps = w.laps;
+  const last = laps.length ? laps[laps.length - 1] : 0;
+  const ms = w.running ? swSegment(now) : last;
+
+  // Dev rakamlar
   const f = fmtSw(ms);
   const shown = f.main + f.tenth;
-  if (shown === state.swShown) return;
-  const lengthChanged = shown.length !== state.swShown.length;
-  state.swShown = shown;
-  $('sw-main').textContent = f.main;
-  $('sw-tenth').textContent = f.tenth;
-  if (lengthChanged) fitStopwatch();
+  if (shown !== state.swShown) {
+    const lengthChanged = shown.length !== state.swShown.length;
+    state.swShown = shown;
+    $('sw-main').textContent = f.main;
+    $('sw-tenth').textContent = f.tenth;
+    if (lengthChanged) fitStopwatch();
+  }
+
+  // Hedef çubuğu: işaret hedefte; hedefi aşınca kırmızı.
+  if (hedef) {
+    const ratio = ms / 1000 / (hedef * 1.1);
+    $('sw-pfill').style.width = `${Math.min(100, ratio * 100).toFixed(1)}%`;
+    $('sw-pbar').classList.toggle('is-over', ms / 1000 > hedef);
+  }
+
+  // Hedefe kalan (çalışırken) / son turun hedefe farkı (dururken)
+  const diff = $('sw-diff');
+  if (!hedef) {
+    setText('sw-diff', '—');
+  } else if (w.running) {
+    const rem = hedef - ms / 1000;
+    setText('sw-diff-label', 'HEDEFE');
+    setText('sw-diff', rem >= 0 ? rem.toFixed(1) : fmtSigned(-rem));
+    diff.className = rem >= 0 ? 'g' : 'r';
+  } else if (laps.length) {
+    const d = last / 1000 - hedef;
+    setText('sw-diff-label', 'FARK');
+    setText('sw-diff', fmtSigned(d));
+    diff.className = d <= 0 ? 'g' : 'r';
+  } else {
+    setText('sw-diff-label', 'HEDEF');
+    setText('sw-diff', set.hedef);
+    diff.className = '';
+  }
+
+  // Çıkışa kalan
+  const cikis = $('sw-cikis');
+  if (aralik && w.repStart) {
+    const rem = aralik - (now - w.repStart) / 1000;
+    setText('sw-cikis', rem >= 0 ? fmtDur(Math.ceil(rem)) : `+${fmtDur(Math.floor(-rem))}`);
+    cikis.className = rem >= 0 ? 'y' : 'r';
+  } else {
+    setText('sw-cikis', aralik ? `@${fmtDur(aralik)}` : '—');
+    cikis.className = '';
+  }
+  setText('sw-last', laps.length ? fmtLap(last) : '—');
 }
 
 function renderSw() {
   const w = sw();
-  const btn = $('sw-startstop');
-  btn.textContent = w.running ? 'Durdur' : 'Başlat';
-  btn.classList.toggle('btn-go', !w.running);
-  btn.classList.toggle('btn-danger', w.running);
+  const { set } = swSet();
+  const tekrar = set ? Number(set.tekrar) || 1 : 1;
+  const cur = w.running ? w.laps.length + 1 : Math.max(1, w.laps.length);
+
+  $('sw-startstop').innerHTML = w.running
+    ? '<svg width="24" height="24" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>'
+    : '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
+  $('sw-startstop').classList.toggle('is-stop', w.running);
+  $('sw-ss-label').textContent = w.running ? 'Durdur' : 'Başlat';
   $('sw-lap').textContent = w.running ? 'TUR' : 'BAŞLAT';
   $('screen-stopwatch').classList.toggle('is-running', w.running);
 
-  const laps = w.laps;
-  if (laps.length) {
-    const sum = laps.reduce((a, b) => a + b, 0);
-    $('sw-avg').textContent = `Ort. ${fmtLap(sum / laps.length)} · ${laps.length} tur · Toplam ${fmtLap(sum)}`;
-  } else {
-    $('sw-avg').textContent = 'Tur yok';
-  }
-  $('sw-state').textContent = w.running
-    ? (laps.length ? `Son tur ${fmtLap(laps[laps.length - 1])}` : '')
-    : (laps.length ? 'Durdu — son tur' : 'Hazır');
-  $('sw-laps').innerHTML = laps.map((l, i) => `<li><span>${i + 1}</span>${fmtLap(l)}</li>`).join('');
-  $('sw-laps').scrollTop = $('sw-laps').scrollHeight;
+  $('sw-tag').textContent = `${Math.min(cur, Math.max(tekrar, cur))}. TEKRAR / ${tekrar}`;
+  const bars = Math.min(12, Math.max(tekrar, w.laps.length + (w.running ? 1 : 0)));
+  $('sw-reps').innerHTML = Array.from({ length: bars }, (_, i) => {
+    const cls = i < w.laps.length ? 'ok' : (w.running && i === w.laps.length ? 'now' : '');
+    return `<i class="${cls}"></i>`;
+  }).join('');
+  $('sw-pbar').hidden = !(set && parseSec(set.hedef));
   state.swShown = '';
   renderSwTime();
 }
@@ -844,6 +930,7 @@ function swStartStop() {
     w.running = true;
     w.segStart = now;
     w.segAcc = 0;
+    w.repStart = now;
   }
   persist();
   renderSw();
@@ -858,6 +945,7 @@ function swLap() {
   w.laps.push(lap);
   w.segStart = now;
   w.segAcc = 0;
+  w.repStart = now;
   persist();
   renderSw();
 }
@@ -872,51 +960,99 @@ async function swReset() {
     });
     if (!ok) return;
   }
-  state.session.sw = { running: false, segStart: null, segAcc: 0, laps: [] };
+  state.session.sw = newSw();
   persist();
   renderSw();
 }
 
-async function swSave() {
+// --- Kaydet paneli -----------------------------------------------------------
+
+function swSave() {
   const w = sw();
   if (w.running) swStartStop();
   if (!w.laps.length) {
     toast('Kaydedilecek tur yok.');
     return;
   }
+  state.sheet = { i: swSet().i, picking: false };
+  renderSheet();
+  $('sw-sheet').hidden = false;
+}
 
-  // 1) Hangi set? Aktif set en üstte ve vurgulu.
-  const active = state.wheel ? state.wheel.index : state.session.pos || 0;
-  const order = [active, ...state.plan.setler.map((_, i) => i).filter((i) => i !== active)];
-  const list = document.createElement('div');
-  list.className = 'pick-list';
-  list.innerHTML = order.map((i) => {
-    const s = state.plan.setler[i];
-    const isDone = state.session.done[setKey(s, i)];
-    return `
-      <button class="pick${i === active ? ' is-active' : ''}" data-value="${i}">
-        <strong>${esc(setTitle(s))}</strong>
-        <small>Set ${i + 1}${s.blok ? ` · ${esc(s.blok)}` : ''}${i === active ? ' · aktif set' : ''}${isDone ? ' · ✓' : ''}</small>
-      </button>`;
-  }).join('');
-  const picked = await modal({ title: 'Hangi sete ait?', body: list, actions: [{ label: 'Vazgeç', value: '' }] });
-  if (picked === '' || picked == null) return;
-  const i = Number(picked);
-  const set = state.plan.setler[i];
+function closeSheet() {
+  $('sw-sheet').hidden = true;
+  state.sheet = null;
+}
 
-  // 2) Nasıl kaydedilsin?
-  const laps = w.laps.slice();
+function renderSheet() {
+  const { i, picking } = state.sheet;
+  const sets = state.plan.setler;
+  const set = sets[i];
+  const hedef = parseSec(set.hedef);
+  const laps = sw().laps;
   const avg = laps.reduce((a, b) => a + b, 0) / laps.length;
-  const actions = [{ label: 'Ortalama → Gerçek', value: 'avg', cls: 'btn-primary' }];
-  if (laps.length > 1) actions.push({ label: 'Ortalama → Gerçek, turlar → Not', value: 'avg+laps', cls: 'btn-primary' });
-  actions.push({ label: 'Vazgeç', value: '' });
-  const how = await modal({
-    title: setTitle(set),
-    body: `<p>${laps.length > 1 ? `Ortalama <strong>${fmtLap(avg)}</strong> (${laps.length} tur)` : `Süre <strong>${fmtLap(avg)}</strong>`}</p>`,
-    actions,
-  });
-  if (!how) return;
+  const b = blokOf(set);
+  const lapChip = (l, n) => {
+    const cls = hedef ? (l / 1000 <= hedef ? ' g' : ' r') : '';
+    return `<div><small>${n}</small><b class="${cls}">${fmtLap(l)}</b></div>`;
+  };
 
+  let pick;
+  if (picking) {
+    pick = `<div class="sheet-list">${sets.map((s, j) => `
+      <button class="sheet-set${j === i ? ' is-on' : ''}" data-set="${j}">
+        <i style="background:${blokOf(s).renk}"></i>
+        <span><b>${esc([setTitle(s), s.tur].filter(Boolean).join(' · '))}</b><small>Set ${j + 1}${s.blok ? ` · ${esc(s.blok)}` : ''}${state.session.done[setKey(s, j)] ? ' · ✓' : ''}</small></span>
+      </button>`).join('')}</div>`;
+  } else {
+    pick = `<button class="sheet-pick" data-act="pick">
+      <i style="background:${b.renk}"></i>
+      <span><small>SET${i === (state.wheel ? state.wheel.index : -1) ? ' · AKTİF' : ''}</small><b>${esc([setTitle(set), set.tur].filter(Boolean).join(' · '))}</b></span>
+      <em>Değiştir</em>
+    </button>`;
+  }
+
+  const lapsText = laps.map(fmtLap).join(', ');
+  $('sw-sheet-body').innerHTML = `
+    <div class="sheet-grab"></div>
+    <h3>Kaydet</h3>
+    ${pick}
+    <div class="sheet-laps">${laps.slice(0, 12).map((l, n) => lapChip(l, n + 1)).join('')}</div>
+    <div class="sheet-avg"><span>${laps.length > 1 ? `ORTALAMA · ${laps.length} TUR` : 'SÜRE'}</span><b>${fmtLap(avg)}</b></div>
+    <button class="sheet-opt o1" data-act="avg">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5L19.5 7"/></svg>
+      <span><b>${laps.length > 1 ? 'Ortalama → Gerçek' : 'Süre → Gerçek'}</b><small>Gerçek sütununa ${fmtLap(avg)} yazılır</small></span>
+    </button>
+    ${laps.length > 1 ? `<button class="sheet-opt o2" data-act="avg+laps">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19h14"/></svg>
+      <span><b>Ortalama + turlar → Not</b><small>Not: ${esc(lapsText)}</small></span>
+    </button>` : ''}
+    <button class="sheet-cancel" data-act="cancel">Vazgeç</button>`;
+}
+
+function onSheetClick(e) {
+  const setBtn = e.target.closest('[data-set]');
+  if (setBtn) {
+    state.sheet = { i: Number(setBtn.dataset.set), picking: false };
+    renderSheet();
+    return;
+  }
+  const act = e.target.closest('[data-act]');
+  if (!act) return;
+  if (act.dataset.act === 'pick') {
+    state.sheet.picking = true;
+    renderSheet();
+  } else if (act.dataset.act === 'cancel') {
+    closeSheet();
+  } else {
+    applySwResult(state.sheet.i, act.dataset.act);
+  }
+}
+
+function applySwResult(i, how) {
+  const set = state.plan.setler[i];
+  const laps = sw().laps.slice();
+  const avg = laps.reduce((a, b) => a + b, 0) / laps.length;
   const k = setKey(set, i);
   const r = state.session.results[k] || (state.session.results[k] = {});
   r.gercek = fmtLap(avg);
@@ -926,26 +1062,27 @@ async function swSave() {
   }
   // Ölçülen set yapılmış demektir; işareti kullanıcı programda kaldırabilir.
   state.session.done[k] = true;
-  state.session.sw = { running: false, segStart: null, segAcc: 0, laps: [] };
+  state.session.sw = newSw();
   state.session.pos = i;
   persist();
+  closeSheet();
   closeStopwatch();
   toast(`Set ${i + 1}: Gerçek ${r.gercek} kaydedildi`);
 }
 
-/** Süre rakamlarını gösterge alanına sığan en büyük boyuta getirir. */
+/** Süre rakamlarını panele sığan en büyük boyuta getirir, sonra dikeyde uzatır. */
 function fitStopwatch() {
-  const box = $('sw-display');
+  const box = $('sw-dz');
   const time = $('sw-time');
   if (!box.clientWidth) return;
   time.style.fontSize = '100px';
   time.style.transform = 'none';
   const w = time.scrollWidth || 1;
-  const size = Math.floor((100 * box.clientWidth * 0.94) / w);
+  const size = Math.floor((100 * box.clientWidth * 0.96) / w);
   time.style.fontSize = `${size}px`;
-  // Rakamları dikeyde de uzatarak alanı doldur (uzaktan okunabilirlik).
+  // Yüzerken uzaktan okunabilsin: rakamlar alanın yüksekliğini doldurur.
   const glyph = size * 0.74;
-  const stretch = Math.max(1, Math.min(2.1, (box.clientHeight * 0.78) / glyph));
+  const stretch = Math.max(1, Math.min(2.8, (box.clientHeight * 0.9) / glyph));
   time.style.transform = `scaleY(${stretch.toFixed(3)})`;
 }
 
@@ -1185,6 +1322,8 @@ function wire() {
   $('sw-save').addEventListener('click', swSave);
   $('sw-lap').addEventListener('pointerdown', (e) => { e.preventDefault(); swLap(); });
   $('sw-display').addEventListener('pointerdown', () => { if (sw().running) swLap(); });
+  $('sw-sheet-body').addEventListener('click', onSheetClick);
+  $('sw-sheet-dim').addEventListener('click', closeSheet);
 
   $('screen-form').addEventListener('input', onFormInput);
   $('screen-form').addEventListener('click', onFormClick);

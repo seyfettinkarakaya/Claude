@@ -5,17 +5,7 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 ## Bekleyen (kod)
 
-- [ ] **Tarife / metro tasarımı** (onay bekliyor) — görseller: `tasarim/v7/` (set ekranı),
-  `tasarim/v6/K3-kronometre-70.png` ve `tasarim/v5/K2-kaydet.png` (kronometre)
-  - Set ekranı: tekerlek gibi yukarı/aşağı kaydırma; hat sabit, duraklar "peron" halkasından
-    geçer (önceki/sonraki istasyona gelme etkisi); aktif set kartı ekranın ~%62'si.
-  - Solda yığımlı hedef süre (küçük font), aktif durakta "+set süresi".
-  - Üstte Şu an / Mesafe / Son durak; altında blok renkli, mesafeye oranlı ilerleme çubuğu.
-  - Aktif bloğun rengi kart çerçevesine ve arka plandaki hafif ışımaya yansır.
-  - Alt düğmeler: bar içinde solda Kronometre, ortada geniş sarı "Seti Tamamla", sağda Bitir.
-  - Kronometre (çalışırken): rakamlar ekranın %70'i; tekrar göstergesi, hedef çubuğu,
-    Hedefe / Çıkışa / Son tur; Durdur · TUR · Kaydet.
-  - Kaydet ekranı: set seçimi, turlar (hedeften hızlı yeşil), ortalama, iki kayıt seçeneği.
+_(boş)_
 
 ## İzlenecek
 
@@ -30,6 +20,11 @@ bekleyen işlerin tamamı birlikte güncellenir.
   eski ve seans için "en yeni üstte" ancak bundan sonra devreye girer.
 
 ## Tamamlanan
+
+- [x] Metro tasarımı (sürüm 6): tekerlek gibi dönen metro hattı, peron ve önceki/sonraki
+  ikişer durak; blok renkli, mesafeye oranlı ilerleme çubuğu; yığımlı hedef süreler;
+  Kronometre · Seti Tamamla · Başla/Bitir barı; %70 kronometre (Hedefe / Çıkışa / Son tur);
+  alttan açılan Kaydet paneli; tüm ekranlarda koyu zemin + sarı vurgu.
 
 - [x] Gece Havuzu görünümü: lacivert zemin, blok renkli şerit ve ilerleme çubuğu (sürüm 5)
 - [x] Kart düzeni: 1) Tekrar × Mesafe Stil Tür 2) açıklama (büyük) 3) Hedef · Dinlen · Alet

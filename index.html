@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>YüzmeSK</title>
   <meta name="description" content="Havuz kenarı idman programı">
-  <meta name="theme-color" content="#061726">
+  <meta name="theme-color" content="#0B0F14">
   <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -17,9 +17,9 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=5">
-  <script type="module" src="app.js?v=5"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="style.css?v=6">
+  <script type="module" src="app.js?v=6"></script>
 </head>
 <body>
 
@@ -61,50 +61,53 @@
     </div>
   </section>
 
-  <!-- Program (havuz kenarı) -->
+  <!-- Program (havuz kenarı): metro hattı -->
   <section id="screen-program" class="screen" hidden>
+    <div class="prog-amb" id="prog-amb"></div>
     <header class="prog-head">
       <div class="prog-row">
         <button class="icon-btn" id="prog-back" aria-label="Gün seçimi">‹</button>
-        <div class="prog-clock" id="prog-clock">00:00</div>
-        <div class="prog-count" id="prog-count">0 / 0</div>
+        <div class="prog-stat"><span class="lbl">ŞU AN</span><b id="prog-clock">00:00</b></div>
+        <div class="prog-stat"><span class="lbl">MESAFE</span><b id="prog-dist">0</b></div>
+        <div class="prog-stat end"><span class="lbl">SON DURAK</span><b id="prog-end">0:00</b></div>
       </div>
       <div class="seg-bar" id="prog-bar"></div>
-      <div class="prog-sums">
-        <span id="prog-dist">0 / 0 m</span>
-        <span id="prog-time"></span>
-      </div>
     </header>
     <div class="wheel" id="wheel"></div>
-    <footer class="prog-controls">
-      <button class="btn btn-primary btn-xl btn-block" id="btn-complete">Seti Tamamla</button>
-      <div class="btn-row">
-        <button class="btn btn-go" id="btn-session">İdmana Başla</button>
-        <button class="btn" id="btn-stopwatch">Kronometre</button>
-      </div>
+    <footer class="dock">
+      <button class="dock-side" id="btn-stopwatch"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5M18.5 6l1.5-1.5"/></svg><span>Kronometre</span></button>
+      <button class="dock-main" id="btn-complete"><span class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5L19.5 7"/></svg></span><span id="btn-complete-text">Seti Tamamla</span></button>
+      <button class="dock-side" id="btn-session"></button>
     </footer>
   </section>
 
   <!-- Kronometre -->
   <section id="screen-stopwatch" class="screen sw" hidden>
     <div class="sw-strip">
-      <button class="icon-btn" id="sw-close" aria-label="Kapat">✕</button>
+      <button class="round-btn" id="sw-close" aria-label="Kapat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <div class="sw-set" id="sw-set"></div>
+      <button class="round-btn" id="sw-reset" aria-label="Sıfırla"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg></button>
     </div>
     <div class="sw-display" id="sw-display">
-      <div class="sw-time" id="sw-time"><span id="sw-main">0:00</span><span class="sw-tenth" id="sw-tenth">.0</span></div>
-      <div class="sw-state" id="sw-state"></div>
+      <div class="sw-top"><span class="sw-tag" id="sw-tag"></span><span class="sw-reps" id="sw-reps"></span></div>
+      <div class="sw-dz" id="sw-dz"><div class="sw-time" id="sw-time"><span id="sw-main">0:00</span><span class="sw-tenth" id="sw-tenth">.0</span></div></div>
+      <div class="sw-pbar" id="sw-pbar"><div class="f" id="sw-pfill"></div><div class="mk" id="sw-pmark"></div></div>
+      <div class="sw-info">
+        <div><span id="sw-diff-label">HEDEFE</span><b id="sw-diff">—</b></div>
+        <div><span>ÇIKIŞA</span><b id="sw-cikis">—</b></div>
+        <div><span>SON TUR</span><b id="sw-last">—</b></div>
+      </div>
     </div>
-    <div class="sw-laps-wrap">
-      <div class="sw-avg" id="sw-avg"></div>
-      <ol class="sw-laps" id="sw-laps"></ol>
+    <div class="sw-ctrls">
+      <div class="sw-cb"><button id="sw-startstop" aria-label="Başlat / Durdur"></button><span id="sw-ss-label">Başlat</span></div>
+      <div class="sw-cb big"><button id="sw-lap">BAŞLAT</button></div>
+      <div class="sw-cb"><button id="sw-save" aria-label="Kaydet"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19h14"/></svg></button><span>Kaydet</span></div>
     </div>
-    <div class="sw-buttons">
-      <button class="btn btn-go" id="sw-startstop">Başlat</button>
-      <button class="btn" id="sw-reset">Sıfırla</button>
-      <button class="btn" id="sw-save">Kaydet</button>
+    <!-- Kaydet paneli -->
+    <div class="sheet-wrap" id="sw-sheet" hidden>
+      <div class="sheet-dim" id="sw-sheet-dim"></div>
+      <div class="sheet" id="sw-sheet-body"></div>
     </div>
-    <button class="sw-lapzone" id="sw-lap">TUR</button>
   </section>
 
   <!-- Seans sonu formu -->

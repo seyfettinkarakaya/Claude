@@ -1,23 +1,21 @@
-// YüzmeSK — dikey tekerlek (wheel) bileşeni.
+// YüzmeSK — metro tekerleği.
 //
-// Öğeleri kendisi oluşturmaz; verilen elemanları konumlandırır. Aktif öğe
-// ortada tam boyutta; komşular küçülerek ve soluklaşarak üstte/altta durur.
-// Sürükleme, atalet (momentum) ve en yakın öğeye oturma (snap) içerir.
+// Setler bir metro hattının durakları gibi dizilir. Aktif durak "peron"da
+// büyük bir kart olarak açılır; önceki ve sonraki duraklar ince satırlar olarak
+// görünür. Kaydırdıkça hat akar: giden kart büzülerek satıra döner, gelen satır
+// açılarak karta dönüşür. Sürükleme, atalet (momentum) ve en yakın durağa
+// oturma (snap) içerir.
 //
-// Her öğe elemanında `.w-main` (tek satırlık ana bilgi) bulunmalıdır; aktif
-// olmayan öğelerde `.w-detail` ve `.w-top` soluklaşarak gizlenir.
+// Her öğe (durak) iki katman taşır: `.w-row` (satır) ve `.w-card` (kart).
+// Tekerlek her öğeye `--e` (0..1, ne kadar "açık" olduğu) değişkenini ve
+// yüksekliğini verir; katmanların geçişini CSS yapar.
 
-const DRAG_PX_PER_ITEM = 96;   // sürüklemede bir öğe atlamak için gereken yol
-const NEIGHBOR_GAP = 18;       // aktif kart ile ilk komşu arası boşluk
-const NEIGHBOR_SCALE = [1, 0.6, 0.5, 0.44, 0.4];
-const NEIGHBOR_ALPHA = [1, 0.55, 0.32, 0.16, 0];
-const MOMENTUM_MS = 260;       // hız × bu süre = atalet ile gidilecek öğe sayısı
-
-function lerpTable(table, d) {
-  if (d >= table.length - 1) return table[table.length - 1];
-  const i = Math.floor(d);
-  return table[i] + (table[i + 1] - table[i]) * (d - i);
-}
+export const ROW_H = 36;       // durak satırı yüksekliği
+export const CARD_GAP = 8;     // kartın üstündeki/altındaki boşluk
+const SIDE = 2;                // peronun üstünde ve altında görünen durak sayısı
+const MIN_CARD = 300;
+const DRAG_PX_PER_ITEM = 90;   // sürüklemede bir durak atlamak için gereken yol
+const MOMENTUM_MS = 260;       // hız × bu süre = atalet ile gidilecek durak sayısı
 
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -27,12 +25,16 @@ export class Wheel {
     this.onChange = onChange || (() => {});
     this.onTapActive = onTapActive || (() => {});
     this.items = [];
-    this.metrics = [];
     this.pos = 0;
     this.lastIndex = -1;
     this.anim = null;
     this.drag = null;
     this.wheelAcc = 0;
+    this.cardH = 400;
+
+    // Peron: aktif durağın oturduğu sabit halka.
+    this.platform = document.createElement('div');
+    this.platform.className = 'w-platform';
 
     el.addEventListener('pointerdown', (e) => this._down(e));
     el.addEventListener('pointermove', (e) => this._move(e));
@@ -51,21 +53,21 @@ export class Wheel {
   }
 
   setItems(nodes, index = 0) {
-    this.el.replaceChildren(...nodes);
+    this.el.replaceChildren(this.platform, ...nodes);
     this.items = nodes;
     this.pos = Math.max(0, Math.min(nodes.length - 1, index));
     this.lastIndex = -1;
     this.layout();
   }
 
-  /** Öğe içerikleri değiştiğinde (ör. tamamlandı işareti) ölçüleri yenile. */
+  /** Kart boyu tekerleğin yüksekliğinden hesaplanır: 2+2 durak satırı sığar, gerisi kartındır. */
   layout() {
-    this.metrics = this.items.map((node) => {
-      const main = node.querySelector('.w-main');
-      const mainCenter = main ? main.offsetTop + main.offsetHeight / 2 : node.offsetHeight / 2;
-      const mainH = main ? main.offsetHeight : 48;
-      return { above: mainCenter, below: node.offsetHeight - mainCenter, mainH };
-    });
+    const h = this.el.clientHeight;
+    this.cardH = Math.max(MIN_CARD, h - 2 * SIDE * ROW_H - 2 * CARD_GAP);
+    this.el.style.setProperty('--card-h', `${this.cardH}px`);
+    this.el.style.setProperty('--row-h', `${ROW_H}px`);
+    this.el.style.setProperty('--card-gap', `${CARD_GAP}px`);
+    this.platform.style.top = `${SIDE * ROW_H + CARD_GAP}px`;
     this.render();
   }
 
@@ -83,48 +85,44 @@ export class Wheel {
   render() {
     const n = this.items.length;
     if (!n) return;
-    const h = this.el.clientHeight;
-    const p = Math.max(0, Math.min(n - 1, this.pos));
+    const H = this.el.clientHeight;
+    const slot = this.cardH + 2 * CARD_GAP;
 
-    // Aktif kartın boyu, iki komşu öğe arasında harmanlanır.
-    const i0 = Math.floor(p);
-    const i1 = Math.min(n - 1, i0 + 1);
-    const f = p - i0;
-    const m0 = this.metrics[i0];
-    const m1 = this.metrics[i1];
-    if (!m0 || !m1) return;
-    const above = m0.above + (m1.above - m0.above) * f;
-    const below = m0.below + (m1.below - m0.below) * f;
-    const mainH = m0.mainH;
+    // Her durağın "açıklığı" ve yüksekliği.
+    const es = new Array(n);
+    const hs = new Array(n);
+    for (let i = 0; i < n; i++) {
+      es[i] = Math.max(0, 1 - Math.abs(i - this.pos));
+      hs[i] = ROW_H + (slot - ROW_H) * es[i];
+    }
+    const tops = new Array(n);
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      tops[i] = acc;
+      acc += hs[i];
+    }
 
-    // Aktif kart dikeyde ortalanır; referans noktası ana satırın ortası.
-    const anchor = h / 2 + (above - below) / 2;
-    const step = mainH * NEIGHBOR_SCALE[1] + 20;
-    const upFirst = above + NEIGHBOR_GAP + (mainH * NEIGHBOR_SCALE[1]) / 2;
-    const downFirst = below + NEIGHBOR_GAP + (mainH * NEIGHBOR_SCALE[1]) / 2;
+    // Peron hizası: pos tam sayıyken o durağın tepesi peronda durur.
+    const pc = Math.max(0, Math.min(n - 1, this.pos));
+    const fl = Math.min(n - 1, Math.floor(pc));
+    let pointer = tops[fl] + (pc - fl) * hs[fl];
+    pointer += (this.pos - pc) * ROW_H; // uçlarda lastik etkisi
+    const offset = SIDE * ROW_H - pointer;
 
     for (let i = 0; i < n; i++) {
       const node = this.items[i];
-      const o = i - this.pos;
-      const d = Math.abs(o);
-      if (d > 4.5) {
+      const y = tops[i] + offset;
+      if (y + hs[i] < -ROW_H || y > H + ROW_H) {
         node.style.visibility = 'hidden';
         continue;
       }
-      const first = o < 0 ? upFirst : downFirst;
-      const dist = d <= 1 ? d * first : first + (d - 1) * step;
-      const y = anchor + (o < 0 ? -dist : dist);
-      const scale = lerpTable(NEIGHBOR_SCALE, d);
-      const alpha = lerpTable(NEIGHBOR_ALPHA, d);
-      const m = this.metrics[i];
-
       node.style.visibility = 'visible';
-      node.style.transformOrigin = `50% ${m.above}px`;
-      node.style.transform = `translate3d(0, ${(y - m.above).toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
-      node.style.opacity = alpha.toFixed(3);
-      node.style.zIndex = String(100 - Math.round(d * 10));
-      node.style.setProperty('--detail', Math.max(0, 1 - d * 2).toFixed(3));
-      node.classList.toggle('is-active', d < 0.5);
+      node.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+      node.style.height = `${hs[i].toFixed(1)}px`;
+      node.style.setProperty('--e', es[i].toFixed(3));
+      node.classList.toggle('is-active', es[i] > 0.5);
+      node.classList.toggle('is-first', i === 0);
+      node.classList.toggle('is-last', i === n - 1);
     }
 
     const idx = this.index;
@@ -161,7 +159,7 @@ export class Wheel {
 
     let pos = g.startPos - dy / DRAG_PX_PER_ITEM;
     const max = this.items.length - 1;
-    if (pos < 0) pos = pos * 0.35;               // uçlarda lastik etkisi
+    if (pos < 0) pos *= 0.35;
     else if (pos > max) pos = max + (pos - max) * 0.35;
     this.pos = pos;
     g.samples.push({ t: e.timeStamp, pos });
@@ -184,7 +182,6 @@ export class Wheel {
       return;
     }
 
-    // Son ~100 ms'deki hızdan atalet hesapla.
     const now = e.timeStamp;
     const recent = g.samples.filter((s) => now - s.t < 100);
     let v = 0;
@@ -193,8 +190,7 @@ export class Wheel {
       const b = recent[recent.length - 1];
       if (b.t > a.t) v = (b.pos - a.pos) / (b.t - a.t);
     }
-    const projected = this.pos + v * MOMENTUM_MS;
-    this._animateTo(Math.round(projected));
+    this._animateTo(Math.round(this.pos + v * MOMENTUM_MS));
   }
 
   _wheel(e) {
@@ -216,7 +212,7 @@ export class Wheel {
       this.render();
       return;
     }
-    const duration = Math.min(700, 220 + dist * 110);
+    const duration = Math.min(750, 280 + dist * 120);
     const start = performance.now();
     const tick = (now) => {
       const k = Math.min(1, (now - start) / duration);
