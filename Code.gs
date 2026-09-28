@@ -268,7 +268,7 @@ function finishSession_(req) {
     }
 
     // 4) seans sayfasına tek satır.
-    seansWritten = writeRows_(seans, [buildSeansRow_(seans, tarih, seansIn, tz)], false);
+    seansWritten = writeRows_(seans, [buildSeansRow_(seans, tarih, seansIn, tz)], true); // en yeni üstte
     SpreadsheetApp.flush();
     if (countDateInColumn_(seans.sheet, seansTarihCol, tarih, tz) !== 1) {
       throw appError_('WRITE_MISMATCH', 'seans satırı doğrulanamadı.');

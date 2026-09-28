@@ -1,10 +1,10 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=4';
-import { Wheel } from './wheel.js?v=4';
+import * as data from './data.js?v=5';
+import { Wheel } from './wheel.js?v=5';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '4';
+export const APP_VERSION = '5';
 
 const $ = (id) => document.getElementById(id);
 
@@ -97,10 +97,53 @@ function esc(s) {
 
 const setDist = (s) => (Number(s.tekrar) || 1) * (Number(s.mesafe) || 0);
 
+// Blok renkleri (Gece Havuzu). ink: rozet/şerit üzerindeki yazı rengi.
+const BLOKLAR = {
+  WU: { ad: 'Isınma', renk: '#2563EB', ink: '#ffffff' },
+  PS: { ad: 'Hazırlık', renk: '#7C3AED', ink: '#ffffff' },
+  MS: { ad: 'Ana set', renk: '#F97316', ink: '#1c0a00' },
+  AS: { ad: 'Ek set', renk: '#FACC15', ink: '#1f1800' },
+  CD: { ad: 'Soğuma', renk: '#14B8A6', ink: '#03201c' },
+};
+const BLOK_DIGER = { ad: '', renk: '#475569', ink: '#ffffff' };
+const blokOf = (s) => BLOKLAR[String(s.blok || '').trim().toUpperCase()] || BLOK_DIGER;
+
+/** "01:30", "1:02:03", "00:22.7" → saniye; boş/geçersiz → 0. */
+function parseSec(v) {
+  const m = String(v || '').trim().match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?(?:[.,](\d+))?$/);
+  if (!m) return 0;
+  const frac = m[4] ? Number(`0.${m[4]}`) : 0;
+  return m[3] !== undefined
+    ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) + frac
+    : Number(m[1]) * 60 + Number(m[2]) + frac;
+}
+
+/** Saniye → "2:30" veya "1:05:00". */
+function fmtDur(sec) {
+  const t = Math.round(sec);
+  const h = Math.floor(t / 3600);
+  const mm = Math.floor(t / 60) % 60;
+  return h ? `${h}:${pad2(mm)}:${pad2(t % 60)}` : `${mm}:${pad2(t % 60)}`;
+}
+
+/** Plan'daki "Set Süre" ile aynı hesap: tekrar × (hedef + dinlen). */
+const setTime = (s) => (Number(s.tekrar) || 1) * (parseSec(s.hedef) + parseSec(s.dinlen));
+
+/** Her set için yığımlı mesafe ve süre (program sırasıyla). */
+function cumulative(sets) {
+  let d = 0;
+  let t = 0;
+  return sets.map((s) => {
+    d += setDist(s);
+    t += setTime(s);
+    return { dist: d, time: t };
+  });
+}
+
 function setTitle(s) {
   const tekrar = Number(s.tekrar) || 1;
   const stil = s.stil ? ` ${s.stil}` : '';
-  return tekrar > 1 ? `${tekrar} × ${s.mesafe}${stil}` : `${s.mesafe}${stil}`;
+  return `${tekrar} × ${s.mesafe}${stil}`;
 }
 
 const setKey = (s, i) => (s.sira == null || s.sira === '' ? `i${i}` : String(s.sira));
@@ -504,29 +547,47 @@ function resumeSession() {
 // Program ekranı
 // ---------------------------------------------------------------------------
 
-function renderItem(node, s, i) {
+// Kart düzeni:
+//   şerit : blok rengi, blok adı, set no
+//   1. satır: Tekrar × Mesafe Stil  Tür
+//   2. satır: Açıklama
+//   3. satır: Hedef · Dinlen · Alet
+//   4. satır: Mesafe set / yığımlı · Süre set / yığımlı (küçük)
+function renderItem(node, s, i, cum) {
   const k = setKey(s, i);
   const isDone = Boolean(state.session.done[k]);
   const r = state.session.results[k] || {};
-  const blok = String(s.blok || '').toUpperCase();
-  const line2 = [s.tur, s.alet].filter(Boolean).join(' · ');
+  const blok = String(s.blok || '').trim().toUpperCase();
+  const b = blokOf(s);
+  const chip = (label, value) => `<div class="w-chip"><small>${label}</small><b>${esc(value)}</b></div>`;
+  const chips = [
+    s.hedef ? chip('HEDEF', s.hedef) : '',
+    s.dinlen ? chip('DİNLEN', s.dinlen) : '',
+    s.alet ? chip('ALET', s.alet) : '',
+  ].join('');
+  const c = cum[i];
 
   node.className = `w-item${isDone ? ' is-done' : ''}`;
+  node.style.setProperty('--blok', b.renk);
+  node.style.setProperty('--blok-ink', b.ink);
   node.innerHTML = `
     <div class="w-top">
-      ${blok ? `<span class="badge badge-${esc(blok)}">${esc(blok)}</span>` : ''}
-      <span class="w-no">Set ${i + 1}</span>
-      ${isDone ? '<span class="w-status">✓ Tamamlandı</span>' : ''}
+      <span class="w-blok">${esc(blok)}${b.ad ? ` · ${esc(b.ad.toLocaleUpperCase('tr'))}` : ''}</span>
+      <span class="w-no">${isDone ? '✓ ' : ''}Set ${i + 1}</span>
     </div>
-    <div class="w-main"><span class="w-check">✓</span><span class="w-title">${esc(setTitle(s))}</span></div>
+    <div class="w-main">
+      <span class="w-dot"></span><span class="w-check">✓</span>
+      <span class="w-title">${esc(setTitle(s))}</span>
+      ${s.tur ? `<span class="w-tur">${esc(s.tur)}</span>` : ''}
+    </div>
     <div class="w-detail">
-      ${line2 ? `<div class="w-line2">${esc(line2)}</div>` : ''}
-      ${s.hedef || s.dinlen ? `<div class="w-line3">
-        ${s.hedef ? `<span><small>Hedef</small> ${esc(s.hedef)}</span>` : ''}
-        ${s.dinlen ? `<span><small>Dinlen</small> ${esc(s.dinlen)}</span>` : ''}
-      </div>` : ''}
       ${s.aciklama ? `<div class="w-desc">${esc(s.aciklama)}</div>` : ''}
+      ${chips ? `<div class="w-chips">${chips}</div>` : ''}
       ${r.gercek ? `<div class="w-result">⏱ Gerçek ${esc(r.gercek)}</div>` : ''}
+      <div class="w-sums">
+        <span>Mesafe ${fmtNum(setDist(s))} / ${fmtNum(c.dist)}</span>
+        <span>Süre ${fmtDur(setTime(s))} / ${fmtDur(c.time)}</span>
+      </div>
     </div>`;
 }
 
@@ -546,9 +607,10 @@ function openProgram() {
       },
     });
   }
+  const cum = cumulative(state.plan.setler);
   const nodes = state.plan.setler.map((s, i) => {
     const node = document.createElement('div');
-    renderItem(node, s, i);
+    renderItem(node, s, i, cum);
     return node;
   });
   state.wheel.setItems(nodes, state.session.pos || 0);
@@ -558,20 +620,28 @@ function openProgram() {
 
 function refreshItem(i) {
   const node = state.wheel.items[i];
-  if (node) renderItem(node, state.plan.setler[i], i);
+  if (node) renderItem(node, state.plan.setler[i], i, cumulative(state.plan.setler));
   state.wheel.layout();
 }
 
 function updateProgram() {
   if (!state.session || !state.plan) return;
-  const total = state.plan.setler.length;
-  const totalDist = state.plan.setler.reduce((a, s) => a + setDist(s), 0);
+  const sets = state.plan.setler;
+  const total = sets.length;
+  const totalDist = sets.reduce((a, s) => a + setDist(s), 0);
+  const totalTime = sets.reduce((a, s) => a + setTime(s), 0);
   const dist = doneDistance();
+  const time = sets.reduce((a, s, i) => a + (state.session.done[setKey(s, i)] ? setTime(s) : 0), 0);
   const pct = totalDist ? Math.round((dist / totalDist) * 100) : 0;
 
   $('prog-count').textContent = `${doneCount()} / ${total}`;
   $('prog-dist').textContent = `${fmtNum(dist)} / ${fmtNum(totalDist)} m · %${pct}`;
-  $('prog-bar').style.width = `${pct}%`;
+  $('prog-time').textContent = totalTime ? `Hedef ${fmtDur(time)} / ${fmtDur(totalTime)}` : '';
+  // İlerleme çubuğu: her set bir parça, blok renginde; yapılmayanlar soluk.
+  $('prog-bar').innerHTML = sets.map((s, i) => {
+    const on = state.session.done[setKey(s, i)] ? ' is-on' : '';
+    return `<span class="seg${on}" style="flex-grow:${Math.max(1, setDist(s))};background:${blokOf(s).renk}"></span>`;
+  }).join('');
   updateClock();
   updateControls();
 }
@@ -1123,6 +1193,13 @@ function wire() {
 
   $('done-back').addEventListener('click', () => showDays());
   $('app-version').textContent = `Sürüm ${APP_VERSION}`;
+  // Yazı tipi yüklenince ölçüler değişir: tekerleği ve kronometreyi yeniden ölç.
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      if (state.wheel) state.wheel.layout();
+      if (state.screen === 'stopwatch') fitStopwatch();
+    });
+  }
 
   // Beklenmeyen bir hata sessiz kalmasın ve ekranı kilitlemesin.
   const report = (msg) => {

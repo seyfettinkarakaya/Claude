@@ -1,16 +1,18 @@
 /* YüzmeSK — havuz kenarı: koyu zemin, yüksek kontrast, büyük dokunma hedefleri. */
 
 :root {
-  --bg: #000;
-  --panel: #10161d;
-  --panel-2: #1a232d;
-  --line: #2a3643;
-  --text: #fff;
-  --muted: #9fb0c0;
-  --accent: #33d1ff;
+  /* Gece Havuzu */
+  --bg: #061726;
+  --panel: #0e2a42;
+  --panel-2: #16364f;
+  --line: #1d4563;
+  --text: #f2f7fb;
+  --muted: #8fb0c8;
+  --accent: #38BDF8;
+  --num: 'Barlow Condensed', -apple-system, system-ui, sans-serif;
   --go: #22c55e;
   --done: #3ddc84;
-  --danger: #ff4d4f;
+  --danger: #EF4444;
   --warn: #ffb020;
   --touch: 64px;
   --radius: 18px;
@@ -29,7 +31,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Barlow', -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
   font-size: 18px;
   line-height: 1.3;
   /* Sayfa yenileme (pull-to-refresh) ve lastik kaydırmayı kapat. */
@@ -255,7 +257,7 @@ button {
 .day-card:active { background: var(--panel-2); }
 .day-date { font-size: 28px; font-weight: 700; }
 .day-meta { font-size: 21px; color: var(--muted); }
-.day-card.is-today { border-color: var(--accent); background: #062433; }
+.day-card.is-today { border-color: var(--accent); background: #0b3450; }
 .day-card.is-today .day-meta { color: #cdefff; }
 .day-card.is-past { opacity: 0.45; }
 
@@ -297,8 +299,10 @@ button {
 
 .prog-clock {
   flex: 1;
-  font-size: 38px;
+  font-family: var(--num);
+  font-size: 42px;
   font-weight: 700;
+  letter-spacing: 1px;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
@@ -307,16 +311,30 @@ button {
 
 .prog-count {
   min-width: var(--touch);
-  font-size: 30px;
+  font-family: var(--num);
+  font-size: 32px;
   font-weight: 700;
+  color: #9cc3de;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-.prog-progress { display: flex; align-items: center; gap: 12px; margin: 8px 2px 0; }
-.bar { flex: 1; height: 12px; border-radius: 6px; background: var(--panel-2); overflow: hidden; }
-.bar-fill { height: 100%; width: 0; background: var(--done); transition: width 0.3s; }
-.prog-dist { font-size: 18px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Her set bir parça, blok renginde; yapılmayanlar soluk. */
+.seg-bar { display: flex; gap: 3px; height: 12px; margin: 10px 2px 0; }
+.seg-bar .seg { min-width: 4px; border-radius: 6px; opacity: 0.28; transition: opacity 0.3s; }
+.seg-bar .seg.is-on { opacity: 1; }
+
+.prog-sums {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 6px 2px 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 .wheel {
   position: relative;
@@ -324,28 +342,28 @@ button {
   min-height: 0;
   overflow: hidden;
   touch-action: none;
-  -webkit-mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent);
 }
 
 .w-item {
   --detail: 1;
+  --blok: #475569;
+  --blok-ink: #fff;
   position: absolute;
   top: 0;
   left: 12px;
   right: 12px;
-  padding: 14px 18px 18px;
-  border-radius: 26px;
-  border: 2px solid transparent;
+  padding: 0 0 16px;
+  border-radius: 24px;
+  overflow: hidden;
   will-change: transform, opacity;
 }
 
 .w-item.is-active {
   background: var(--panel);
-  border-color: var(--line);
+  box-shadow: 0 0 0 2px var(--blok);
 }
-
-.w-item.is-active.is-done { border-color: var(--done); }
 
 .w-top, .w-detail { opacity: var(--detail); }
 
@@ -353,76 +371,95 @@ button {
 .w-item:not(.is-active) { pointer-events: none; }
 .w-item:not(.is-active) .w-main { pointer-events: auto; }
 
+/* Blok şeridi */
 .w-top {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  min-height: 32px;
-  margin-bottom: 4px;
-  font-size: 18px;
-  color: var(--muted);
+  padding: 9px 18px;
+  background: var(--blok);
+  color: var(--blok-ink);
 }
 
-.badge {
-  padding: 3px 10px;
-  border-radius: 8px;
-  background: var(--panel-2);
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-}
+.w-blok { font-size: 17px; font-weight: 800; letter-spacing: 1.5px; }
+.w-no { font-size: 16px; font-weight: 700; }
 
-.badge-WU { background: #1d4ed8; }
-.badge-PS { background: #7c3aed; }
-.badge-MS { background: #dc2626; }
-.badge-AS { background: #d97706; }
-.badge-CD { background: #0d9488; }
-
-.w-status { margin-left: auto; color: var(--done); font-weight: 700; }
-
+/* 1. satır: Tekrar × Mesafe Stil  Tür */
 .w-main {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: center;
-  gap: 12px;
-  font-size: 48px;
-  font-weight: 800;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
+  column-gap: 12px;
+  padding: 12px 16px 0;
+  font-family: var(--num);
+  line-height: 1.05;
   text-align: center;
 }
 
-.w-check { display: none; color: var(--done); }
-.w-item.is-done .w-check { display: inline; }
-.w-item.is-done .w-title { text-decoration: line-through; text-decoration-thickness: 4px; text-decoration-color: var(--done); }
-.w-item.is-done:not(.is-active) { color: var(--done); }
+.w-title { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.w-tur { font-size: 32px; font-weight: 700; color: #cfe3f2; }
 
-.w-detail { text-align: center; }
-.w-line2 { margin-top: 8px; font-size: 28px; font-weight: 600; color: #d6e6f5; }
-
-.w-line3 {
-  display: flex;
-  justify-content: center;
-  gap: 26px;
-  margin-top: 8px;
-  font-size: 30px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+.w-dot {
+  display: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--blok);
+  align-self: center;
 }
 
-.w-line3 small { font-size: 17px; font-weight: 600; color: var(--muted); margin-right: 4px; }
+.w-item:not(.is-active) .w-dot { display: inline-block; }
+.w-check { display: none; color: var(--done); font-size: 44px; font-weight: 800; }
+.w-item.is-done .w-check { display: inline; }
+.w-item.is-done .w-dot { display: none; }
+.w-item.is-done .w-title { text-decoration: line-through; text-decoration-thickness: 4px; text-decoration-color: var(--done); }
+.w-item.is-done:not(.is-active) { color: #7ee2a0; }
 
+.w-detail { padding: 0 16px; text-align: center; }
+
+/* 2. satır: açıklama (uzunsa sarar, kırpılmaz) */
 .w-desc {
   margin-top: 10px;
-  font-size: 21px;
-  color: #c3d2df;
-  /* Uzun açıklama sarar, kırpılmaz. */
+  font-size: 25px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: #d9e8f3;
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
+/* 3. satır: Hedef · Dinlen · Alet */
+.w-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 12px; }
+
+.w-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 96px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+
+.w-chip small { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: var(--muted); }
+.w-chip b { font-family: var(--num); font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+
 .w-result { margin-top: 10px; font-size: 22px; font-weight: 700; color: var(--accent); }
+
+/* 4. satır: set / yığımlı (küçük) */
+.w-sums {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 12px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 
 .prog-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 8px 12px 10px; }
 .btn-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -431,11 +468,12 @@ button {
 @media (max-width: 380px) {
   .btn-row .btn, .sw-buttons .btn { font-size: 18px; }
   .btn-xl { font-size: 24px; }
+  .w-title { font-size: 46px; }
 }
 
 /* --- kronometre --------------------------------------------------------- */
 
-.sw { background: #000; }
+.sw { background: var(--bg); }
 
 .sw-strip {
   display: flex;
@@ -459,7 +497,7 @@ button {
   overflow: hidden;
   border-radius: 24px;
   margin: 0 8px;
-  background: #05090d;
+  background: #041120;
 }
 
 .sw-time {

@@ -129,7 +129,7 @@ kaydedilmez (boş ≠ 0); seçili değere tekrar dokunmak seçimi kaldırır. MS
    Satırlar başlığın hemen altına (2. satırdan itibaren) eklenir, böylece en yeni seans
    en üstte durur; yeni satırlar mevcut ilk veri satırının biçimini alır.
 3. Yazılan satır sayısı doğrulanır; tutmazsa **WRITE_MISMATCH**.
-4. `seans` sayfasına tek satır eklenir.
+4. `seans` sayfasına tek satır eklenir (o da 2. satıra, en yeni en üstte).
 5. Ancak 2–4 başarılıysa o tarihin **tüm** Plan satırları silinir.
 
 2–4 arasında bir hata olursa bu çağrının eklediği satırlar geri alınır ve Plan'a

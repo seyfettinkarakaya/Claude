@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>YüzmeSK</title>
   <meta name="description" content="Havuz kenarı idman programı">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#061726">
   <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -15,8 +15,11 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css?v=4">
-  <script type="module" src="app.js?v=4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="style.css?v=5">
+  <script type="module" src="app.js?v=5"></script>
 </head>
 <body>
 
@@ -66,9 +69,10 @@
         <div class="prog-clock" id="prog-clock">00:00</div>
         <div class="prog-count" id="prog-count">0 / 0</div>
       </div>
-      <div class="prog-progress">
-        <div class="bar"><div class="bar-fill" id="prog-bar"></div></div>
-        <div class="prog-dist" id="prog-dist">0 / 0 m</div>
+      <div class="seg-bar" id="prog-bar"></div>
+      <div class="prog-sums">
+        <span id="prog-dist">0 / 0 m</span>
+        <span id="prog-time"></span>
       </div>
     </header>
     <div class="wheel" id="wheel"></div>

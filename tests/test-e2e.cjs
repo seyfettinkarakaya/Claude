@@ -25,6 +25,7 @@ const server = http.createServer((req, res) => {
   let offline = false; let calls = [];
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 440, height: 956 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+  await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await ctx.route('https://script.test/**', async route => {
     if (offline) return route.abort('internetdisconnected');
     const body = JSON.parse(route.request().postData()); calls.push(body.action);
@@ -63,14 +64,40 @@ const server = http.createServer((req, res) => {
     const a = document.querySelector('.w-item.is-active');
     const r = a.getBoundingClientRect(); const w = document.getElementById('wheel').getBoundingClientRect();
     const btns = [...document.querySelectorAll('#screen-program button')].map(b => { const q = b.getBoundingClientRect(); return [b.id || b.textContent, Math.round(q.width), Math.round(q.height)]; });
-    return { title: a.querySelector('.w-title').textContent, font: parseFloat(getComputedStyle(a.querySelector('.w-main')).fontSize), top: r.top, bottom: r.bottom, wTop: w.top, wBottom: w.bottom, btns, count: document.getElementById('prog-count').textContent, dist: document.getElementById('prog-dist').textContent, docW: document.documentElement.scrollWidth };
+    return { title: a.querySelector('.w-title').textContent, font: parseFloat(getComputedStyle(a.querySelector('.w-title')).fontSize), top: r.top, bottom: r.bottom, wTop: w.top, wBottom: w.bottom, btns, count: document.getElementById('prog-count').textContent, dist: document.getElementById('prog-dist').textContent, docW: document.documentElement.scrollWidth };
   });
   console.log('Program:', JSON.stringify(info));
-  assert.strictEqual(info.title, '200 FR'); assert.ok(info.font >= 40);
+  assert.strictEqual(info.title, '1 × 200 FR'); assert.ok(info.font >= 40);
   assert.ok(info.top >= info.wTop && info.bottom <= info.wBottom, 'aktif kart tekerleğe sığmalı');
   for (const [n, w, h] of info.btns) assert.ok(w >= 60 && h >= 60, `dokunma hedefi küçük: ${n} ${w}x${h}`);
   assert.strictEqual(info.count, '0 / 8'); assert.ok(info.docW <= 440);
+  // Üstte toplam hedef süre; kartta 4. satır set/yığımlı; blok renkli şerit
+  const top = await page.evaluate(() => ({
+    time: document.getElementById('prog-time').textContent,
+    segs: document.querySelectorAll('#prog-bar .seg').length,
+    sums: document.querySelector('.w-item.is-active .w-sums').textContent.replace(/\s+/g, ' ').trim(),
+    band: getComputedStyle(document.querySelector('.w-item.is-active .w-top')).backgroundColor,
+    order: [...document.querySelector('.w-item.is-active .w-detail').children].map(e => e.className),
+  }));
+  console.log('Üst/kart:', JSON.stringify(top));
+  assert.match(top.time, /^Hedef 0:00 \/ /); assert.strictEqual(top.segs, 8);
+  assert.strictEqual(top.sums, 'Mesafe 200 / 200 Süre 1:50 / 1:50');
+  assert.strictEqual(top.band, 'rgb(37, 99, 235)');
+  assert.deepStrictEqual(top.order, ['w-desc', 'w-chips', 'w-sums']);
 
+  const activeIdx = () => page.evaluate(() => [...document.querySelectorAll('.w-item')].findIndex(e => e.classList.contains('is-active')));
+  const goTo = async (target) => {
+    const r = await page.$eval('#wheel', e => { const b = e.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; });
+    await page.mouse.move(r.x, r.y);
+    for (let k = 0; k < 20; k++) {
+      const cur = await activeIdx();
+      if (cur === target) break;
+      await page.mouse.wheel(0, cur > target ? -60 : 60);
+      await page.waitForTimeout(450);
+    }
+    await page.waitForTimeout(400);
+    assert.strictEqual(await activeIdx(), target);
+  };
   // Başla, tamamla → sonraki sete geç
   await page.click('#btn-session');
   assert.strictEqual(await page.textContent('#btn-session'), 'İdmanı Bitir');
@@ -87,11 +114,11 @@ const server = http.createServer((req, res) => {
   console.log('Sürükleme sonrası aktif indeks:', idxAfterDrag);
   assert.ok(idxAfterDrag >= 3, 'sürükleme en az 2 set ilerletmeli');
   // Uzun açıklama kırpılmadan sarılıyor mu (3. set)?
-  await page.click('.w-item:nth-child(3) .w-main'); await page.waitForTimeout(900);
+  await goTo(2);
   const desc = await page.$eval('.w-item.is-active .w-desc', e => ({ sh: e.scrollHeight, ch: e.clientHeight, lines: Math.round(e.clientHeight / parseFloat(getComputedStyle(e).lineHeight || 25)) }));
   assert.ok(desc.sh <= desc.ch + 1, 'açıklama kırpılmamalı');
   // İşaret kaldır
-  await page.click('.w-item:nth-child(1) .w-main'); await page.waitForTimeout(900);
+  await goTo(0);
   assert.strictEqual(await page.textContent('#btn-complete'), 'İşareti Kaldır');
   await page.click('#btn-complete');
   assert.strictEqual(await page.textContent('#prog-count'), '0 / 8');
@@ -99,7 +126,7 @@ const server = http.createServer((req, res) => {
   await page.waitForTimeout(900);
 
   // Kronometre
-  await page.click('.w-item:nth-child(4) .w-main'); await page.waitForTimeout(900);
+  await goTo(3);
   await page.click('#btn-stopwatch');
   await page.waitForSelector('#screen-stopwatch:not([hidden])');
   const sw = await page.evaluate(() => { const d = document.getElementById('sw-display').getBoundingClientRect(); const t = document.getElementById('sw-time').getBoundingClientRect(); return { ratio: d.height / innerHeight, tw: t.width, th: t.height, dw: d.width, laps: document.getElementById('sw-lap').getBoundingClientRect().height }; });
@@ -157,7 +184,7 @@ const server = http.createServer((req, res) => {
   offline = true;
   await page.reload(); // uçak modunda yeniden açılış
   await page.waitForSelector('#screen-program:not([hidden])');
-  assert.strictEqual(await page.textContent('.w-item .w-title'), '400 FR');
+  assert.strictEqual(await page.textContent('.w-item .w-title'), '1 × 400 FR');
   await page.click('#btn-session');
   await page.waitForSelector('#screen-form:not([hidden])');
   await page.click('#form-save');
@@ -205,7 +232,7 @@ const server = http.createServer((req, res) => {
   await page.click('#modal-actions button:has-text("Seansı kapat")');
   await page.waitForSelector('#screen-days:not([hidden])');
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 4');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 5');
 
   // Dar ekran: yatay taşma olmamalı
   await page.setViewportSize({ width: 320, height: 568 });
