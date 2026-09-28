@@ -26,6 +26,10 @@ bekleyen işlerin tamamı birlikte güncellenir.
   - Etiketler (HEDEF, ŞU AN…) küçük kalır. Süre sütunu genişlediği için hat ve kart
     ~20 px sağa kayar.
 
+- [ ] **Üst başlık iki bloğa:** geri düğmesi + solda **SÜRE** `geçen / toplam hedef`
+  (ör. 24:19 / 25:45, toplam hedef sarı), sağda **MESAFE** `yapılan / toplam`
+  (ör. 400 / 1.300). Üç parçalı "Şu an / Mesafe / Son durak" kalkar; rakamlar ~36 px.
+
 ## İzlenecek
 
 - [ ] Telefondaki tarih önbelleğinin neden bozulduğu kesin bulunamadı. Sürüm 3+
