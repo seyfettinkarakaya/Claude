@@ -12,6 +12,18 @@ bekleyen işlerin tamamı birlikte güncellenir.
   - Kısa, kararsız sürüklemeler (durağın yarısından az) geri yerine oturur.
   - Oturma animasyonu biraz yavaşlar, "istasyona yanaşma" hissi verir.
 
+- [ ] **Presbiyopi (+1,75) için okunabilirlik** (görsel: şimdiki / öneri karşılaştırması)
+  - Durak süreleri 15 → 22 px, kalın, açık gri (yüksek kontrast).
+  - Aktif durak süresi 14 → 24 px (sarı); altındaki set süresi 10 → 16 px.
+  - Durak adları 17 → 20 px, daha açık renk.
+  - Üstteki değerler (Şu an / Mesafe / Son durak) 30 → 32 px.
+  - Kart altı: Mesafe 15 → 19 px; **Alet değeri 17 → 24 px**, "Alet" etiketi okunur kalır.
+  - **Hedef / Dinlen değerleri 46 → 60 px.**
+  - Kartın ortası açıklamaya bırakılır; uzun açıklamada yazı gerekirse otomatik küçülür,
+    kesilmez.
+  - Etiketler (HEDEF, ŞU AN…) küçük kalır. Süre sütunu genişlediği için hat ve kart
+    ~20 px sağa kayar.
+
 ## İzlenecek
 
 - [ ] Telefondaki tarih önbelleğinin neden bozulduğu kesin bulunamadı. Sürüm 3+
