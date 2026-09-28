@@ -34,6 +34,8 @@ bekleyen işlerin tamamı birlikte güncellenir.
   - Üstte haftanın 7 günü (Pzt–Paz). **Sağa/sola kaydırınca** önceki/sonraki haftaya geçer;
     başlıkta hafta aralığı (ör. "28 Eyl – 4 Eki") ve o haftanın özeti (idman sayısı · toplam m).
   - İdman olan günlerde nokta; bugün çerçeveli; seçili gün turkuaz dolu.
+  - **Güne veya alttaki gün kartlarına dokunmak sadece seçer**, idmana girmez ve program
+    yüklenmez. İdmana yalnızca alttaki **"… idmanını aç"** düğmesiyle girilir.
   - Bir güne dokununca altta **o günün büyük kartı** açılır: tarih, blok renkli hat önizlemesi,
     SET · MESAFE · ANA SET, hedef süre; altında haftanın diğer planlı günleri.
   - Planı olmayan gün seçilirse: "Bu gün için plan yok" + haftanın planlı günleri.
