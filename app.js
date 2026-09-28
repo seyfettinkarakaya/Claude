@@ -1,10 +1,10 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=6';
-import { Wheel } from './wheel.js?v=6';
+import * as data from './data.js?v=7';
+import { Wheel } from './wheel.js?v=7';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '6';
+export const APP_VERSION = '7';
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,6 +39,10 @@ const state = {
   doneTimer: null,
   sheet: null,      // kronometre Kaydet paneli durumu
   sentDates: new Set(), // bu açılışta kuyruktan gönderilen günler
+  selDate: null,    // gün seçiminde seçili gün (YYYY-MM-DD)
+  selKeep: false,   // kullanıcı bir gün seçtiyse yenilemede korunur
+  weekStart: null,  // gösterilen haftanın pazartesisi
+  suppressDayClick: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -263,6 +267,9 @@ function endSessionLocally() {
   const tarih = state.session && state.session.tarih;
   state.session = null;
   state.plan = null;
+  // Biten gün listeden kalkar; gün seçimi yeniden en uygun güne otursun.
+  state.selDate = null;
+  state.selKeep = false;
   data.clearSession();
   try {
     if (tarih) data.forgetDate(tarih);
@@ -299,7 +306,7 @@ async function saveSetup() {
   btn.textContent = 'Bağlanıyor…';
   try {
     await data.getDates();
-    showDays({ auto: true });
+    showDays();
   } catch (err) {
     msg.textContent = err.code === 'AUTH'
       ? 'Anahtar hatalı. Script Properties\'teki TOKEN ile aynı olmalı.'
@@ -313,10 +320,30 @@ async function saveSetup() {
 }
 
 // ---------------------------------------------------------------------------
-// Gün seçimi
+// Gün seçimi: hafta takvimi
+//
+// Üstte haftanın 7 günü; sağa/sola kaydırınca hafta değişir. Bir güne (ya da
+// alttaki gün satırlarına) dokunmak yalnızca seçer; idmana yalnızca alttaki
+// "… idmanını aç" düğmesiyle girilir.
 // ---------------------------------------------------------------------------
 
-async function showDays({ auto = false } = {}) {
+const AY_KISA = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+
+const parseKey = (k) => {
+  const [y, m, d] = k.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+const keyOf = (dt) => `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+const addDays = (k, n) => {
+  const dt = parseKey(k);
+  dt.setDate(dt.getDate() + n);
+  return keyOf(dt);
+};
+/** Haftanın pazartesisi. */
+const mondayOf = (k) => addDays(k, -((parseKey(k).getDay() + 6) % 7));
+
+async function showDays() {
   show('days');
   state.dates = data.getCachedDates();
   state.datesInfo = { loading: true };
@@ -328,15 +355,10 @@ async function showDays({ auto = false } = {}) {
     const r = await data.getDates();
     state.dates = r.dates;
     state.datesInfo = { offline: r.fromCache };
-    renderDays();
-    const list = visibleDates();
-    if (auto && !state.session && list.length === 1 && state.screen === 'days') {
-      openDate(list[0].tarih);
-    }
   } catch (err) {
     state.datesInfo = { error: err };
-    renderDays();
   }
+  renderDays();
 }
 
 /** Kuyrukta bekleyen (kaydedilmiş ama gönderilmemiş) günler listede görünmez. */
@@ -345,11 +367,59 @@ function visibleDates() {
   return (state.dates || []).filter((d) => !hidden.has(d.tarih));
 }
 
-function renderDays() {
+/** Seçim yoksa bugün; bugün plan yoksa en yakın planlı gün (önce ileri). */
+function ensureSelection(byDate) {
   const today = todayKey();
+  if (state.selDate && (byDate.has(state.selDate) || state.selKeep)) return;
+  const keys = [...byDate.keys()].sort();
+  let pick = today;
+  if (!byDate.has(today) && keys.length) {
+    pick = keys.find((k) => k >= today) || keys[keys.length - 1];
+  }
+  state.selDate = pick;
+  state.weekStart = mondayOf(pick);
+}
+
+/** Gün kartı önizlemesi için setler: sunucudan (yeni Code.gs) ya da cihazdaki programdan. */
+function previewSets(d) {
+  if (d && Array.isArray(d.setler) && d.setler.length) return d.setler;
+  const plan = d && data.getCachedPlan(d.tarih);
+  if (!plan) return null;
+  return plan.setler.map((s) => ({ blok: s.blok, mesafe: setDist(s), sure: setTime(s) }));
+}
+
+function hedefSureOf(d) {
+  if (d && d.hedefSure) return d.hedefSure;
+  const sets = previewSets(d);
+  return sets ? sets.reduce((a, s) => a + (s.sure || 0), 0) : 0;
+}
+
+const blokRenk = (b) => blokOf({ blok: b }).renk;
+
+/** Günün programı küçük bir metro hattı olarak (blok renginde, mesafeye oranlı). */
+function metroSvg(sets) {
+  const W = 360;
+  const tot = sets.reduce((a, s) => a + Math.max(1, s.mesafe || 0), 0) || 1;
+  let x = 0;
+  const segs = [];
+  const dots = [];
+  for (const s of sets) {
+    const w = (W * Math.max(1, s.mesafe || 0)) / tot;
+    const c = blokRenk(s.blok);
+    segs.push(`<line x1="${(x + 2).toFixed(1)}" y1="14" x2="${(x + w - 2).toFixed(1)}" y2="14" stroke="${c}" stroke-width="6" stroke-linecap="round"/>`);
+    dots.push(`<circle cx="${(x + w / 2).toFixed(1)}" cy="14" r="6.5" fill="#061317" stroke="${c}" stroke-width="3.5"/>`);
+    x += w;
+  }
+  return `<svg class="metro" viewBox="0 0 ${W} 28" preserveAspectRatio="none" aria-hidden="true">${segs.join('')}${dots.join('')}</svg>`;
+}
+
+function miniBar(sets) {
+  return `<div class="mini-bar">${sets.map((s) => `<i style="flex:${Math.max(1, s.mesafe || 0)};background:${blokRenk(s.blok)}"></i>`).join('')}</div>`;
+}
+
+function renderBanners() {
   const info = state.datesInfo;
   const banners = [];
-
   const s = state.session;
   if (s) {
     banners.push(`
@@ -361,7 +431,6 @@ function renderDays() {
         </div>
       </div>`);
   }
-
   const queue = data.getQueue();
   if (queue.length) {
     const err = queue.find((q) => q.lastError);
@@ -377,53 +446,196 @@ function renderDays() {
         </div>
       </div>`);
   }
-
   if (info.offline) {
     banners.push('<div class="banner">Çevrimdışı — son yüklenen liste gösteriliyor.</div>');
   } else if (info.error) {
     banners.push(`<div class="banner banner-err">${esc(info.error.message)}${info.error.code === 'AUTH' ? ' Ayarlardan anahtarı kontrol edin.' : ''}</div>`);
   }
   $('days-banners').innerHTML = banners.join('');
+}
 
-  const list = $('days-list');
+function renderDays() {
+  const today = todayKey();
+  const info = state.datesInfo;
   const dates = visibleDates();
+  const byDate = new Map(dates.map((d) => [d.tarih, d]));
+  renderBanners();
+
   if (!state.dates && info.loading) {
-    list.innerHTML = '<p class="empty">Yükleniyor…</p>';
+    $('wk').hidden = true;
+    $('days-hero').innerHTML = '';
+    $('days-list').innerHTML = '<p class="empty">Yükleniyor…</p>';
     $('days-today-bar').hidden = true;
     return;
   }
+  $('wk').hidden = false;
+  ensureSelection(byDate);
+  const ws = state.weekStart;
+
+  // Hafta başlığı ve özeti
+  const weekKeys = Array.from({ length: 7 }, (_, i) => addDays(ws, i));
+  const we = weekKeys[6];
+  const isThisWeek = ws === mondayOf(today);
+  const a = parseKey(ws);
+  const b = parseKey(we);
+  $('wk-title').textContent = isThisWeek ? 'Bu hafta'
+    : `${a.getDate()} ${AY_KISA[a.getMonth()]} – ${b.getDate()} ${AY_KISA[b.getMonth()]}`;
+  $('wk-today').hidden = isThisWeek && state.selDate === today;
+  const planned = weekKeys.filter((k) => byDate.has(k));
+  const weekM = planned.reduce((acc, k) => acc + (byDate.get(k).toplamMesafe || 0), 0);
+  $('wk-sum').textContent = planned.length ? `${planned.length} idman · ${fmtNum(weekM)} m` : 'Plan yok';
+
+  // Günler
+  $('wk-track').innerHTML = weekKeys.map((k) => {
+    const dt = parseKey(k);
+    const cls = ['wd'];
+    if (k === state.selDate) cls.push('on');
+    if (k === today) cls.push('today');
+    if (byDate.has(k)) cls.push('has');
+    if (k < today) cls.push('past');
+    return `<button class="${cls.join(' ')}" data-day="${k}" aria-label="${esc(fmtDateTR(k))}">
+      <small>${GUN_KISA[dt.getDay()]}</small><b>${dt.getDate()}</b><i></i></button>`;
+  }).join('');
+
+  // Seçili günün kartı
+  const sel = state.selDate;
+  const d = byDate.get(sel);
+  const selDt = parseKey(sel);
+  const s = state.session;
+  if (d) {
+    const sets = previewSets(d);
+    const hs = hedefSureOf(d);
+    const ms = sets ? sets.filter((x) => String(x.blok).trim().toUpperCase() === 'MS').reduce((acc, x) => acc + (x.mesafe || 0), 0) : 0;
+    const pill = sel === today ? '● BUGÜN' : (sel < today ? 'GEÇMİŞ PLAN' : GUNLER[selDt.getDay()].toLocaleUpperCase('tr'));
+    $('days-hero').innerHTML = `
+      <div class="hero${sel < today ? ' is-past' : ''}">
+        <div class="hero-top"><span class="hero-pill">${pill}</span>${s && s.tarih === sel ? '<span class="hero-live">DEVAM EDİYOR</span>' : ''}${hs ? `<span class="hero-time">${fmtDur(hs)} hedef</span>` : ''}</div>
+        <div class="hero-date">${selDt.getDate()} ${AYLAR[selDt.getMonth()]} <span>${GUNLER[selDt.getDay()]}</span></div>
+        ${sets ? metroSvg(sets) : ''}
+        <div class="hero-stats">
+          <div><span class="lbl">SET</span><b>${d.setSayisi}</b></div>
+          <div><span class="lbl">MESAFE</span><b>${fmtNum(d.toplamMesafe)}</b></div>
+          <div><span class="lbl">ANA SET</span><b class="ms">${ms ? fmtNum(ms) : '—'}</b></div>
+        </div>
+      </div>`;
+  } else {
+    $('days-hero').innerHTML = `
+      <div class="hero is-empty">
+        <div class="hero-date">${selDt.getDate()} ${AYLAR[selDt.getMonth()]} <span>${GUNLER[selDt.getDay()]}</span></div>
+        <p>Bu gün için plan yok.</p>
+      </div>`;
+  }
+
+  // Haftanın diğer planlı günleri (dokunmak seçer)
+  const others = planned.filter((k) => k !== sel);
+  let list = others.map((k) => {
+    const x = byDate.get(k);
+    const dt = parseKey(k);
+    const sets = previewSets(x);
+    const hs = hedefSureOf(x);
+    return `
+      <button class="day-row${k < today ? ' is-past' : ''}" data-tarih="${k}">
+        <span class="dr-date"><b>${dt.getDate()}</b><small>${AY_KISA[dt.getMonth()].toLocaleUpperCase('tr')}</small></span>
+        <span class="dr-info">
+          <span class="dr-name">${GUNLER[dt.getDay()]}${k === today ? ' · Bugün' : ''}</span>
+          <span class="dr-meta">${x.setSayisi} set · ${fmtNum(x.toplamMesafe)} m${hs ? ` · ${fmtDur(hs)}` : ''}</span>
+          ${sets ? miniBar(sets) : ''}
+        </span>
+      </button>`;
+  }).join('');
   if (!dates.length) {
-    list.innerHTML = `
+    list = `
       <div class="empty">
         <p>Planlanmış idman yok</p>
         <button class="btn btn-primary" data-act="refresh">Yenile</button>
       </div>`;
-    $('days-today-bar').hidden = true;
-    return;
   }
+  $('days-list').innerHTML = list;
 
-  const upcoming = dates.filter((d) => d.tarih >= today);
-  const past = dates.filter((d) => d.tarih < today).reverse();
-  const card = (d, extraCls = '') => `
-    <button class="day-card ${extraCls}" data-tarih="${esc(d.tarih)}">
-      <span class="day-date">${esc(fmtDateTR(d.tarih))}</span>
-      <span class="day-meta">${d.setSayisi} set · ${fmtNum(d.toplamMesafe)} m</span>
-      ${d.tarih === today ? '<span class="pill">BUGÜN</span>' : ''}
-      ${s && s.tarih === d.tarih ? '<span class="pill pill-live">DEVAM EDİYOR</span>' : ''}
-    </button>`;
-
-  let html = upcoming.map((d) => card(d, d.tarih === today ? 'is-today' : '')).join('');
-  if (past.length) {
-    html += '<h2 class="section-title">Geçmiş planlar</h2>';
-    html += past.map((d) => card(d, 'is-past')).join('');
+  // Alt düğme: yalnızca seçili günün planı varsa
+  $('days-today-bar').hidden = !d;
+  if (d) {
+    $('days-cta-text').textContent = s && s.tarih === sel ? 'Seansa devam et'
+      : (sel === today ? 'Bugünün idmanını aç' : `${selDt.getDate()} ${AYLAR[selDt.getMonth()]} idmanını aç`);
   }
-  list.innerHTML = html;
-  $('days-today-bar').hidden = !upcoming.some((d) => d.tarih === today);
+}
+
+function selectDay(k, keepWeek = true) {
+  state.selDate = k;
+  state.selKeep = true;
+  if (!keepWeek || mondayOf(k) !== state.weekStart) state.weekStart = mondayOf(k);
+  renderDays();
+}
+
+function shiftWeek(dir) {
+  const track = $('wk-track');
+  state.weekStart = addDays(state.weekStart, dir * 7);
+  // Yeni haftada planlı bir gün varsa onu, yoksa aynı hafta gününü seç.
+  const byDate = new Set(visibleDates().map((d) => d.tarih));
+  const weekKeys = Array.from({ length: 7 }, (_, i) => addDays(state.weekStart, i));
+  const today = todayKey();
+  state.selDate = weekKeys.includes(today) ? today
+    : (weekKeys.find((k) => byDate.has(k)) || addDays(state.selDate, dir * 7));
+  state.selKeep = true;
+  renderDays();
+  // Kayma animasyonu
+  track.style.transition = 'none';
+  track.style.transform = `translateX(${dir * 40}%)`;
+  track.style.opacity = '0.3';
+  requestAnimationFrame(() => {
+    track.style.transition = 'transform 0.28s ease-out, opacity 0.28s';
+    track.style.transform = 'translateX(0)';
+    track.style.opacity = '1';
+  });
+}
+
+/** Hafta şeridi: yatay kaydırma haftayı değiştirir, dokunma günü seçer. */
+function wireWeekSwipe() {
+  const el = $('wk');
+  let g = null;
+  el.addEventListener('pointerdown', (e) => {
+    g = { x: e.clientX, y: e.clientY, id: e.pointerId, dx: 0, swiping: false };
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!g || e.pointerId !== g.id) return;
+    g.dx = e.clientX - g.x;
+    const dy = e.clientY - g.y;
+    if (!g.swiping && Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(dy)) g.swiping = true;
+    if (g.swiping) {
+      const t = $('wk-track');
+      t.style.transition = 'none';
+      t.style.transform = `translateX(${g.dx * 0.6}px)`;
+    }
+  });
+  const end = (e) => {
+    if (!g || e.pointerId !== g.id) return;
+    const { dx, swiping } = g;
+    g = null;
+    const t = $('wk-track');
+    if (swiping && Math.abs(dx) > 50) {
+      state.suppressDayClick = true;
+      shiftWeek(dx < 0 ? 1 : -1);
+    } else {
+      if (swiping) state.suppressDayClick = true;
+      t.style.transition = 'transform 0.2s';
+      t.style.transform = 'translateX(0)';
+    }
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('click', (e) => {
+    if (state.suppressDayClick) {
+      state.suppressDayClick = false;
+      return;
+    }
+    const b = e.target.closest('[data-day]');
+    if (b) selectDay(b.dataset.day);
+  });
 }
 
 async function onDaysClick(e) {
-  const cardEl = e.target.closest('[data-tarih]');
-  if (cardEl) return openDate(cardEl.dataset.tarih);
+  const row = e.target.closest('[data-tarih]');
+  if (row) return selectDay(row.dataset.tarih);
   const act = e.target.closest('[data-act]');
   if (!act) return;
   switch (act.dataset.act) {
@@ -568,7 +780,9 @@ function renderItem(node, s, i, cum) {
   const c = cum[i];
   const styleTur = [s.stil, s.tur].filter(Boolean).join(' · ');
   const rowName = [setTitle(s), s.tur].filter(Boolean).join(' ');
-  const tile = (label, value) => `<div class="w-tile"><small>${label}</small><b>${esc(value)}</b></div>`;
+  // Ekranda dakikanın baştaki sıfırı atılır ("01:30" → "1:30"); tablodaki değer değişmez.
+  const short = (v) => String(v).replace(/^0(\d:)/, '$1');
+  const tile = (label, value) => `<div class="w-tile"><small>${label}</small><b>${esc(short(value))}</b></div>`;
   const tiles = [s.hedef ? tile('HEDEF', s.hedef) : '', s.dinlen ? tile('DİNLEN', s.dinlen) : ''].join('');
 
   node.className = `w-item${isDone ? ' is-done' : ''}`;
@@ -591,8 +805,9 @@ function renderItem(node, s, i, cum) {
       ${s.aciklama ? `<div class="w-desc">${esc(s.aciklama)}</div>` : '<div class="w-desc"></div>'}
       ${tiles ? `<div class="w-tiles">${tiles}</div>` : ''}
       <div class="w-foot">
-        <span>${s.alet ? `Alet <b>${esc(s.alet)}</b>` : ''}${r.gercek ? `${s.alet ? ' · ' : ''}Gerçek <b class="w-gercek">${esc(r.gercek)}</b>` : ''}</span>
-        <span>${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span>
+        ${s.alet ? `<span><span class="w-alet">Alet</span> <b>${esc(s.alet)}</b></span>` : ''}
+        ${r.gercek ? `<span><span class="w-alet">Gerçek</span> <b class="w-gercek">${esc(r.gercek)}</b></span>` : ''}
+        <span class="w-dist">${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span>
       </div>
     </div>`;
 }
@@ -605,6 +820,7 @@ function openProgram() {
 
   if (!state.wheel) {
     state.wheel = new Wheel($('wheel'), {
+      onLayout: () => fitAllCards(),
       onChange: (i) => {
         if (!state.session) return;
         state.session.pos = i;
@@ -627,6 +843,37 @@ function openProgram() {
   startTicker();
 }
 
+/** Uzun açıklama kartı taşırırsa açıklama yazısı kademeli küçülür; kesilmez. */
+function fitCardText(node) {
+  const card = node.querySelector('.w-card');
+  const desc = node.querySelector('.w-desc');
+  if (!card || !desc || !card.clientHeight) return;
+  desc.style.fontSize = '';
+  let size = parseFloat(getComputedStyle(desc).fontSize);
+  while (card.scrollHeight > card.clientHeight + 1 && size > 15) {
+    size -= 1;
+    desc.style.fontSize = `${size}px`;
+  }
+}
+
+function fitAllCards() {
+  if (state.wheel) state.wheel.items.forEach(fitCardText);
+}
+
+/** Başlıktaki değer kutuya sığmazsa yazıyı küçültür (ör. 1:05:12 / 1:30:00). */
+function fitText(el, max = 36, min = 22) {
+  el.style.fontSize = `${max}px`;
+  let size = max;
+  while (el.scrollWidth > el.clientWidth + 1 && size > min) {
+    size -= 1;
+    el.style.fontSize = `${size}px`;
+  }
+}
+
+function fitHeader() {
+  document.querySelectorAll('#screen-program .prog-stat b.fit').forEach((el) => fitText(el));
+}
+
 /** Arka plan ve peron, aktif bloğun rengine bürünür. */
 function updateAmbient(i) {
   const set = state.plan && state.plan.setler[i];
@@ -637,7 +884,10 @@ function updateAmbient(i) {
 
 function refreshItem(i) {
   const node = state.wheel.items[i];
-  if (node) renderItem(node, state.plan.setler[i], i, cumulative(state.plan.setler));
+  if (node) {
+    renderItem(node, state.plan.setler[i], i, cumulative(state.plan.setler));
+    fitCardText(node);
+  }
   state.wheel.render();
 }
 
@@ -662,13 +912,19 @@ function updateProgram() {
   updateBar();
   updateClock();
   updateControls();
+  fitHeader();
 }
 
 function updateClock() {
   const s = state.session;
   const el = $('prog-clock');
   if (!s) return;
-  el.textContent = s.startedAt ? fmtClock(Date.now() - s.startedAt) : '00:00';
+  const text = s.startedAt ? fmtClock(Date.now() - s.startedAt) : '00:00';
+  if (el.textContent !== text) {
+    const grew = text.length !== el.textContent.length;
+    el.textContent = text;
+    if (grew) fitHeader();
+  }
   el.classList.toggle('is-idle', !s.startedAt);
 }
 
@@ -1309,7 +1565,10 @@ function wire() {
   $('days-settings').addEventListener('click', () => showSetup(true));
   $('days-list').addEventListener('click', onDaysClick);
   $('days-banners').addEventListener('click', onDaysClick);
-  $('days-today-btn').addEventListener('click', () => openDate(todayKey()));
+  $('days-today-btn').addEventListener('click', () => { if (state.selDate) openDate(state.selDate); });
+  $('days-hero').addEventListener('click', onDaysClick);
+  $('wk-today').addEventListener('click', () => selectDay(todayKey(), false));
+  wireWeekSwipe();
 
   $('prog-back').addEventListener('click', onProgramBack);
   $('btn-complete').addEventListener('click', toggleComplete);
@@ -1374,7 +1633,7 @@ function boot() {
     return;
   }
   if (s) data.clearSession();
-  showDays({ auto: true });
+  showDays();
 }
 
 boot();

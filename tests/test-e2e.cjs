@@ -47,13 +47,38 @@ const server = http.createServer((req, res) => {
   await page.click('#setup-save');
 
   // Gün seçimi
-  await page.waitForSelector('.day-card');
-  const cards = await page.$$eval('.day-card', els => els.map(e => ({ t: e.querySelector('.day-date').textContent, cls: e.className, meta: e.querySelector('.day-meta').textContent })));
-  console.log('Kartlar:', JSON.stringify(cards));
-  assert.strictEqual(cards[0].t, '23 Eylül Çarşamba'); assert.match(cards[0].cls, /is-today/);
-  assert.strictEqual(cards[1].t, '24 Eylül Perşembe');
-  assert.match(cards[2].cls, /is-past/);
-  assert.strictEqual(await page.textContent('.section-title'), 'Geçmiş planlar');
+  await page.waitForSelector('#wk-track .wd');
+  await page.waitForFunction(() => document.querySelector('#days-hero .hero-date'));
+  const heroText = () => page.$eval('#days-hero', e => e.textContent.replace(/\s+/g, ' ').trim());
+  const cal = await page.evaluate(() => ({
+    title: document.getElementById('wk-title').textContent,
+    sum: document.getElementById('wk-sum').textContent,
+    cells: [...document.querySelectorAll('#wk-track .wd')].map(e => e.dataset.day + ':' + e.className),
+    rows: [...document.querySelectorAll('.day-row')].map(e => e.dataset.tarih),
+    cta: document.getElementById('days-cta-text').textContent,
+  }));
+  console.log('Takvim:', JSON.stringify(cal));
+  assert.strictEqual(cal.title, 'Bu hafta'); assert.strictEqual(cal.sum, '2 idman · 2.800 m');
+  assert.strictEqual(cal.cells.length, 7); assert.ok(cal.cells.includes('2026-09-23:wd on today has'));
+  assert.ok(cal.cells.includes('2026-09-24:wd has')); assert.deepStrictEqual(cal.rows, ['2026-09-24']);
+  assert.match(await heroText(), /BUGÜN.*36:40 hedef.*23 Eylül Çarşamba.*SET ?8.*MESAFE ?2\.400.*ANA SET ?800/);
+  assert.strictEqual(cal.cta, 'Bugünün idmanını aç');
+  // Güne dokunmak yalnızca seçer; idmana girmez
+  await page.click('.day-row[data-tarih="2026-09-24"]');
+  assert.match(await heroText(), /24 Eylül Perşembe/);
+  assert.strictEqual(await page.textContent('#days-cta-text'), '24 Eylül idmanını aç');
+  assert.ok(await page.isVisible('#screen-days'));
+  // Sağa kaydır → önceki hafta (geçmiş plan: 20 Eylül)
+  const wk = await page.$eval('#wk', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await page.mouse.move(wk.x - 80, wk.y); await page.mouse.down();
+  for (let i = 1; i <= 8; i++) { await page.mouse.move(wk.x - 80 + i * 20, wk.y); await page.waitForTimeout(16); }
+  await page.mouse.up(); await page.waitForTimeout(400);
+  assert.strictEqual(await page.textContent('#wk-title'), '14 Eyl – 20 Eyl');
+  assert.match(await heroText(), /GEÇMİŞ PLAN.*20 Eylül Pazar/);
+  assert.ok(await page.isVisible('#wk-today'));
+  await page.click('#wk-today');
+  assert.strictEqual(await page.textContent('#wk-title'), 'Bu hafta');
+  assert.match(await heroText(), /23 Eylül Çarşamba/);
   assert.ok(await page.isVisible('#days-today-btn'));
   await page.click('#days-today-btn');
 
@@ -185,8 +210,8 @@ const server = http.createServer((req, res) => {
 
   // Çevrimdışı: kuyruk
   await page.click('#done-back');
-  await page.waitForSelector('.day-card');
-  await page.click('.day-card:not(.is-past)');
+  await page.waitForFunction(() => /24 Eylül/.test(document.getElementById('days-hero').textContent) && !document.getElementById('days-today-bar').hidden);
+  await page.click('#days-today-btn');
   await page.waitForSelector('#screen-program:not([hidden])');
   await page.click('#btn-session'); await page.click('#btn-complete');
   offline = true;
@@ -205,8 +230,8 @@ const server = http.createServer((req, res) => {
   await page.waitForFunction(() => !document.querySelector('.banner-warn'));
   assert.strictEqual(env.sheets.seans.data.length, 3);
   await page.waitForTimeout(300);
-  const left = await page.$$eval('.day-card .day-date', els => els.map(e => e.textContent));
-  assert.deepStrictEqual(left, ['20 Eylül Pazar'], 'gönderilen gün listeden kalkmalı');
+  const left = await page.$eval('#days-hero .hero-date', e => e.textContent.replace(/\s+/g, ' ').trim());
+  assert.strictEqual(left, '20 Eylül Pazar', 'gönderilen gün listeden kalkmalı; kalan tek plan seçilir');
   assert.deepStrictEqual(env.sheets.eski.data.slice(1).map(r => r[4]), [400, 200, 100]); // en yeni seans en üstte
   // Aynı seansı tekrar göndermek → DUPLICATE (sunucu tarafı)
   assert.strictEqual(env.call({ action: 'finishSession', tarih: '2026-09-24', seans: {}, setler: [] }).error, 'DUPLICATE');
@@ -230,7 +255,8 @@ const server = http.createServer((req, res) => {
   addRow(env.sheets.Plan, ['2026-09-27', 1, 'WU', 1, 500, 'FR', 'Swim', '', '', '', '', '', '', '', '', '', '']);
   addRow(env.sheets.seans, ['2026-09-27', '', 0, 25, '', '', '']);
   await page.click('#days-refresh');
-  await page.click('.day-card[data-tarih="2026-09-27"]');
+  await page.waitForFunction(() => /27 Eylül/.test(document.getElementById('days-hero').textContent) && !document.getElementById('days-today-bar').hidden);
+  await page.click('#days-today-btn');
   await page.waitForSelector('#screen-program:not([hidden])');
   await page.evaluate(() => localStorage.setItem('ysk.dates', JSON.stringify({ dates: 'bozuk' })));
   await page.click('#btn-session'); await page.click('#btn-complete'); await page.click('#btn-session');
@@ -240,11 +266,11 @@ const server = http.createServer((req, res) => {
   await page.click('#modal-actions button:has-text("Seansı kapat")');
   await page.waitForSelector('#screen-days:not([hidden])');
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 6');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 7');
 
   // Dar ekran: yatay taşma olmamalı
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.click('.day-card:not(.is-past)').catch(()=>{});
+  
   const narrow = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, bw: document.body.scrollWidth }));
   console.log('Dar ekran:', JSON.stringify(narrow));
   assert.ok(narrow.sw <= 320 && narrow.bw <= 320);

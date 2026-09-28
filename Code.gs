@@ -122,21 +122,39 @@ function tokenGoster() {
 function getDates_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var tz = ss.getSpreadsheetTimeZone();
-  var plan = readSheet_(ss, SHEET_PLAN);
+  var plan = readSheet_(ss, SHEET_PLAN, { display: true });
   var cTarih = col_(plan, COL.tarih, true);
+  var cSira = col_(plan, COL.sira, false);
+  var cBlok = col_(plan, COL.blok, false);
   var cTekrar = col_(plan, COL.tekrar, false);
   var cMesafe = col_(plan, COL.mesafe, false);
+  var cHedef = col_(plan, COL.hedef, false);
+  var cDinlen = col_(plan, COL.dinlen, false);
 
   var byDate = {};
-  plan.values.forEach(function (row) {
+  plan.values.forEach(function (row, i) {
     var key = dateKey_(row[cTarih], tz);
     if (!key) return;
-    var g = byDate[key] || (byDate[key] = { tarih: key, setSayisi: 0, toplamMesafe: 0 });
+    var g = byDate[key] || (byDate[key] = { tarih: key, setSayisi: 0, toplamMesafe: 0, hedefSure: 0, setler: [] });
+    var disp = plan.display[i];
+    var tekrar = toNumber_(cell_(row, cTekrar)) || 1;
+    var mesafe = setDistance_(row, cTekrar, cMesafe);
+    var sure = tekrar * ((parseDuration_(durationText_(cell_(disp, cHedef))) || 0) +
+      (parseDuration_(durationText_(cell_(disp, cDinlen))) || 0));
     g.setSayisi++;
-    g.toplamMesafe += setDistance_(row, cTekrar, cMesafe);
+    g.toplamMesafe += mesafe;
+    g.hedefSure += sure;
+    // Ön yüzdeki gün kartı önizlemesi için: blok, mesafe, hedef süre (sn)
+    g.setler.push({ sira: toNumber_(cell_(row, cSira)), _satir: i, blok: text_(disp, cBlok), mesafe: mesafe, sure: sure });
   });
 
-  return Object.keys(byDate).sort().map(function (k) { return byDate[k]; });
+  return Object.keys(byDate).sort().map(function (k) {
+    var g = byDate[k];
+    g.setler.sort(bySira_);
+    g.setler.forEach(function (s) { delete s._satir; delete s.sira; });
+    g.hedefSure = Math.round(g.hedefSure);
+    return g;
+  });
 }
 
 // ---------------------------------------------------------------------------

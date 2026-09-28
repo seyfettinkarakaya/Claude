@@ -14,14 +14,16 @@ export const ROW_H = 36;       // durak satırı yüksekliği
 export const CARD_GAP = 8;     // kartın üstündeki/altındaki boşluk
 const SIDE = 2;                // peronun üstünde ve altında görünen durak sayısı
 const MIN_CARD = 300;
-const DRAG_PX_PER_ITEM = 90;   // sürüklemede bir durak atlamak için gereken yol
-const MOMENTUM_MS = 260;       // hız × bu süre = atalet ile gidilecek durak sayısı
+const DRAG_PX_PER_ITEM = 170;  // bir durak geçmek için gereken parmak yolu (bilerek "ağır")
+const MOMENTUM_MS = 110;       // hız × bu süre = atalet ile gidilecek ek yol
+const MAX_FLING = 1;           // bir fırlatma bırakılan yerden en fazla bu kadar durak ileri gider
 
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
 export class Wheel {
-  constructor(el, { onChange, onTapActive } = {}) {
+  constructor(el, { onChange, onTapActive, onLayout } = {}) {
     this.el = el;
+    this.onLayout = onLayout || (() => {});
     this.onChange = onChange || (() => {});
     this.onTapActive = onTapActive || (() => {});
     this.items = [];
@@ -69,6 +71,7 @@ export class Wheel {
     this.el.style.setProperty('--card-gap', `${CARD_GAP}px`);
     this.platform.style.top = `${SIDE * ROW_H + CARD_GAP}px`;
     this.render();
+    this.onLayout(this.cardH);
   }
 
   scrollTo(index, animate = true) {
@@ -190,7 +193,12 @@ export class Wheel {
       const b = recent[recent.length - 1];
       if (b.t > a.t) v = (b.pos - a.pos) / (b.t - a.t);
     }
-    this._animateTo(Math.round(this.pos + v * MOMENTUM_MS));
+    // Atalet: hız küçük bir ek yol verir; bırakılan en yakın durağın en fazla
+    // MAX_FLING ötesine gidilir. Yarım duraktan az sürükleme geri yerine oturur.
+    const here = Math.round(this.pos);
+    const projected = Math.round(this.pos + v * MOMENTUM_MS);
+    const target = Math.max(here - MAX_FLING, Math.min(here + MAX_FLING, projected));
+    this._animateTo(target);
   }
 
   _wheel(e) {
@@ -212,7 +220,8 @@ export class Wheel {
       this.render();
       return;
     }
-    const duration = Math.min(750, 280 + dist * 120);
+    // Durağa yanaşma: biraz daha yavaş ve yumuşak
+    const duration = Math.min(900, 380 + dist * 160);
     const start = performance.now();
     const tick = (now) => {
       const k = Math.min(1, (now - start) / duration);

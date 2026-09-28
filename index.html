@@ -18,8 +18,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=6">
-  <script type="module" src="app.js?v=6"></script>
+  <link rel="stylesheet" href="style.css?v=7">
+  <script type="module" src="app.js?v=7"></script>
 </head>
 <body>
 
@@ -44,20 +44,27 @@
     </div>
   </section>
 
-  <!-- Gün seçimi -->
-  <section id="screen-days" class="screen" hidden>
-    <header class="topbar">
-      <h1 class="topbar-title brand">YüzmeSK</h1>
-      <button class="icon-btn" id="days-refresh" aria-label="Yenile">↻</button>
-      <button class="icon-btn" id="days-settings" aria-label="Ayarlar">⚙︎</button>
+  <!-- Gün seçimi: hafta takvimi -->
+  <section id="screen-days" class="screen days" hidden>
+    <header class="days-top">
+      <h1 class="days-brand">YüzmeSK</h1>
+      <button class="icon-btn" id="days-refresh" aria-label="Yenile"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/></svg></button>
+      <button class="icon-btn" id="days-settings" aria-label="Ayarlar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
     </header>
     <div class="scroll pad" id="days-scroll">
+      <div class="wk-head">
+        <span class="wk-title" id="wk-title">Bu hafta</span>
+        <button class="wk-today" id="wk-today" hidden>Bugün</button>
+        <span class="wk-sum" id="wk-sum"></span>
+      </div>
+      <div class="wk" id="wk" aria-label="Hafta; sağa sola kaydır"><div class="wk-track" id="wk-track"></div></div>
       <div id="days-banners"></div>
+      <div id="days-hero"></div>
       <div id="days-list"></div>
       <p class="app-version" id="app-version"></p>
     </div>
     <div class="bottom-bar" id="days-today-bar" hidden>
-      <button class="btn btn-primary btn-block btn-xl" id="days-today-btn">Bugünün idmanını aç</button>
+      <button class="days-cta" id="days-today-btn"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg><span id="days-cta-text">Bugünün idmanını aç</span></button>
     </div>
   </section>
 
@@ -67,9 +74,8 @@
     <header class="prog-head">
       <div class="prog-row">
         <button class="icon-btn" id="prog-back" aria-label="Gün seçimi">‹</button>
-        <div class="prog-stat"><span class="lbl">ŞU AN</span><b id="prog-clock">00:00</b></div>
-        <div class="prog-stat"><span class="lbl">MESAFE</span><b id="prog-dist">0</b></div>
-        <div class="prog-stat end"><span class="lbl">SON DURAK</span><b id="prog-end">0:00</b></div>
+        <div class="prog-stat"><span class="lbl">SÜRE · GEÇEN / HEDEF</span><b class="fit"><span id="prog-clock">00:00</span><span class="dim">/</span><span id="prog-end" class="y">0:00</span></b></div>
+        <div class="prog-stat end"><span class="lbl">MESAFE</span><b class="fit" id="prog-dist">0</b></div>
       </div>
       <div class="seg-bar" id="prog-bar"></div>
     </header>

@@ -18,10 +18,11 @@ let env = fresh();
 assert.deepStrictEqual(env.call({action:'getDates', token:'bad'}), {ok:false,error:'AUTH',message:'Geçersiz anahtar (token).'});
 let r = env.call({action:'getDates'});
 assert.ok(r.ok, JSON.stringify(r));
-assert.deepStrictEqual(r.data, [
-  {tarih:'2026-09-20',setSayisi:1,toplamMesafe:400},
-  {tarih:'2026-09-24',setSayisi:3,toplamMesafe:800},
-  {tarih:'2026-09-26',setSayisi:1,toplamMesafe:300}]);
+assert.deepStrictEqual(r.data.map(d => [d.tarih, d.setSayisi, d.toplamMesafe]), [
+  ['2026-09-20',1,400], ['2026-09-24',3,800], ['2026-09-26',1,300]]);
+// Gün kartı önizlemesi: setler Sıra'ya göre, set başına blok/mesafe/hedef süre
+assert.deepStrictEqual(r.data[1].setler, [{blok:'WU',mesafe:200,sure:315},{blok:'PS',mesafe:200,sure:260},{blok:'MS',mesafe:400,sure:440}]);
+assert.strictEqual(r.data[1].hedefSure, 1015);
 r = env.call({action:'getPlan', tarih:'2026-09-24'});
 assert.deepStrictEqual(r.data.setler.map(s=>s.sira), [1,2,3]);
 assert.deepStrictEqual(r.data.setler[0], {sira:1,blok:'WU',tekrar:1,mesafe:200,stil:'FR',tur:'Swim',aciklama:'Rahat, HR<140',hedef:'04:45',dinlen:'00:30',alet:''});

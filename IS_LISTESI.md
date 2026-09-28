@@ -5,46 +5,7 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 ## Bekleyen (kod)
 
-- [ ] **Setler çok hızlı kayıyor, daha zor/yavaş kaymalı.** Plan:
-  - Bir durak geçmek için gereken parmak yolu ~90 px'ten ~170 px'e çıkar
-    (yaklaşık kartın üçte biri kadar sürüklemek gerekir).
-  - Atalet (fırlatma) belirgin azalır: hızlı bir fırlatma en fazla 1 durak ileri götürür.
-  - Kısa, kararsız sürüklemeler (durağın yarısından az) geri yerine oturur.
-  - Oturma animasyonu biraz yavaşlar, "istasyona yanaşma" hissi verir.
-
-- [ ] **Presbiyopi (+1,75) için okunabilirlik** (görsel: şimdiki / öneri karşılaştırması)
-  - Durak süreleri 15 → 22 px, kalın, açık gri (yüksek kontrast).
-  - Aktif durak süresi 14 → 24 px (sarı); altındaki set süresi 10 → 16 px.
-  - Durak adları 17 → 20 px, daha açık renk.
-  - Üstteki değerler (Şu an / Mesafe / Son durak) 30 → 32 px.
-  - Kart altı: **Alet** kendi satırında, değeri 17 → **24 px**; set mesafesi altında sağda, 19 px.
-  - **Hedef / Dinlen değerleri 46 → 60 px**; sığması için dakikanın baştaki sıfırı atılır
-    ("01:30" → "1:30", "00:20" → "0:20"), kutu iç boşlukları daralır.
-  - Görsel ve CSS taslağı: `tasarim/v8/`
-  - Kartın ortası açıklamaya bırakılır; uzun açıklamada yazı gerekirse otomatik küçülür,
-    kesilmez.
-  - Etiketler (HEDEF, ŞU AN…) küçük kalır. Süre sütunu genişlediği için hat ve kart
-    ~20 px sağa kayar.
-
-- [ ] **Üst başlık iki bloğa:** geri düğmesi + solda **SÜRE** `geçen / toplam hedef`
-  (ör. 24:19 / 25:45, toplam hedef sarı), sağda **MESAFE** `yapılan / toplam`
-  (ör. 400 / 1.300). Üç parçalı "Şu an / Mesafe / Son durak" kalkar; rakamlar ~36 px.
-
-- [ ] **İlk sayfa: G2 Hafta şeridi + takvim mantığı** (`tasarim/v9/G2-hafta.png`)
-  - Üstte haftanın 7 günü (Pzt–Paz). **Sağa/sola kaydırınca** önceki/sonraki haftaya geçer;
-    başlıkta hafta aralığı (ör. "28 Eyl – 4 Eki") ve o haftanın özeti (idman sayısı · toplam m).
-  - İdman olan günlerde nokta; bugün çerçeveli; seçili gün turkuaz dolu.
-  - **Güne veya alttaki gün kartlarına dokunmak sadece seçer**, idmana girmez ve program
-    yüklenmez. İdmana yalnızca alttaki **"… idmanını aç"** düğmesiyle girilir.
-  - Bir güne dokununca altta **o günün büyük kartı** açılır: tarih, blok renkli hat önizlemesi,
-    SET · MESAFE · ANA SET, hedef süre; altında haftanın diğer planlı günleri.
-  - Planı olmayan gün seçilirse: "Bu gün için plan yok" + haftanın planlı günleri.
-  - Açılışta bugün seçili gelir (bugün plan yoksa en yakın planlı gün).
-    Başka haftadayken üstte **"Bugün"** düğmesi çıkar, dokununca bugüne döner.
-  - Geçmiş günler soluk ama seçilebilir. Alttaki düğme seçili güne göre:
-    "Bugünün idmanını aç" / "28 Eylül idmanını aç".
-  - Devam eden seans ve bekleyen kayıt uyarıları haftanın altında durur.
-  - Renkler mavi–turkuaz–yeşil. (Açık soru: set ekranının sarı vurgusu kalsın mı, turkuaza mı dönsün?)
+_(boş)_
 
 ## İzlenecek
 
@@ -59,6 +20,12 @@ bekleyen işlerin tamamı birlikte güncellenir.
   eski ve seans için "en yeni üstte" ancak bundan sonra devreye girer.
 
 ## Tamamlanan
+
+- [x] Sürüm 7: setler daha yavaş kayar (~170 px/durak, fırlatma en fazla 1 durak);
+  presbiyopi için büyük/kontrastlı değişken veriler (durak süreleri 22 px, Hedef/Dinlen 60 px,
+  Alet 24 px, uzun açıklama otomatik küçülür); üst başlık Süre (geçen/hedef) · Mesafe;
+  ilk sayfa hafta takvimi (G2, kaydırılabilir hafta, dokunmak seçer, idmana düğmeyle girilir);
+  Code.gs getDates gün kartı önizlemesi için set blok/mesafe/süre döndürür (dağıtım bekliyor).
 
 - [x] Metro tasarımı (sürüm 6): tekerlek gibi dönen metro hattı, peron ve önceki/sonraki
   ikişer durak; blok renkli, mesafeye oranlı ilerleme çubuğu; yığımlı hedef süreler;

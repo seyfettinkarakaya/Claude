@@ -88,17 +88,19 @@ Ayarlar gün seçimi ekranındaki ⚙︎ düğmesinden sonradan değiştirilebil
 
 ## Kullanım
 
-**Gün seçimi.** Plan'daki tarihler kart olarak listelenir. Bugün varsa vurgulanır ve
-alttaki **Bugünün idmanını aç** düğmesiyle tek dokunuşta açılır. Tek tarih varsa doğrudan
-programa geçilir. Geçmiş tarihler "Geçmiş planlar" başlığı altında soluk görünür.
+**Gün seçimi (hafta takvimi).** Üstte haftanın 7 günü; idman olan günlerde nokta var,
+bugün çerçeveli. Şeridi sağa/sola kaydırınca önceki/sonraki haftaya geçilir; başka
+haftadayken **Bugün** düğmesi geri getirir. Bir güne ya da alttaki gün satırlarına dokunmak
+yalnızca **seçer**: seçili günün kartında tarih, günün blok renkli hat önizlemesi, set,
+mesafe, ana set ve hedef süre görünür. İdmana yalnızca alttaki **"… idmanını aç"**
+düğmesiyle girilir. Açılışta bugün (plan yoksa en yakın planlı gün) seçilidir.
 
 **Program (metro hattı).** Setler bir metro hattının durakları gibi dizilir; hat her
 bloğun renginde. Aktif durak "peron"da büyük bir kart olarak açılır (Tekrar × Mesafe,
 Stil · Tür, açıklama, Hedef, Dinlen, Alet ve set / yığımlı mesafe); üstünde ve altında
 ikişer durak görünür. Yukarı/aşağı kaydırdıkça hat akar ve bir sonraki durak perona gelir;
-bırakınca en yakın durağa oturur. Hattın solundaki süreler yığımlı hedef süredir:
-o sete kadar tekrar × (hedef + dinlen) toplamı. Üstte Şu an (geçen süre), Mesafe
-(yapılan / toplam) ve Son durak (toplam hedef süre); altında her set için blok renginde,
+kaydırma bilerek "ağır"dır (bir durak için ~170 px, fırlatma en fazla bir durak); bırakınca en yakın durağa oturur. Hattın solundaki süreler yığımlı hedef süredir:
+o sete kadar tekrar × (hedef + dinlen) toplamı. Üstte solda **Süre** (geçen / toplam hedef), sağda **Mesafe** (yapılan / toplam); altında her set için blok renginde,
 mesafesine oranlı bir ilerleme çubuğu. Alttaki bar: **Kronometre** · **Seti Tamamla**
 (işaretli sette **İşareti Kaldır**) · **Başla** / **Bitir**. Program ekranı açıkken ekran
 sönmez (Screen Wake Lock; desteklenmiyorsa sessizce devam eder).
