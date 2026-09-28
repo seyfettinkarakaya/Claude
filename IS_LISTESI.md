@@ -30,6 +30,10 @@ bekleyen işlerin tamamı birlikte güncellenir.
   (ör. 24:19 / 25:45, toplam hedef sarı), sağda **MESAFE** `yapılan / toplam`
   (ör. 400 / 1.300). Üç parçalı "Şu an / Mesafe / Son durak" kalkar; rakamlar ~36 px.
 
+- [ ] **İlk sayfa (gün seçimi) tasarımı** — seçim bekliyor: G1 Lagün / G2 Hafta şeridi /
+  G3 Hat haritası (`tasarim/v9/`). Mavi–turkuaz–yeşil tonları; her gün kartında o günün
+  blok renkli hat önizlemesi, set · mesafe · hedef süre; gradyan "Bugünün idmanını aç".
+
 ## İzlenecek
 
 - [ ] Telefondaki tarih önbelleğinin neden bozulduğu kesin bulunamadı. Sürüm 3+
