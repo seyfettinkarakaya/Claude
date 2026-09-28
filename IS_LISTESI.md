@@ -5,7 +5,12 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 ## Bekleyen (kod)
 
-_(boş)_
+- [ ] **Setler çok hızlı kayıyor, daha zor/yavaş kaymalı.** Plan:
+  - Bir durak geçmek için gereken parmak yolu ~90 px'ten ~170 px'e çıkar
+    (yaklaşık kartın üçte biri kadar sürüklemek gerekir).
+  - Atalet (fırlatma) belirgin azalır: hızlı bir fırlatma en fazla 1 durak ileri götürür.
+  - Kısa, kararsız sürüklemeler (durağın yarısından az) geri yerine oturur.
+  - Oturma animasyonu biraz yavaşlar, "istasyona yanaşma" hissi verir.
 
 ## İzlenecek
 
