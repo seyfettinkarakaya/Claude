@@ -1,0 +1,25 @@
+/* Presbiyopi (+1,75) önerisi: değişken veriler büyük, kalın, yüksek kontrast */
+.w-line { left: 67px; }
+.w-platform { left: 51px; }
+.w-dot { left: calc(70px - var(--s) / 2); }
+.w-row { grid-template-columns: 54px minmax(0, 1fr); gap: 36px; }
+.w-tm { font-size: 22px; font-weight: 700; color: #B4BDC7; }
+.w-nm { font-size: 20px; color: #C9D1D9; }
+.w-item.is-done .w-nm { color: #6B7682; }
+.w-ctm { width: 52px; font-size: 24px; top: calc(var(--card-gap) + 4px); }
+.w-ctm small { font-size: 16px; font-weight: 700; color: #B4BDC7; margin-top: 2px; }
+.w-card { left: 98px; }
+.w-foot { font-size: 19px; color: #B4BDC7; }
+.w-foot b { font-size: 21px; }
+.w-desc { font-size: 25px; }
+.w-title { font-size: 76px; }
+.prog-stat b { font-size: 32px; }
+.w-tile b { font-size: 60px; }
+.w-tile { padding: 8px 14px 10px; }
+.w-foot { align-items: baseline; }
+.w-foot b { font-size: 24px; }
+.w-card { padding: 16px 14px; }
+.w-tile { padding: 6px 10px 8px; }
+.w-tile b { letter-spacing: -0.5px; }
+.w-foot { flex-direction: column; gap: 2px; }
+.w-foot span:last-child { align-self: flex-end; }

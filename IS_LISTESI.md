@@ -17,8 +17,10 @@ bekleyen işlerin tamamı birlikte güncellenir.
   - Aktif durak süresi 14 → 24 px (sarı); altındaki set süresi 10 → 16 px.
   - Durak adları 17 → 20 px, daha açık renk.
   - Üstteki değerler (Şu an / Mesafe / Son durak) 30 → 32 px.
-  - Kart altı: Mesafe 15 → 19 px; **Alet değeri 17 → 24 px**, "Alet" etiketi okunur kalır.
-  - **Hedef / Dinlen değerleri 46 → 60 px.**
+  - Kart altı: **Alet** kendi satırında, değeri 17 → **24 px**; set mesafesi altında sağda, 19 px.
+  - **Hedef / Dinlen değerleri 46 → 60 px**; sığması için dakikanın baştaki sıfırı atılır
+    ("01:30" → "1:30", "00:20" → "0:20"), kutu iç boşlukları daralır.
+  - Görsel ve CSS taslağı: `tasarim/v8/`
   - Kartın ortası açıklamaya bırakılır; uzun açıklamada yazı gerekirse otomatik küçülür,
     kesilmez.
   - Etiketler (HEDEF, ŞU AN…) küçük kalır. Süre sütunu genişlediği için hat ve kart
