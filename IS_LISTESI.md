@@ -30,9 +30,19 @@ bekleyen işlerin tamamı birlikte güncellenir.
   (ör. 24:19 / 25:45, toplam hedef sarı), sağda **MESAFE** `yapılan / toplam`
   (ör. 400 / 1.300). Üç parçalı "Şu an / Mesafe / Son durak" kalkar; rakamlar ~36 px.
 
-- [ ] **İlk sayfa (gün seçimi) tasarımı** — seçim bekliyor: G1 Lagün / G2 Hafta şeridi /
-  G3 Hat haritası (`tasarim/v9/`). Mavi–turkuaz–yeşil tonları; her gün kartında o günün
-  blok renkli hat önizlemesi, set · mesafe · hedef süre; gradyan "Bugünün idmanını aç".
+- [ ] **İlk sayfa: G2 Hafta şeridi + takvim mantığı** (`tasarim/v9/G2-hafta.png`)
+  - Üstte haftanın 7 günü (Pzt–Paz). **Sağa/sola kaydırınca** önceki/sonraki haftaya geçer;
+    başlıkta hafta aralığı (ör. "28 Eyl – 4 Eki") ve o haftanın özeti (idman sayısı · toplam m).
+  - İdman olan günlerde nokta; bugün çerçeveli; seçili gün turkuaz dolu.
+  - Bir güne dokununca altta **o günün büyük kartı** açılır: tarih, blok renkli hat önizlemesi,
+    SET · MESAFE · ANA SET, hedef süre; altında haftanın diğer planlı günleri.
+  - Planı olmayan gün seçilirse: "Bu gün için plan yok" + haftanın planlı günleri.
+  - Açılışta bugün seçili gelir (bugün plan yoksa en yakın planlı gün).
+    Başka haftadayken üstte **"Bugün"** düğmesi çıkar, dokununca bugüne döner.
+  - Geçmiş günler soluk ama seçilebilir. Alttaki düğme seçili güne göre:
+    "Bugünün idmanını aç" / "28 Eylül idmanını aç".
+  - Devam eden seans ve bekleyen kayıt uyarıları haftanın altında durur.
+  - Renkler mavi–turkuaz–yeşil. (Açık soru: set ekranının sarı vurgusu kalsın mı, turkuaza mı dönsün?)
 
 ## İzlenecek
 
