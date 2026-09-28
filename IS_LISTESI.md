@@ -5,7 +5,14 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 ## Bekleyen (kod)
 
-_(boş)_
+- [ ] **Tarife tasarımı** (onay bekliyor) — görseller: `tasarim/v6/`
+  - Set ekranı: metro hattı + solda yığımlı hedef süre (küçük font), büyük aktif set kartı,
+    tamamlananlar tek satırda toplanır; üstte Şu an / Mesafe / Son durak.
+  - Alt düğmeler: bar içinde solda Kronometre, ortada geniş sarı "Seti Tamamla", sağda Bitir.
+  - Kronometre (çalışırken): rakamlar ekranın %70'i; tekrar göstergesi, hedef çubuğu,
+    Hedefe / Çıkışa / Son tur; Durdur · TUR · Kaydet.
+  - Kaydet ekranı: set seçimi, turlar (hedeften hızlı yeşil), ortalama, iki kayıt seçeneği
+    (`tasarim/v5/K2-kaydet.png`).
 
 ## İzlenecek
 
