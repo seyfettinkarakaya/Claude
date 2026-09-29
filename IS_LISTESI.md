@@ -37,11 +37,8 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 ## Senin tarafında (tabloda / Apps Script'te)
 
-- [ ] `eski` sayfasında B1 hücresine **Sıra** yaz (şu an `#REF!`).
-- [ ] Code.gs'i Apps Script'e yapıştırıp **yeni sürüm** olarak dağıt (bilgisayardan).
-  eski/seans "en yeni üstte", arsiv sayfası ve gizlenen hata ayrıntıları ancak bundan
-  sonra devreye girer. `@OnlyCurrentDoc` yüzünden bir kez yeni izin istenir
-  (düzenleyicide `tokenGoster`'i çalıştırıp onayla).
+- [x] `eski` sayfasında B1 = **Sıra** düzeltildi.
+- [x] Code.gs yeni sürüm olarak dağıtıldı (arsiv, en yeni üstte, @OnlyCurrentDoc).
 - [x] Anahtar yenilendi (`tokenUret`), telefon yeni anahtarla çalışıyor.
 
 ## Tamamlanan
