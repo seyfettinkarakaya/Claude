@@ -286,12 +286,12 @@ sc('Tüm setleri tamamlama, işaret kaldırma, sona gelince başa sarma', async 
   for (let i = 0; i < 3; i++) { await p.click('#btn-complete'); await p.waitForTimeout(700); }
   assert.strictEqual(await p.$$eval('.w-item.is-done', (e) => e.length), 5);
   assert.strictEqual(await p.textContent('#btn-complete-text'), 'İşareti Kaldır');
-  assert.match(await p.textContent('#prog-dist'), /^1\.000\/1\.000/);
+  assert.match(await p.textContent('#prog-dist'), /^1\.200\/1\.200/);
   await p.click('#btn-complete');
   assert.strictEqual(await p.$$eval('.w-item.is-done', (e) => e.length), 4);
   await p.click('#btn-complete'); await p.waitForTimeout(500);
   await p.click('#btn-session'); await s.waitScreen('form');
-  assert.strictEqual(await p.inputValue('#f-mesafe'), '1000');
+  assert.strictEqual(await p.inputValue('#f-mesafe'), '1200');
 });
 
 sc('Hiç set işaretlenmeden Bitir: onay sorulur', async ({ launch }) => {
