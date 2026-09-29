@@ -9,6 +9,13 @@ bekleyen işlerin tamamı birlikte güncellenir.
   tonlarda; blok başına farklı açıklık (ana set en açık, ısınma/soğuma en koyu) ki yapı
   renksiz de okunsun. Seçili günün kartı renkli kalır. (görsel: şimdiki / gri karşılaştırması)
 
+- [ ] **Ana sayfa (yeni açılış ekranı)** — `tasarim/v9/H1-ana-sayfa.png`
+  - Sadece 2 büyük düğme: **Yüzme** (mevcut hafta takvimine gider; içinde sıradaki idmanın
+    kısa bilgisi) ve **Salon** (şimdilik pasif, "Yakında" etiketi).
+  - Üstte tarih ve ayarlar; takvimdeki geri düğmesi ana sayfaya döner.
+  - Devam eden seans varsa uygulama yine doğrudan seansa açılır.
+  - Mimari: salon bölümü sonradan ayrı ekran/veri modülü olarak eklenebilecek şekilde.
+
 ## İzlenecek
 
 - [ ] Telefondaki tarih önbelleğinin neden bozulduğu kesin bulunamadı. Sürüm 3+
