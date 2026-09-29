@@ -486,9 +486,8 @@ const qItem = (tarih) => ({ id: `${tarih}-1`, createdAt: 1, tries: 1, lastError:
 const hRec = (tarih, status) => ({ id: `h-${tarih}`, tarih, savedAt: 1, status, seans: { sure: '00:40:00', mesafe: 1500 }, setler: [{ blok: 'WU', tekrar: 1, mesafe: 300, tamamlandi: true }, { blok: 'MS', tekrar: 4, mesafe: 300, tamamlandi: true }] });
 
 sc('Kuyruk yönetimi: bekleyen kaydı silmek, geçmişte "Gönderilmedi"', async ({ launch }) => {
-  const s = await launch({ storage: { 'ysk.queue': [qItem('2026-09-20')], 'ysk.history': [hRec('2026-09-20', 'queued')] } }); const p = s.page;
-  s.net.offline = true;
-  await p.reload(); await s.waitScreen('home');
+  const s = await launch({ offline: true, storage: { 'ysk.queue': [qItem('2026-09-20')], 'ysk.history': [hRec('2026-09-20', 'queued')] } }); const p = s.page;
+  await s.waitScreen('home');
   assert.match(await p.textContent('#home-history-meta'), /1 kayıt · 1 gönderilmeyi bekliyor/);
   await p.click('#home-swim'); await p.waitForSelector('.banner-warn');
   await p.click('[data-act="queue-manage"]');
@@ -502,9 +501,8 @@ sc('Kuyruk yönetimi: bekleyen kaydı silmek, geçmişte "Gönderilmedi"', async
 
 sc('Geçmiş: gönderilmemiş kayıt uyarısı, "tabloya gidenleri sil" kuyruktakini bırakır', async ({ launch }) => {
   const hist = [hRec('2026-09-22', 'sent'), hRec('2026-09-21', 'duplicate'), hRec('2026-09-20', 'queued')];
-  const s = await launch({ storage: { 'ysk.queue': [qItem('2026-09-20')], 'ysk.history': hist } }); const p = s.page;
-  s.net.offline = true;
-  await p.reload(); await s.waitScreen('home');
+  const s = await launch({ offline: true, storage: { 'ysk.queue': [qItem('2026-09-20')], 'ysk.history': hist } }); const p = s.page;
+  await s.waitScreen('home');
   await p.click('#home-history'); await s.waitScreen('history');
   const rows = await p.$$eval('.hist-row', (e) => e.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
   assert.strictEqual(rows.length, 3);

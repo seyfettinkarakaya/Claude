@@ -127,6 +127,12 @@ düğmesiyle girilir. Açılışta bugün (plan yoksa en yakın planlı gün) se
 olmayan günlerin çubukları gri tonlardadır (ana set en açık, ısınma/soğuma en koyu).
 Sol üstteki ‹ ana sayfaya döner.
 
+**Program açılışı.** Tarih listesi her günün tüm setlerini de getirir ve telefonda saklanır;
+"… idmanını aç" programı beklemeden açar. Tablodaki güncel hali arka planda kontrol edilir:
+program değişmişse ve seansa henüz başlanmadıysa yenisiyle değiştirilir ("Program tablodan
+güncellendi"), başlandıysa seans boyunca eldeki program korunur. (Eski Code.gs ile yaklaşan
+ilk üç günün programı arka planda indirilir.)
+
 **Program (metro hattı).** Setler bir metro hattının durakları gibi dizilir; hat her
 bloğun renginde. Aktif durak "peron"da büyük bir kart olarak açılır (Tekrar × Mesafe,
 Stil · Tür, açıklama, Hedef, Dinlen, Alet ve set / yığımlı mesafe); üstünde ve altında
@@ -139,9 +145,9 @@ sönmez (Screen Wake Lock; desteklenmiyorsa sessizce devam eder). Kartın altın
 **100 m temposu** (ör. `Tempo 1:35/100 · Z3`) bölge renginde görünür.
 
 **Su kilidi.** Program ekranında sağ üstteki, kronometrede üstteki 🔒 düğmesi ekranı
-kilitler: ıslak parmakla yanlış dokunmalar yok sayılır. Kronometrede kilitliyken yalnızca
-büyük **TUR/BAŞLAT** düğmesi ve göstergeye dokunma çalışır. Açmak için şeridi 1 saniye
-basılı tutun.
+kilitler: ekranın tamamı saydam bir katmanla örtülür, hiçbir dokunma (TUR, göstergeye
+dokunma, kaydırma dahil) işlenmez; kronometre çalışmaya devam eder. Açmak için şeridi
+1 saniye basılı tutun.
 
 **Kronometre.**
 - Süre göstergesi ekranın %70'ini kaplar; yüzerken bir bakışta okunur.
@@ -221,7 +227,17 @@ alanları doldurabilir.
 ## Testler
 
 ```sh
-node tests/test-gas.cjs     # Code.gs, sahte SpreadsheetApp ile (bağımlılık yok)
-node tests/test-e2e.cjs     # Ön yüz uçtan uca; Playwright + Chromium gerekir
-                            # (global kuruluysa: NODE_PATH=$(npm root -g) node tests/test-e2e.cjs)
+sh tests/run-all.sh           # hepsi
+node tests/test-gas.cjs       # Code.gs ana akış (sahte SpreadsheetApp, bağımlılık yok)
+node tests/test-gas-edge.cjs  # Code.gs uç durumlar: kimlik, başlıklar, tarih/süre biçimleri, geri alma, kilit, arsiv
+node tests/test-data.mjs      # data.js: ayarlar, önbellek, kuyruk, geçmiş, hata kodları
+node tests/e2e-senaryolar.cjs [filtre]  # 30+ uçtan uca senaryo (Playwright + Chromium)
+node tests/test-e2e.cjs       # baştan sona tam akış
 ```
+
+Uçtan uca testler için Playwright gerekir (global kuruluysa `NODE_PATH=$(npm root -g)`).
+Senaryolar: su kilidi, hızlı açılış ve arka plan yenileme, eski Code.gs uyumu, çevrimdışı,
+geçersiz anahtar, kalıcı/geçici sunucu hataları, DUPLICATE, gizli hata ayrıntısı, form
+doğrulama ve çift gönderim, yeniden açılışta devam, tüm setleri tamamlama, gün değiştirme,
+40 setlik program, kronometrenin ölçülen sete bağlı kalması, çıkış sesleri, kuyruk ve geçmiş
+yönetimi, ayarlar, kurulum, 320–430 px ekranlarda taşma.

@@ -1,10 +1,10 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=8';
-import { Wheel } from './wheel.js?v=8';
+import * as data from './data.js?v=9';
+import { Wheel } from './wheel.js?v=9';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '8';
+export const APP_VERSION = '9';
 
 const $ = (id) => document.getElementById(id);
 

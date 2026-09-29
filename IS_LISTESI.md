@@ -39,9 +39,20 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 - [x] `eski` sayfasında B1 = **Sıra** düzeltildi.
 - [x] Code.gs yeni sürüm olarak dağıtıldı (arsiv, en yeni üstte, @OnlyCurrentDoc).
+- [ ] Sürüm 9 için Code.gs'i yeniden yapıştırıp **yeni sürüm** olarak dağıt (program
+  hızlı açılış için tarih listesi setleri de gönderir).
 - [x] Anahtar yenilendi (`tokenUret`), telefon yeni anahtarla çalışıyor.
 
 ## Tamamlanan
+
+- [x] Sürüm 9 (hata düzeltme):
+  - Su kilidi artık tüm ekranı örter: kronometrede kilitliyken ekrana veya TUR'a
+    dokunmak tur ekliyordu — düzeltildi.
+  - Program beklemeden açılır: tarih listesi setleri de getirir (Code.gs güncellemesi),
+    güncel hali arka planda kontrol edilir; eski Code.gs'te yaklaşan günler önceden indirilir.
+  - Kronometre, ölçüm sürerken başka sete geçilse de ölçülen sete bağlı kalır (başlık,
+    çıkış sesi, Kaydet paneli).
+  - Testler: 20 data.js + 21 Code.gs uç durum + 33 uçtan uca senaryo + ana akış testleri.
 
 - [x] Sürüm 8 (1. aşama):
   - Ana sayfa: Yüzme (sıradaki idman) / Salon (Yakında) / Yapılmış idmanlar / Ayarlar;

@@ -36,7 +36,7 @@ function samplePlan() {
 
 async function launch(opts = {}) {
   const env = makeEnv({ Plan: new Sheet('Plan', PLAN_H, opts.rows || samplePlan()), eski: new Sheet('eski', ESKI_H), seans: new Sheet('seans', SEANS_H) });
-  const net = { offline: false, delay: {}, override: null, calls: [], external: [] };
+  const net = { offline: Boolean(opts.offline), delay: {}, override: null, calls: [], external: [] };
   const browser = opts.browser;
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 440, height: 956 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
   ctx.on('request', (r) => { const u = new URL(r.url()); if (u.hostname !== 'localhost' && u.hostname !== 'script.google.com') net.external.push(r.url()); });
