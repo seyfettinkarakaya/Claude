@@ -162,7 +162,6 @@ sc('Çevrimdışı ama önbellek var: liste ve program açılır', async ({ laun
   s.net.offline = true;
   await p.reload();
   await s.openToday();
-  await p.click('#home-swim').catch(() => {});
   assert.strictEqual(await p.textContent('.w-item.is-active .w-title'), '1 × 200');
 });
 
