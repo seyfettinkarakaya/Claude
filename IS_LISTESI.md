@@ -3,7 +3,9 @@
 Talepler ve hatalar burada toplanır; kod ancak "uygula" denince, listedeki
 bekleyen işlerin tamamı birlikte güncellenir.
 
-## Bekleyen (kod)
+## 1. Aşama — Acil
+
+### Senin taleplerin
 
 - [ ] **İlk sayfa daha sade:** seçili gün dışındaki günlerin çubukları renkli değil gri
   tonlarda; blok başına farklı açıklık (ana set en açık, ısınma/soğuma en koyu) ki yapı
@@ -15,6 +17,60 @@ bekleyen işlerin tamamı birlikte güncellenir.
   - Üstte tarih ve ayarlar; takvimdeki geri düğmesi ana sayfaya döner.
   - Devam eden seans varsa uygulama yine doğrudan seansa açılır.
   - Mimari: salon bölümü sonradan ayrı ekran/veri modülü olarak eklenebilecek şekilde.
+
+- [ ] **Plan satırları silinmez, arşivlenir (G.2 yerine)**
+  - Tabloda: seans bitince o günün Plan satırları silinmek yerine yeni **arsiv**
+    sayfasına taşınır (yoksa Code.gs oluşturur; en yeni üstte).
+    Sıra: eski yaz → doğrula → seans yaz → Plan satırlarını arsiv'e kopyala → Plan'dan sil.
+  - Telefonda: biten seansın kaydı (plan + sonuçlar + form) **otomatik silinmez**,
+    "Yapılmış idmanlar" listesinde saklanır.
+  - Yeni sayfa **Telefonda yapılmış idmanlar**: tarih, mesafe, süre, gönderildi/kuyrukta
+    durumu. Kayıt tek tek veya toplu silinir; silmeden önce onay sorulur.
+    Kuyrukta (henüz gönderilmemiş) kayıt için ayrıca uyarı gösterilir.
+
+### Güvenlik
+
+- [ ] **G.1** Code.gs başına `@OnlyCurrentDoc`: betik yalnızca bağlı tabloya erişir
+  (yetki izni daralır; dağıtımda yeniden izin istenir).
+- [ ] **G.3** Anahtar yenileme: README'ye "token nasıl değiştirilir" adımları
+  (`tokenUret()` → yeni anahtar telefona); Ayarlar'a **Anahtarı unut** düğmesi.
+- [ ] **G.4** index.html'e Content-Security-Policy: betik yalnızca kendi dosyalarımız,
+  bağlantı yalnızca `script.google.com` / `script.googleusercontent.com`.
+- [ ] **G.5** Yazı tipleri depoya alınır (Google Fonts'a istek gitmez, CSP daha dar,
+  çevrimdışı da aynı görünüm).
+- [ ] **G.6** Sunucu hata ayrıntıları istemciye gönderilmez: kullanıcıya kısa kod +
+  mesaj, ayrıntı yalnızca Apps Script günlüğüne.
+
+### İşlev
+
+- [ ] **F.1** Çıkışa geri sayımında sesli uyarı: son 3 saniyede kısa bip, çıkışta
+  uzun bip (Ayarlar'dan kapatılabilir; iOS için ilk dokunuşta ses açılır).
+- [ ] **F.5** 100 m tempo ve CSS bölgeleri: kronometre ve set kartında 100 m temposu;
+  Ayarlar'a CSS (kritik yüzme hızı) girilir, tempo bölge rengiyle gösterilir.
+- [ ] **F.6** Su kilidi: seans sırasında ıslak parmakla yanlış dokunmayı önleyen
+  kilit; açmak için uzun basma / kaydırma.
+
+## 2. Aşama — Orta vade
+
+### İşlev
+
+- [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
+  blok bazında dağılım; haftalık toplamlar.
+- [ ] **F.3** Set başına kulaç sayısı / nabız girişi (isteğe bağlı alanlar).
+- [ ] **F.4** Tekrar takibi ve otomatik aralık modu: çıkış saatine göre tekrarları
+  kendiliğinden sayar, sonraki tekrara geçer.
+- [ ] **F.7** Service worker: uygulama dosyaları önbellekte, internet yokken de açılır.
+- [ ] **F.8** Uygulama içinde plan düzeltme (tekrar, mesafe, hedef) ve tabloya yazma.
+
+### Görsel
+
+- [ ] Form, kurulum ve "Kaydedildi" ekranlarını yeni tasarıma uyarlamak; renk
+  paletlerini (sarı set ekranı / turkuaz takvim / gri ana sayfa) tek sistemde toplamak.
+- [ ] Tutarlı simge seti (şu an elle çizilmiş karışık SVG ve karakterler).
+- [ ] Yeni uygulama simgesi.
+- [ ] Hareket ve kutlama: seans bitişinde kısa animasyon, geçişlerde yumuşaklık.
+- [ ] Açık tema (güneşli dış havuz için).
+- [ ] Ayarlar'da yazı boyutu seçimi.
 
 ## İzlenecek
 
