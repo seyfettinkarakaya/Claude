@@ -42,8 +42,7 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
   eski/seans "en yeni üstte", arsiv sayfası ve gizlenen hata ayrıntıları ancak bundan
   sonra devreye girer. `@OnlyCurrentDoc` yüzünden bir kez yeni izin istenir
   (düzenleyicide `tokenGoster`'i çalıştırıp onayla).
-- [ ] Anahtar bu sohbette paylaşıldığı için bir kez yenile: `tokenUret` → yeni anahtarı
-  telefonda Ayarlar'a gir (README "Anahtarı yenileme").
+- [x] Anahtar yenilendi (`tokenUret`), telefon yeni anahtarla çalışıyor.
 
 ## Tamamlanan
 
