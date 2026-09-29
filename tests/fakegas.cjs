@@ -16,11 +16,11 @@ class Sheet {
     getDisplayValues(){ return this.getValues().map(row=>row.map(v=> v instanceof Date? v.toISOString() : String(v))); },
     getNumberFormats(){ return Array.from({length:nr},(_,i)=>{sh._row(r-1+i); return Array.from({length:nc},(_,j)=>sh.fmt[r-1+i][c-1+j]);}); },
     setNumberFormats(f){ f.forEach((row,i)=>{sh._row(r-1+i); row.forEach((v,j)=>{ if(typeof v!=='string') throw new Error('bad fmt'); sh.fmt[r-1+i][c-1+j]=v;});}); return this; },
-    setValues(v){ if(sh.failOn==='write') throw new Error('write failed'); if(v.length!==nr||v[0].length!==nc) throw new Error('dim mismatch'); v.forEach((row,i)=>{const R=sh._row(r-1+i); row.forEach((x,j)=>R[c-1+j]=x);}); return this; },
+    setValues(v){ if(sh.failOn==='write') throw new Error('write failed'); if(v.length!==nr||v[0].length!==nc) throw new Error('dim mismatch'); if(r===1) sh.w=Math.max(sh.w,c-1+nc); v.forEach((row,i)=>{const R=sh._row(r-1+i); row.forEach((x,j)=>R[c-1+j]=x);}); return this; },
   }; }
 }
 function makeEnv(sheets, token='secret') {
-  const ss = { getSheetByName: n => sheets[n]||null, getSpreadsheetTimeZone: ()=>'UTC' };
+  const ss = { getSheetByName: n => sheets[n]||null, getSpreadsheetTimeZone: ()=>'UTC', insertSheet: n => { if (ss.failInsert) throw new Error('insert failed'); return (sheets[n] = new Sheet(n, [])); } };
   const pad=n=>String(n).padStart(2,'0');
   const ctx = {
     __init: true,
@@ -29,7 +29,7 @@ function makeEnv(sheets, token='secret') {
     PropertiesService: { getScriptProperties: ()=>({ getProperty:()=>token, setProperty(){} }) },
     LockService: { getDocumentLock: ()=>({ tryLock:()=>true, releaseLock(){} }), getScriptLock: ()=>null },
     ContentService: { createTextOutput: s=>({ s, setMimeType(){ return this; } }), MimeType:{JSON:'json'} },
-    Logger: { log(){} }, console,
+    Logger: { log(){} }, console: { ...console, error(){} },
   };
   vm.createContext(ctx);
   const CDate = vm.runInContext('Date', ctx);

@@ -10,6 +10,8 @@ const KEYS = {
   plans: 'ysk.plans',
   session: 'ysk.session',
   queue: 'ysk.queue',
+  history: 'ysk.history', // telefonda saklanan biten seanslar (elle silinir)
+  prefs: 'ysk.prefs',
 };
 
 const REQUEST_TIMEOUT_MS = 30000;
@@ -67,9 +69,34 @@ export function setConfig({ apiUrl, token }) {
   store(KEYS.config, { apiUrl: String(apiUrl || '').trim(), token: String(token || '').trim() });
 }
 
+/** Adres ve anahtarı bu cihazdan siler (Anahtarı unut). Kayıtlar ve kuyruk kalır. */
+export function clearConfig() {
+  store(KEYS.config, null);
+}
+
 export function isConfigured() {
   const c = getConfig();
   return Boolean(c.apiUrl && c.token);
+}
+
+// ---------------------------------------------------------------------------
+// Tercihler (ses, CSS temposu)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_PREFS = { ses: true, css: 117 }; // css: 100 m kritik yüzme hızı (sn)
+
+export function getPrefs() {
+  const p = load(KEYS.prefs, null);
+  const out = { ...DEFAULT_PREFS };
+  if (p && typeof p === 'object') {
+    if (typeof p.ses === 'boolean') out.ses = p.ses;
+    if (p.css === null || (typeof p.css === 'number' && p.css > 0)) out.css = p.css;
+  }
+  return out;
+}
+
+export function setPrefs(patch) {
+  store(KEYS.prefs, { ...getPrefs(), ...patch });
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +239,42 @@ export function clearSession() {
 }
 
 // ---------------------------------------------------------------------------
+// Telefonda yapılmış idmanlar
+//
+// Biten her seans (gönderilen, kuyruğa alınan veya zaten kayıtlı çıkan) burada
+// saklanır ve yalnızca kullanıcı "Yapılmış idmanlar" sayfasından silince gider.
+// status: 'sent' | 'queued' | 'duplicate'
+// ---------------------------------------------------------------------------
+
+export function getHistory() {
+  const h = load(KEYS.history, []);
+  if (!Array.isArray(h)) return [];
+  return h.filter((x) => x && typeof x.id === 'string' && typeof x.tarih === 'string' && Array.isArray(x.setler));
+}
+
+/** Kaydı ekler; aynı günün eski kaydı varsa yerine geçer. Yazılamazsa false. */
+export function addHistory(record) {
+  const list = getHistory().filter((x) => x.tarih !== record.tarih);
+  list.push(record);
+  list.sort((a, b) => (a.tarih < b.tarih ? 1 : a.tarih > b.tarih ? -1 : 0));
+  return store(KEYS.history, list);
+}
+
+export function removeHistory(ids) {
+  const drop = new Set(ids);
+  store(KEYS.history, getHistory().filter((x) => !drop.has(x.id)));
+}
+
+function markHistory(tarih, status) {
+  const list = getHistory();
+  const x = list.find((r) => r.tarih === tarih);
+  if (!x || x.status === 'sent') return;
+  x.status = status;
+  x.sentAt = Date.now();
+  store(KEYS.history, list);
+}
+
+// ---------------------------------------------------------------------------
 // Seans kaydı ve kuyruk
 // ---------------------------------------------------------------------------
 
@@ -261,11 +324,13 @@ export function flushQueue() {
         const data = await finishSession(item.payload);
         removeFromQueue(item.id);
         forgetDate(item.payload.tarih);
+        markHistory(item.payload.tarih, 'sent');
         result.sent.push({ tarih: item.payload.tarih, data });
       } catch (err) {
         if (err.code === 'DUPLICATE') {
           removeFromQueue(item.id);
           forgetDate(item.payload.tarih);
+          markHistory(item.payload.tarih, 'duplicate');
           result.duplicates.push({ tarih: item.payload.tarih });
           continue;
         }

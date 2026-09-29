@@ -35,7 +35,16 @@ r = env.call(payload);
 assert.strictEqual(r.error, 'SERVER'); assert.strictEqual(env.sheets.eski.getLastRow(), 1, 'eski geri alınmalı'); assert.strictEqual(env.sheets.Plan.getLastRow(), 6);
 env.sheets.seans.failOn=null;
 r = env.call(payload);
-assert.ok(r.ok, JSON.stringify(r)); assert.deepStrictEqual(r.data, {yazilanSet:2, silinenSet:3});
+assert.ok(r.ok, JSON.stringify(r)); assert.deepStrictEqual(r.data, {yazilanSet:2, arsivlenenSet:3, silinenSet:3});
+// arsiv: sayfa yoksa Plan başlıklarıyla oluşturulur; günün tüm satırları Sıra sırasıyla
+const A = env.sheets.arsiv;
+assert.ok(A, 'arsiv sayfası oluşturulmalı');
+assert.strictEqual(A.data[0].join('|'), env.sheets.Plan.data[0].join('|'));
+const ah = (k) => A.data[0].indexOf(k);
+assert.deepStrictEqual(A.data.slice(1).map(x => [x[ah('Sıra')], x[ah('Blok')], x[ah('Açıklama')], x[ah('Alet')]]),
+  [[1,'WU','Rahat, HR<140',''],[2,'PS','catch-up',''],[3,'MS','','Şamandıra']]);
+assert.ok(A.data.slice(1).every(x => Object.prototype.toString.call(x[ah('Tarih')]) === '[object Date]'));
+assert.deepStrictEqual(A.data.slice(1).map(x => x[1]), [1,2,3]);
 const eski = env.sheets.eski.data;
 assert.strictEqual(eski.length, 3);
 assert.deepStrictEqual(eski.slice(1).map(x=>x[1]), [1,3], 'orijinal Sıra sırası');
@@ -50,14 +59,25 @@ assert.strictEqual(env.sheets.Plan.getLastRow(), 3);
 r = env.call(payload); assert.strictEqual(r.error, 'DUPLICATE'); assert.strictEqual(env.sheets.eski.data.length, 3); assert.strictEqual(env.sheets.seans.data.length, 2);
 // Hiç set tamamlanmadan kapatılan seans ve tekrar gönderim
 r = env.call({action:'finishSession', tarih:'2026-09-26', seans:{sure:'00:10:00',mesafe:0,havuz:50,rpe:'',msi:'',aciklama:''}, setler:[{sira:1,tamamlandi:false}]});
-assert.deepStrictEqual(r.data, {yazilanSet:0, silinenSet:1});
+assert.deepStrictEqual(r.data, {yazilanSet:0, arsivlenenSet:1, silinenSet:1});
+assert.deepStrictEqual(A.data.slice(1).map(x => x[1]), [1,1,2,3], 'yeni gün arsiv\'in en üstünde');
+assert.ok(A.data[1][ah('Blok')] === 'WU' && A.data[1][ah('Mesafe')] === 300);
 r = env.call({action:'finishSession', tarih:'2026-09-26', seans:{}, setler:[]}); assert.strictEqual(r.error, 'DUPLICATE');
 // Plan'da olmayan sıra
 env = fresh(); r = env.call({...payload, setler:[{sira:9,tamamlandi:true}]}); assert.strictEqual(r.error,'PLAN_MISMATCH'); assert.strictEqual(env.sheets.eski.getLastRow(),1);
 // Olmayan tarih
 r = env.call({...payload, tarih:'2027-01-01'}); assert.strictEqual(r.error,'NOT_FOUND');
-// Silme hatası → yine ok, uyarı
+// Silme hatası → yine ok, uyarı (arsiv'e kopyalanmış)
 env.sheets.Plan.failOn='delete'; r = env.call(payload); assert.ok(r.ok && r.data.uyari, JSON.stringify(r));
+assert.strictEqual(r.data.arsivlenenSet, 3); assert.strictEqual(r.data.silinenSet, 0);
+// arsiv yazılamazsa Plan silinmez; seans yine kaydedilmiş sayılır
+env = fresh(); env.sheets.arsiv = new Sheet('arsiv', ['Tarih','Sıra']); env.sheets.arsiv.failOn = 'write';
+r = env.call(payload); assert.ok(r.ok && /arsiv/.test(r.data.uyari), JSON.stringify(r));
+assert.strictEqual(r.data.silinenSet, 0); assert.strictEqual(env.sheets.Plan.getLastRow(), 6); assert.strictEqual(env.sheets.seans.getLastRow(), 2);
+assert.strictEqual(env.sheets.arsiv.getLastRow(), 1, 'yarım arsiv satırı kalmamalı');
+// Beklenmeyen hata ayrıntısı istemciye gitmez
+env = fresh(); env.sheets.seans.failOn = 'write'; r = env.call(payload);
+assert.strictEqual(r.error, 'SERVER'); assert.ok(!/write failed/.test(r.message) && /başvuru/.test(r.message), r.message);
 // Eksik zorunlu sütun
 env = fresh(); env.sheets.Plan.data[0][1]='Sira '; r = env.call({action:'getPlan',tarih:'2026-09-24'}); assert.ok(r.ok, 'normalize edilmiş başlık');
 env.sheets.Plan.data[0][1]='X'; r = env.call({action:'getPlan',tarih:'2026-09-24'}); assert.strictEqual(r.error,'MISSING_COLUMN');

@@ -1,5 +1,10 @@
 /**
+ * @OnlyCurrentDoc
+ *
  * YüzmeSK — Apps Script arka ucu (Faz 1)
+ *
+ * @OnlyCurrentDoc: betik yalnızca bağlı olduğu tabloya erişebilir; Drive'daki
+ * diğer dosyalara erişim izni istenmez.
  *
  * YuzmeProgram tablosuna bağlı (container-bound) script olarak kurulur ve
  * web uygulaması olarak yayınlanır (erişim: herkes, çalıştıran: ben).
@@ -16,6 +21,7 @@
 var SHEET_PLAN = 'Plan';
 var SHEET_ESKI = 'eski';
 var SHEET_SEANS = 'seans';
+var SHEET_ARSIV = 'arsiv'; // biten günlerin Plan satırları buraya taşınır
 var LOCK_WAIT_MS = 30000;
 var TOKEN_PROPERTY = 'TOKEN';
 
@@ -90,19 +96,33 @@ function handle_(req) {
       case 'finishSession':
         return withLock_(function () { return ok_(finishSession_(req)); });
       default:
-        return fail_('UNKNOWN_ACTION', 'Bilinmeyen işlem: ' + req.action);
+        return fail_('UNKNOWN_ACTION', 'Bilinmeyen işlem.');
     }
   } catch (err) {
-    if (err && err.appCode) return fail_(err.appCode, err.message);
-    return fail_('SERVER', String((err && err.message) || err));
+    return errorReply_(err);
   }
+}
+
+/**
+ * Bilinen hatalar (appCode) kodu ve mesajıyla döner. Beklenmeyen hataların
+ * ayrıntısı istemciye gönderilmez; yalnızca Apps Script günlüğüne (Yürütmeler)
+ * kısa bir başvuru numarasıyla yazılır.
+ */
+function errorReply_(err) {
+  if (err && err.appCode) return fail_(err.appCode, err.message);
+  var ref = Utilities.getUuid().slice(0, 8);
+  console.error('SERVER ' + ref + ': ' + ((err && err.stack) || err));
+  return fail_('SERVER', 'Sunucuda beklenmeyen bir hata oldu (başvuru: ' + ref + ').');
 }
 
 // ---------------------------------------------------------------------------
 // Kurulum yardımcıları (Apps Script düzenleyicisinden elle çalıştırılır)
 // ---------------------------------------------------------------------------
 
-/** Rastgele bir token üretir, Script Properties'e yazar ve günlüğe basar. */
+/**
+ * Rastgele bir token üretir, Script Properties'e yazar ve günlüğe basar.
+ * Anahtarı yenilemek için de kullanılır: eski anahtar o anda geçersiz olur.
+ */
 function tokenUret() {
   var token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   PropertiesService.getScriptProperties().setProperty(TOKEN_PROPERTY, token);
@@ -208,9 +228,11 @@ function getPlan_(req) {
 // finishSession
 //
 // Sıra: 1) yinelenme kontrolü  2) eski'ye yaz  3) doğrula  4) seans'a yaz
-//       5) ancak hepsi başarılıysa Plan'dan sil.
+//       5) ancak hepsi başarılıysa Plan satırlarını arsiv'e kopyala
+//       6) arsiv'e yazıldığı doğrulanınca Plan'dan sil.
 // 2–4 arasında bir hata olursa bu çağrının eklediği satırlar geri alınır,
-// Plan'a dokunulmaz. Böylece ya hepsi kalıcı olur ya hiçbiri.
+// Plan'a dokunulmaz. Böylece ya hepsi kalıcı olur ya hiçbiri. Arşivleme
+// başarısızsa Plan satırları silinmez (seans yine kaydedilmiş sayılır).
 // ---------------------------------------------------------------------------
 
 function finishSession_(req) {
@@ -298,19 +320,77 @@ function finishSession_(req) {
     throw err;
   }
 
-  // 5) Plan'dan sil. Satır numaraları, arada tablo elle düzenlenmiş olabileceği
-  //    için taze okumayla yeniden hesaplanır.
-  var silinen = 0;
+  // 5) Plan satırlarını arsiv'e kopyala (Sıra sırasıyla, en yeni gün üstte).
+  var arsivlenen = 0;
   var uyari = '';
   try {
-    silinen = deleteDateRows_(plan.sheet, planTarihCol, tarih, tz);
+    arsivlenen = archivePlanRows_(ss, plan, planRows, planSiraCol, tarih, tz);
   } catch (err) {
-    uyari = 'Seans kaydedildi ancak Plan satırları silinemedi: ' + ((err && err.message) || err);
+    console.error('arsiv: ' + ((err && err.stack) || err));
+    uyari = 'Seans kaydedildi ancak Plan satırları arsiv sayfasına taşınamadı; Plan\'da bırakıldı.';
   }
 
-  var data = { yazilanSet: done.length, silinenSet: silinen };
+  // 6) Plan'dan sil. Satır numaraları, arada tablo elle düzenlenmiş olabileceği
+  //    için taze okumayla yeniden hesaplanır.
+  var silinen = 0;
+  if (!uyari) {
+    try {
+      silinen = deleteDateRows_(plan.sheet, planTarihCol, tarih, tz);
+    } catch (err) {
+      console.error('plan sil: ' + ((err && err.stack) || err));
+      uyari = 'Seans kaydedildi ve arsiv\'e kopyalandı ancak Plan satırları silinemedi.';
+    }
+  }
+
+  var data = { yazilanSet: done.length, arsivlenenSet: arsivlenen, silinenSet: silinen };
   if (uyari) data.uyari = uyari;
   return data;
+}
+
+/**
+ * Günün Plan satırlarını arsiv sayfasının en üstüne kopyalar. Sayfa yoksa
+ * Plan'ın başlıklarıyla oluşturulur; varsa sütunlar başlık adına göre eşlenir.
+ * Yazılan satır sayısı doğrulanır; tutmazsa eklenenler geri alınır ve hata
+ * fırlatılır (Plan'a dokunulmaz).
+ */
+function archivePlanRows_(ss, plan, planRows, planSiraCol, tarih, tz) {
+  var sheet = ss.getSheetByName(SHEET_ARSIV);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_ARSIV);
+    var headers = plan.headers.map(function (h) { return h; });
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+  var arsiv = readSheet_(ss, SHEET_ARSIV);
+  var arsivTarihCol = col_(arsiv, COL.tarih, true);
+
+  var rows = planRows.slice().sort(function (a, b) {
+    return bySira_(
+      { sira: toNumber_(plan.values[a][planSiraCol]), _satir: a },
+      { sira: toNumber_(plan.values[b][planSiraCol]), _satir: b });
+  }).map(function (i) {
+    var values = [];
+    var formats = [];
+    arsiv.headers.forEach(function (h) {
+      var key = normalize_(h);
+      if (key && key in plan.map) {
+        values.push(plan.values[i][plan.map[key]]);
+        formats.push(plan.formats[i][plan.map[key]]);
+      } else {
+        values.push('');
+        formats.push(null);
+      }
+    });
+    return { values: values, formats: formats };
+  });
+
+  var before = countDateInColumn_(sheet, arsivTarihCol, tarih, tz);
+  var written = writeRows_(arsiv, rows, true);
+  SpreadsheetApp.flush();
+  if (countDateInColumn_(sheet, arsivTarihCol, tarih, tz) !== before + rows.length) {
+    rollback_(written, arsivTarihCol, tarih, tz);
+    throw appError_('WRITE_MISMATCH', 'arsiv satırları doğrulanamadı.');
+  }
+  return rows.length;
 }
 
 function buildEskiRow_(plan, eski, planRow, sonuc, tz) {
@@ -656,8 +736,7 @@ function withLock_(fn) {
   try {
     return fn();
   } catch (err) {
-    if (err && err.appCode) return fail_(err.appCode, err.message);
-    return fail_('SERVER', String((err && err.message) || err));
+    return errorReply_(err);
   } finally {
     lock.releaseLock();
   }

@@ -5,50 +5,7 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 ## 1. Aşama — Acil
 
-### Senin taleplerin
-
-- [ ] **İlk sayfa daha sade:** seçili gün dışındaki günlerin çubukları renkli değil gri
-  tonlarda; blok başına farklı açıklık (ana set en açık, ısınma/soğuma en koyu) ki yapı
-  renksiz de okunsun. Seçili günün kartı renkli kalır. (görsel: şimdiki / gri karşılaştırması)
-
-- [ ] **Ana sayfa (yeni açılış ekranı)** — `tasarim/v9/H1-ana-sayfa.png`
-  - Sadece 2 büyük düğme: **Yüzme** (mevcut hafta takvimine gider; içinde sıradaki idmanın
-    kısa bilgisi) ve **Salon** (şimdilik pasif, "Yakında" etiketi).
-  - Üstte tarih ve ayarlar; takvimdeki geri düğmesi ana sayfaya döner.
-  - Devam eden seans varsa uygulama yine doğrudan seansa açılır.
-  - Mimari: salon bölümü sonradan ayrı ekran/veri modülü olarak eklenebilecek şekilde.
-
-- [ ] **Plan satırları silinmez, arşivlenir (G.2 yerine)**
-  - Tabloda: seans bitince o günün Plan satırları silinmek yerine yeni **arsiv**
-    sayfasına taşınır (yoksa Code.gs oluşturur; en yeni üstte).
-    Sıra: eski yaz → doğrula → seans yaz → Plan satırlarını arsiv'e kopyala → Plan'dan sil.
-  - Telefonda: biten seansın kaydı (plan + sonuçlar + form) **otomatik silinmez**,
-    "Yapılmış idmanlar" listesinde saklanır.
-  - Yeni sayfa **Telefonda yapılmış idmanlar**: tarih, mesafe, süre, gönderildi/kuyrukta
-    durumu. Kayıt tek tek veya toplu silinir; silmeden önce onay sorulur.
-    Kuyrukta (henüz gönderilmemiş) kayıt için ayrıca uyarı gösterilir.
-
-### Güvenlik
-
-- [ ] **G.1** Code.gs başına `@OnlyCurrentDoc`: betik yalnızca bağlı tabloya erişir
-  (yetki izni daralır; dağıtımda yeniden izin istenir).
-- [ ] **G.3** Anahtar yenileme: README'ye "token nasıl değiştirilir" adımları
-  (`tokenUret()` → yeni anahtar telefona); Ayarlar'a **Anahtarı unut** düğmesi.
-- [ ] **G.4** index.html'e Content-Security-Policy: betik yalnızca kendi dosyalarımız,
-  bağlantı yalnızca `script.google.com` / `script.googleusercontent.com`.
-- [ ] **G.5** Yazı tipleri depoya alınır (Google Fonts'a istek gitmez, CSP daha dar,
-  çevrimdışı da aynı görünüm).
-- [ ] **G.6** Sunucu hata ayrıntıları istemciye gönderilmez: kullanıcıya kısa kod +
-  mesaj, ayrıntı yalnızca Apps Script günlüğüne.
-
-### İşlev
-
-- [ ] **F.1** Çıkışa geri sayımında sesli uyarı: son 3 saniyede kısa bip, çıkışta
-  uzun bip (Ayarlar'dan kapatılabilir; iOS için ilk dokunuşta ses açılır).
-- [ ] **F.5** 100 m tempo ve CSS bölgeleri: kronometre ve set kartında 100 m temposu;
-  Ayarlar'a CSS (kritik yüzme hızı) girilir, tempo bölge rengiyle gösterilir.
-- [ ] **F.6** Su kilidi: seans sırasında ıslak parmakla yanlış dokunmayı önleyen
-  kilit; açmak için uzun basma / kaydırma.
+Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılması (aşağıda).
 
 ## 2. Aşama — Orta vade
 
@@ -82,9 +39,25 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 - [ ] `eski` sayfasında B1 hücresine **Sıra** yaz (şu an `#REF!`).
 - [ ] Code.gs'i Apps Script'e yapıştırıp **yeni sürüm** olarak dağıt (bilgisayardan).
-  eski ve seans için "en yeni üstte" ancak bundan sonra devreye girer.
+  eski/seans "en yeni üstte", arsiv sayfası ve gizlenen hata ayrıntıları ancak bundan
+  sonra devreye girer. `@OnlyCurrentDoc` yüzünden bir kez yeni izin istenir
+  (düzenleyicide `tokenGoster`'i çalıştırıp onayla).
+- [ ] Anahtar bu sohbette paylaşıldığı için bir kez yenile: `tokenUret` → yeni anahtarı
+  telefonda Ayarlar'a gir (README "Anahtarı yenileme").
 
 ## Tamamlanan
+
+- [x] Sürüm 8 (1. aşama):
+  - Ana sayfa: Yüzme (sıradaki idman) / Salon (Yakında) / Yapılmış idmanlar / Ayarlar;
+    takvimde ‹ ana sayfaya döner; devam eden seans doğrudan açılır.
+  - Takvimde seçili olmayan günlerin çubukları gri (ana set en açık).
+  - Plan satırları silinmeden önce **arsiv** sayfasına taşınır; biten seans telefonda
+    saklanır, "Yapılmış idmanlar"dan tek tek / toplu, onayla silinir.
+  - G.1 `@OnlyCurrentDoc` · G.3 anahtar yenileme (README) + Anahtarı unut ·
+    G.4 CSP + yalnızca `/exec` adresi kabul · G.5 yazı tipleri depoda ·
+    G.6 sunucu hata ayrıntısı gizli (başvuru numarası).
+  - F.1 çıkış sesi (3-2-1 kısa, çıkışta uzun; Ayarlar'dan kapatılır) · F.5 100 m tempo +
+    CSS bölgeleri (kartta ve kronometrede; ekipmanlı setlerde bölge yok) · F.6 su kilidi.
 
 - [x] Sürüm 7: setler daha yavaş kayar (~170 px/durak, fırlatma en fazla 1 durak);
   presbiyopi için büyük/kontrastlı değişken veriler (durak süreleri 22 px, Hedef/Dinlen 60 px,

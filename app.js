@@ -1,10 +1,10 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=7';
-import { Wheel } from './wheel.js?v=7';
+import * as data from './data.js?v=8';
+import { Wheel } from './wheel.js?v=8';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '7';
+export const APP_VERSION = '8';
 
 const $ = (id) => document.getElementById(id);
 
@@ -23,8 +23,9 @@ const MSI_BOLGELER = [
 ];
 const MSI_DEGERLER = [0, 0.5, 1, 1.5, 2, 3];
 
-const SCREENS = ['setup', 'days', 'program', 'stopwatch', 'form', 'done'];
+const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'stopwatch', 'form', 'done'];
 const WAKE_SCREENS = new Set(['program', 'stopwatch', 'form']);
+const LOCK_SCREENS = new Set(['program', 'stopwatch']);
 
 const state = {
   screen: null,
@@ -33,6 +34,11 @@ const state = {
   wheel: null,
   dates: null,
   datesInfo: {},
+  datesAt: 0,       // tarih listesinin sunucudan son alındığı an
+  datesLoading: null,
+  locked: false,    // su kilidi
+  beep: null,       // { rep, marks } — çıkış sesleri bir kez çalsın
+  prefs: null,      // data.getPrefs() önbelleği (her karede localStorage okunmasın)
   ticker: null,
   swFrame: null,
   swShown: '',
@@ -100,6 +106,19 @@ function esc(s) {
   })[c]);
 }
 
+/**
+ * CSP satır içi style özniteliğine izin vermez: renk ve oranlar HTML'e
+ * data-bg / data-grow / data-glow olarak yazılır, burada CSSOM ile uygulanır.
+ */
+function paint(root) {
+  for (const el of root.querySelectorAll('[data-bg],[data-grow]')) {
+    if (el.dataset.bg) el.style.background = el.dataset.bg;
+    if (el.dataset.grow) el.style.flexGrow = el.dataset.grow;
+    if (el.dataset.glow) el.style.setProperty('--g', el.dataset.glow);
+  }
+  return root;
+}
+
 const setDist = (s) => (Number(s.tekrar) || 1) * (Number(s.mesafe) || 0);
 
 // Blok renkleri (Gece Havuzu). ink: rozet/şerit üzerindeki yazı rengi.
@@ -154,6 +173,48 @@ function setTitle(s) {
 const setKey = (s, i) => (s.sira == null || s.sira === '' ? `i${i}` : String(s.sira));
 
 // ---------------------------------------------------------------------------
+// 100 m tempo ve CSS bölgeleri
+//
+// min: bölgenin alt sınırı, 100 m temposunun CSS'ten farkı (sn). Yavaştan
+// hızlıya: Z1 ≥ CSS+15, Z2 CSS+8…+15, Z3 CSS+3…+8, Z4 CSS−2…+3, Z5 < CSS−2.
+// Ekipmanlı setlerin temposu ekipmansız bölgelerle karşılaştırılmaz.
+// ---------------------------------------------------------------------------
+
+const ZONES = [
+  { ad: 'Toparlanma', min: 15 },
+  { ad: 'Aerobik', min: 8 },
+  { ad: 'Tempo', min: 3 },
+  { ad: 'Eşik (CSS)', min: -2 },
+  { ad: 'Hız', min: -Infinity },
+];
+
+/** Saniye/100 m; mesafe yoksa null. */
+const pacePer100 = (sec, mesafe) => (sec > 0 && Number(mesafe) > 0 ? (sec / Number(mesafe)) * 100 : null);
+
+const isEquipped = (set) => Boolean(String(set.alet || '').trim()) || /pull|drill|kick|tekme|ayak/i.test(String(set.tur || ''));
+
+/** { n: 1..5, ad } ya da null (CSS yok / ekipmanlı set). */
+/** Tercihler; değişince refreshPrefs() ile tazelenir. */
+const prefs = () => state.prefs || (state.prefs = data.getPrefs());
+const refreshPrefs = () => { state.prefs = data.getPrefs(); };
+
+function zoneOf(pace, set) {
+  const css = prefs().css;
+  if (!pace || !css || isEquipped(set)) return null;
+  const d = pace - css;
+  const i = ZONES.findIndex((z) => d >= z.min);
+  return { n: i + 1, ad: ZONES[i].ad };
+}
+
+/** "1:35 Z3" gibi: tempo + bölge, bölge renginde. */
+function paceHtml(sec, set) {
+  const pace = pacePer100(sec, set.mesafe);
+  if (!pace) return '';
+  const z = zoneOf(pace, set);
+  return `<b class="${z ? `zc z${z.n}` : ''}">${fmtDur(pace)}</b><small>/100${z ? ` · Z${z.n}` : ''}</small>`;
+}
+
+// ---------------------------------------------------------------------------
 // Ekran geçişleri, ekran kilidi, bildirimler
 // ---------------------------------------------------------------------------
 
@@ -164,6 +225,8 @@ function show(name) {
   else wake.release();
   if (name !== 'program') stopTicker();
   if (name !== 'stopwatch') stopSwLoop();
+  if (!LOCK_SCREENS.has(name)) setLock(false);
+  else placeLockBar();
 }
 
 const wake = {
@@ -276,6 +339,8 @@ function endSessionLocally() {
   } catch (err) {
     console.error(err);
   }
+  state.dates = data.getCachedDates();
+  state.datesAt = 0; // bir sonraki açılışta sunucudan yeniden alınır
 }
 
 // ---------------------------------------------------------------------------
@@ -284,39 +349,107 @@ function endSessionLocally() {
 
 function showSetup(canGoBack) {
   const c = data.getConfig();
+  const configured = data.isConfigured();
   $('setup-url').value = c.apiUrl;
   $('setup-token').value = c.token;
   $('setup-back').hidden = !canGoBack;
   $('setup-msg').hidden = true;
+  $('setup-title').textContent = configured ? 'Ayarlar' : 'Kurulum';
+  $('setup-forget').hidden = !configured;
+  $('setup-prefs').hidden = !configured;
+  renderPrefs();
   show('setup');
 }
+
+/** Web uygulaması adresi: script.google.com/…/exec (Workspace hesapları: /a/macros/alan/s/…). */
+const EXEC_URL = /^https:\/\/script\.google\.com\/(?:a\/macros\/[^/]+\/|macros\/)s\/[\w-]+\/exec\/?$/;
 
 async function saveSetup() {
   const apiUrl = $('setup-url').value.trim();
   const token = $('setup-token').value.trim();
   const msg = $('setup-msg');
-  if (!/^https:\/\//.test(apiUrl) || !token) {
-    msg.textContent = 'Adres https:// ile başlamalı ve anahtar boş olmamalı.';
+  const fail = (text) => {
+    msg.textContent = text;
     msg.hidden = false;
-    return;
-  }
+  };
+  if (/\/dev\/?$/.test(apiUrl)) return fail('Bu bir test (/dev) adresi. "Dağıtımları yönet"ten /exec ile biten adresi kopyalayın.');
+  if (!EXEC_URL.test(apiUrl)) return fail('Adres https://script.google.com/macros/s/…/exec biçiminde olmalı.');
+  if (!token) return fail('Anahtar boş olmamalı.');
   data.setConfig({ apiUrl, token });
   const btn = $('setup-save');
   btn.disabled = true;
   btn.textContent = 'Bağlanıyor…';
   try {
-    await data.getDates();
-    showDays();
+    const r = await data.getDates();
+    state.dates = r.dates;
+    state.datesAt = Date.now();
+    state.datesInfo = { offline: r.fromCache };
+    showHome();
   } catch (err) {
-    msg.textContent = err.code === 'AUTH'
+    fail(err.code === 'AUTH'
       ? 'Anahtar hatalı. Script Properties\'teki TOKEN ile aynı olmalı.'
-      : `Bağlanılamadı: ${err.message} Ayarlar kaydedildi; sol üstten gün listesine geçebilirsiniz.`;
-    msg.hidden = false;
+      : `Bağlanılamadı: ${err.message} Ayarlar kaydedildi; sol üstten ana sayfaya geçebilirsiniz.`);
     $('setup-back').hidden = false;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Kaydet ve bağlan';
   }
+}
+
+async function forgetKey() {
+  const ok = await modal({
+    title: 'Anahtar unutulsun mu?',
+    body: '<p>Apps Script adresi ve anahtar bu telefondan silinir; yeniden girmeden tabloya bağlanılamaz.</p><p class="muted">Yapılmış idmanlar ve gönderilmeyi bekleyen kayıtlar silinmez.</p>',
+    actions: [{ label: 'Evet, unut', value: true, cls: 'btn-danger' }, { label: 'Vazgeç', value: false }],
+  });
+  if (!ok) return;
+  data.clearConfig();
+  state.dates = null;
+  state.datesAt = 0;
+  showSetup(false);
+  toast('Adres ve anahtar silindi.');
+}
+
+// --- Tercihler: çıkış sesi ve CSS temposu -----------------------------------
+
+function renderPrefs() {
+  refreshPrefs();
+  const p = prefs();
+  for (const b of $('pref-ses').children) b.classList.toggle('is-on', (b.dataset.v === '1') === p.ses);
+  if (document.activeElement !== $('pref-css')) $('pref-css').value = p.css ? fmtDur(p.css) : '';
+  $('pref-zones').innerHTML = p.css
+    ? ZONES.map((z, i) => {
+      const hi = i === 0 ? '' : fmtDur(p.css + ZONES[i - 1].min);
+      const lo = z.min === -Infinity ? '' : fmtDur(p.css + z.min);
+      const range = !hi ? `${lo} ve üstü` : !lo ? `${hi} altı` : `${lo} – ${hi}`;
+      return `<div class="zone z${i + 1}"><b>Z${i + 1}</b><span>${z.ad}</span><em>${range}</em></div>`;
+    }).join('')
+    : '';
+}
+
+function onPrefsClick(e) {
+  const b = e.target.closest('#pref-ses button[data-v]');
+  if (b) {
+    data.setPrefs({ ses: b.dataset.v === '1' });
+    renderPrefs();
+    if (b.dataset.v === '1') audio.unlock();
+  }
+}
+
+function onCssChange() {
+  const v = $('pref-css').value.trim();
+  if (!v) {
+    data.setPrefs({ css: null });
+  } else {
+    const sec = parseSec(v);
+    if (!sec || sec < 40 || sec > 300) {
+      toast('CSS dd:ss biçiminde olmalı (ör. 1:57).');
+      return;
+    }
+    data.setPrefs({ css: sec });
+    $('pref-css').value = fmtDur(sec);
+  }
+  renderPrefs();
 }
 
 // ---------------------------------------------------------------------------
@@ -343,22 +476,44 @@ const addDays = (k, n) => {
 /** Haftanın pazartesisi. */
 const mondayOf = (k) => addDays(k, -((parseKey(k).getDay() + 6) % 7));
 
-async function showDays() {
-  show('days');
-  state.dates = data.getCachedDates();
+/**
+ * Tarih listesini sunucudan tazeler (son 30 sn içinde alındıysa force olmadan
+ * tekrar istemez). Liste gönderimi beklemez; kuyrukta olan veya az önce
+ * gönderilen günler visibleDates() ile gizlenir.
+ */
+function loadDates(force = false) {
+  if (!state.dates) state.dates = data.getCachedDates();
+  if (state.datesLoading) return state.datesLoading;
+  if (!force && state.datesAt && Date.now() - state.datesAt < 30000) return Promise.resolve();
   state.datesInfo = { loading: true };
-  renderDays();
-  // Liste gönderimi beklemez; kuyrukta olan veya az önce gönderilen günler
-  // visibleDates() ile gizlenir.
+  rerenderDates();
   flushQueue();
-  try {
-    const r = await data.getDates();
-    state.dates = r.dates;
-    state.datesInfo = { offline: r.fromCache };
-  } catch (err) {
-    state.datesInfo = { error: err };
-  }
+  state.datesLoading = (async () => {
+    try {
+      const r = await data.getDates();
+      state.dates = r.dates;
+      state.datesInfo = { offline: r.fromCache };
+      state.datesAt = Date.now();
+    } catch (err) {
+      state.datesInfo = { error: err };
+    } finally {
+      state.datesLoading = null;
+    }
+    rerenderDates();
+  })();
+  return state.datesLoading;
+}
+
+function rerenderDates() {
+  if (state.screen === 'days') renderDays();
+  else if (state.screen === 'home') renderHome();
+}
+
+function showDays(force = false) {
+  show('days');
+  if (!state.dates) state.dates = data.getCachedDates();
   renderDays();
+  return loadDates(force);
 }
 
 /** Kuyrukta bekleyen (kaydedilmiş ama gönderilmemiş) günler listede görünmez. */
@@ -413,8 +568,14 @@ function metroSvg(sets) {
   return `<svg class="metro" viewBox="0 0 ${W} 28" preserveAspectRatio="none" aria-hidden="true">${segs.join('')}${dots.join('')}</svg>`;
 }
 
-function miniBar(sets) {
-  return `<div class="mini-bar">${sets.map((s) => `<i style="flex:${Math.max(1, s.mesafe || 0)};background:${blokRenk(s.blok)}"></i>`).join('')}</div>`;
+// Seçili olmayan günler renksiz: blok başına gri tonu (ana set en açık,
+// ısınma/soğuma en koyu) ki yapı renk olmadan da okunsun.
+const BLOK_GRI = { MS: '#C9D2DB', AS: '#9BA7B3', PS: '#76828F', WU: '#4F5B67', CD: '#4F5B67' };
+const blokGri = (b) => BLOK_GRI[String(b || '').trim().toUpperCase()] || '#65717D';
+
+function miniBar(sets, gray = false) {
+  const color = gray ? blokGri : blokRenk;
+  return `<div class="mini-bar">${sets.map((s) => `<i data-grow="${Math.max(1, s.mesafe || 0)}" data-bg="${color(s.blok)}"></i>`).join('')}</div>`;
 }
 
 function renderBanners() {
@@ -539,7 +700,7 @@ function renderDays() {
         <span class="dr-info">
           <span class="dr-name">${GUNLER[dt.getDay()]}${k === today ? ' · Bugün' : ''}</span>
           <span class="dr-meta">${x.setSayisi} set · ${fmtNum(x.toplamMesafe)} m${hs ? ` · ${fmtDur(hs)}` : ''}</span>
-          ${sets ? miniBar(sets) : ''}
+          ${sets ? miniBar(sets, true) : ''}
         </span>
       </button>`;
   }).join('');
@@ -551,6 +712,7 @@ function renderDays() {
       </div>`;
   }
   $('days-list').innerHTML = list;
+  paint($('days-list'));
 
   // Alt düğme: yalnızca seçili günün planı varsa
   $('days-today-bar').hidden = !d;
@@ -640,7 +802,7 @@ async function onDaysClick(e) {
   if (!act) return;
   switch (act.dataset.act) {
     case 'refresh':
-      return showDays();
+      return showDays(true);
     case 'resume':
       return resumeSession();
     case 'discard': {
@@ -691,14 +853,191 @@ async function flushQueue(verbose = false) {
     r = await data.flushQueue();
   } catch (err) {
     if (verbose) toast(`Gönderilemedi: ${err.message}`, 4000);
-    if (state.screen === 'days') renderDays();
+    rerenderDates();
     return;
   }
   const sent = [...r.sent, ...r.duplicates];
   for (const x of sent) state.sentDates.add(x.tarih);
   if (sent.length) toast(`Bekleyen kayıt gönderildi: ${sent.map((x) => fmtDateTR(x.tarih)).join(', ')}`, 4000);
   else if (verbose && r.remaining) toast('Hâlâ gönderilemedi. Bağlantı gelince tekrar denenecek.');
-  if (state.screen === 'days') renderDays();
+  if (state.screen === 'history') renderHistory();
+  else rerenderDates();
+}
+
+// ---------------------------------------------------------------------------
+// Ana sayfa: Yüzme / Salon
+// ---------------------------------------------------------------------------
+
+function showHome() {
+  show('home');
+  renderHome();
+  loadDates();
+}
+
+function renderHome() {
+  const now = new Date();
+  const today = todayKey();
+  $('home-date').textContent = `${GUNLER[now.getDay()]}, ${now.getDate()} ${AYLAR[now.getMonth()]}`;
+
+  let tag = '';
+  let meta = '';
+  const s = state.session;
+  if (s) {
+    tag = 'DEVAM EDEN SEANS';
+    meta = `${fmtDateTR(s.tarih)}${s.startedAt ? ' · başladı' : ''}`;
+  } else if (!state.dates && state.datesInfo.loading) {
+    meta = 'Yükleniyor…';
+  } else if (!state.dates && state.datesInfo.error) {
+    tag = 'BAĞLANTI YOK';
+    meta = state.datesInfo.error.message;
+  } else {
+    const next = visibleDates().filter((d) => d.tarih >= today).sort((a, b) => (a.tarih < b.tarih ? -1 : 1))[0];
+    if (next) {
+      const dt = parseKey(next.tarih);
+      const when = next.tarih === today ? 'BUGÜN' : `${dt.getDate()} ${AYLAR[dt.getMonth()]} ${GUNLER[dt.getDay()]}`.toLocaleUpperCase('tr');
+      const hs = hedefSureOf(next);
+      tag = `SIRADAKİ · ${when}`;
+      meta = `${next.setSayisi} set · ${fmtNum(next.toplamMesafe)} m${hs ? ` · ${fmtDur(hs)}` : ''}`;
+    } else {
+      tag = 'PLAN YOK';
+      meta = 'Planlanmış idman yok';
+    }
+  }
+  $('home-swim-tag').textContent = tag;
+  $('home-swim-meta').textContent = meta;
+
+  const n = data.getHistory().length;
+  const q = data.getQueue().length;
+  $('home-history-meta').textContent = (n ? `${n} kayıt` : 'Henüz kayıt yok') + (q ? ` · ${q} gönderilmeyi bekliyor` : '');
+}
+
+// ---------------------------------------------------------------------------
+// Telefonda yapılmış idmanlar
+//
+// Biten seanslar telefonda otomatik silinmez; yalnızca buradan elle silinir.
+// Buradan silmek ne tabloyu ne de gönderim kuyruğunu etkiler.
+// ---------------------------------------------------------------------------
+
+const DURUM = {
+  sent: { ad: 'Tabloda', cls: 'ok' },
+  duplicate: { ad: 'Zaten kayıtlıydı', cls: 'dim' },
+  queued: { ad: 'Kuyrukta', cls: 'warn' },
+  lost: { ad: 'Gönderilmedi', cls: 'err' },
+};
+
+/** Kaydın güncel durumu: kuyrukta mı, gönderildi mi? */
+function historyStatus(rec, queued) {
+  if (queued.has(rec.tarih)) return 'queued';
+  if (rec.status === 'queued') return 'lost'; // kuyruktan elle silinmiş
+  return DURUM[rec.status] ? rec.status : 'sent';
+}
+
+const queuedDates = () => new Set(data.getQueue().map((q) => q.payload.tarih));
+
+function showHistory() {
+  show('history');
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = data.getHistory();
+  const queued = queuedDates();
+  $('hist-bar').hidden = !list.length;
+  if (!list.length) {
+    $('hist-list').innerHTML = '<p class="empty">Henüz kayıt yok</p>';
+    return;
+  }
+  $('hist-list').innerHTML = list.map((r) => {
+    const dt = parseKey(r.tarih);
+    const st = DURUM[historyStatus(r, queued)];
+    const done = r.setler.filter((x) => x.tamamlandi);
+    const mesafe = r.seans && r.seans.mesafe !== '' && r.seans.mesafe != null ? Number(r.seans.mesafe) : done.reduce((a, x) => a + setDist(x), 0);
+    const sure = r.seans && parseSec(r.seans.sure) ? fmtDur(parseSec(r.seans.sure)) : '';
+    return `
+      <button class="day-row hist-row" data-hist="${esc(r.id)}">
+        <span class="dr-date"><b>${dt.getDate()}</b><small>${AY_KISA[dt.getMonth()].toLocaleUpperCase('tr')}</small></span>
+        <span class="dr-info">
+          <span class="dr-name">${GUNLER[dt.getDay()]} <em class="chip ${st.cls}">${st.ad}</em></span>
+          <span class="dr-meta">${done.length}/${r.setler.length} set · ${fmtNum(mesafe)} m${sure ? ` · ${esc(sure)}` : ''}</span>
+          ${miniBar(done.map((x) => ({ blok: x.blok, mesafe: setDist(x) })))}
+        </span>
+      </button>`;
+  }).join('');
+  paint($('hist-list'));
+}
+
+function historyDetail(r) {
+  const s = r.seans || {};
+  const facts = [
+    s.sure ? `Süre ${esc(s.sure)}` : '',
+    s.mesafe !== '' && s.mesafe != null ? `${fmtNum(s.mesafe)} m` : '',
+    s.havuz ? `Havuz ${esc(s.havuz)} m` : '',
+    s.rpe !== '' && s.rpe != null ? `RPE ${esc(s.rpe)}` : '',
+  ].filter(Boolean).join(' · ');
+  const sets = r.setler.map((x) => `
+    <div class="hd-set${x.tamamlandi ? '' : ' is-skip'}">
+      <i data-bg="${blokRenk(x.blok)}"></i>
+      <span><b>${x.tamamlandi ? '✓ ' : ''}${esc([setTitle(x), x.tur].filter(Boolean).join(' '))}</b>
+      ${x.gercek ? `<small>Gerçek ${esc(x.gercek)}${x.hedef ? ` · Hedef ${esc(x.hedef)}` : ''}</small>` : ''}
+      ${x.not ? `<small>${esc(x.not)}</small>` : ''}</span>
+    </div>`).join('');
+  const body = document.createElement('div');
+  body.className = 'hd';
+  body.innerHTML = `
+    ${facts ? `<p>${facts}</p>` : ''}
+    ${s.msi ? `<p class="muted">MSI: ${esc(s.msi)}</p>` : ''}
+    ${s.aciklama ? `<p>${esc(s.aciklama)}</p>` : ''}
+    <div class="hd-sets">${sets}</div>`;
+  return paint(body);
+}
+
+async function onHistoryClick(e) {
+  const row = e.target.closest('[data-hist]');
+  if (!row) return;
+  const rec = data.getHistory().find((x) => x.id === row.dataset.hist);
+  if (!rec) return renderHistory();
+  const act = await modal({
+    title: fmtDateTR(rec.tarih),
+    body: historyDetail(rec),
+    actions: [{ label: 'Bu kaydı sil', value: 'del', cls: 'btn-danger' }, { label: 'Kapat', value: '' }],
+  });
+  if (act !== 'del') return;
+  const pending = queuedDates().has(rec.tarih);
+  const ok = await modal({
+    title: pending ? 'Henüz gönderilmedi' : 'Kayıt silinsin mi?',
+    body: pending
+      ? '<p>Bu seans tabloya henüz gönderilmedi. Telefondaki kopyası silinir; gönderim kuyruğu etkilenmez, bağlantı gelince yine gönderilir.</p>'
+      : '<p>Telefondaki kopya silinir. Tablodaki kayıt etkilenmez.</p>',
+    actions: [{ label: 'Evet, sil', value: true, cls: 'btn-danger' }, { label: 'Vazgeç', value: false }],
+  });
+  if (ok) data.removeHistory([rec.id]);
+  renderHistory();
+}
+
+async function clearHistory() {
+  const list = data.getHistory();
+  const queued = queuedDates();
+  const sent = list.filter((r) => ['sent', 'duplicate'].includes(historyStatus(r, queued)));
+  const pending = list.filter((r) => queued.has(r.tarih));
+  const actions = [];
+  if (sent.length && sent.length < list.length) actions.push({ label: `Tabloya gidenleri sil (${sent.length})`, value: 'sent', cls: 'btn-danger' });
+  actions.push({ label: `Tümünü sil (${list.length})`, value: 'all', cls: 'btn-danger' }, { label: 'Vazgeç', value: '' });
+  const pick = await modal({
+    title: 'Kayıtları sil',
+    body: '<p>Yalnızca bu telefondaki kopyalar silinir; tablodaki kayıtlar etkilenmez.</p>',
+    actions,
+  });
+  if (!pick) return;
+  if (pick === 'all' && pending.length) {
+    const ok = await modal({
+      title: 'Gönderilmemiş kayıt var',
+      body: `<p>${pending.length} seans henüz tabloya gönderilmedi (${esc(pending.map((r) => fmtDateTR(r.tarih)).join(', '))}). Telefondaki kopyaları silinir; gönderim kuyruğu etkilenmez.</p>`,
+      actions: [{ label: 'Yine de sil', value: true, cls: 'btn-danger' }, { label: 'Vazgeç', value: false }],
+    });
+    if (!ok) return;
+  }
+  data.removeHistory((pick === 'all' ? list : sent).map((r) => r.id));
+  renderHistory();
 }
 
 async function openDate(tarih) {
@@ -807,7 +1146,7 @@ function renderItem(node, s, i, cum) {
       <div class="w-foot">
         ${s.alet ? `<span><span class="w-alet">Alet</span> <b>${esc(s.alet)}</b></span>` : ''}
         ${r.gercek ? `<span><span class="w-alet">Gerçek</span> <b class="w-gercek">${esc(r.gercek)}</b></span>` : ''}
-        <span class="w-dist">${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span>
+        <span class="w-last">${s.hedef && pacePer100(parseSec(s.hedef), s.mesafe) ? `<span class="w-pace"><span class="w-alet">Tempo</span> ${paceHtml(parseSec(s.hedef), s)}</span>` : '<span></span>'}<span class="w-dist">${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span></span>
       </div>
     </div>`;
 }
@@ -898,8 +1237,9 @@ function updateBar() {
   $('prog-bar').innerHTML = state.plan.setler.map((s, i) => {
     const cls = state.session.done[setKey(s, i)] ? ' is-on' : (i === active ? ' is-cur' : '');
     const c = blokOf(s).renk;
-    return `<span class="seg${cls}" style="flex-grow:${Math.max(1, setDist(s))};background:${c};--g:${c}"></span>`;
+    return `<span class="seg${cls}" data-grow="${Math.max(1, setDist(s))}" data-bg="${c}" data-glow="${c}"></span>`;
   }).join('');
+  paint($('prog-bar'));
 }
 
 function updateProgram() {
@@ -949,7 +1289,10 @@ function updateControls() {
 
 function startTicker() {
   stopTicker();
-  state.ticker = setInterval(updateClock, 500);
+  state.ticker = setInterval(() => {
+    updateClock();
+    checkBeep(Date.now());
+  }, 250);
 }
 
 function stopTicker() {
@@ -1058,6 +1401,7 @@ function openStopwatch() {
     : '';
   $('sw-sheet').hidden = true;
   state.swShown = '';
+  state.swPace = null;
   renderSw();
   fitStopwatch();
   startSwLoop();
@@ -1146,6 +1490,12 @@ function renderSwTime() {
     cikis.className = '';
   }
   setText('sw-last', laps.length ? fmtLap(last) : '—');
+  const pace = laps.length && set ? paceHtml(last / 1000, set) : '';
+  if (state.swPace !== pace) {
+    state.swPace = pace;
+    $('sw-pace').innerHTML = pace;
+  }
+  checkBeep(now);
 }
 
 function renderSw() {
@@ -1221,6 +1571,104 @@ async function swReset() {
   renderSw();
 }
 
+// --- Çıkış sesi --------------------------------------------------------------
+//
+// Çıkışa son 3 saniyede kısa bip, çıkış anında uzun bip. iOS sesi yalnızca bir
+// dokunuştan sonra açar: ilk dokunuşta ses bağlamı açılır (audio.unlock).
+
+const audio = {
+  ctx: null,
+  unlock() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!this.ctx) this.ctx = new AC();
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    } catch {
+      this.ctx = null;
+    }
+  },
+  beep(freq, ms, vol = 0.5) {
+    const c = this.ctx;
+    if (!c || c.state !== 'running') return;
+    const t = c.currentTime;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    gain.gain.setValueAtTime(vol, t + ms / 1000 - 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+    osc.connect(gain).connect(c.destination);
+    osc.start(t);
+    osc.stop(t + ms / 1000 + 0.02);
+  },
+  short() { this.beep(880, 140); },
+  long() { this.beep(1320, 650); },
+};
+
+/** Çıkışa geri sayım: 3-2-1 kısa, 0'da uzun bip (her tekrar için birer kez). */
+function checkBeep(now) {
+  if (!state.session || !state.plan || !prefs().ses) return;
+  const w = sw();
+  const { set } = swSet();
+  const aralik = set ? parseSec(set.hedef) + parseSec(set.dinlen) : 0;
+  if (!aralik || !w.repStart) return;
+  const rem = aralik - (now - w.repStart) / 1000;
+  if (rem > 3 || rem <= -1.5) return;
+  const mark = rem > 0 ? Math.ceil(rem) : 0;
+  if (!state.beep || state.beep.rep !== w.repStart) state.beep = { rep: w.repStart, marks: new Set() };
+  if (state.beep.marks.has(mark)) return;
+  // Geç açılan ekranda eski işaretler çalmasın: yalnızca şu anki saniye.
+  for (let m = mark; m <= 3; m++) state.beep.marks.add(m);
+  if (mark === 0) audio.long();
+  else audio.short();
+}
+
+// --- Su kilidi ---------------------------------------------------------------
+//
+// Kilitliyken program ekranına ve kronometre düğmelerine dokunmalar yok sayılır;
+// kronometrede yalnızca büyük TUR düğmesi ve göstergeye dokunma çalışır.
+// Açmak için üstteki şerit 1 sn basılı tutulur.
+
+const UNLOCK_MS = 1000;
+let unlockTimer = null;
+
+function setLock(on) {
+  state.locked = Boolean(on);
+  document.body.classList.toggle('is-locked', state.locked);
+  $('lock-bar').hidden = !state.locked;
+  placeLockBar();
+  cancelUnlock();
+}
+
+/** Programda şerit alttaki barın, kronometrede üstteki şeridin yerini alır (TUR açık kalır). */
+function placeLockBar() {
+  $('lock-bar').dataset.pos = state.screen === 'stopwatch' ? 'top' : 'bottom';
+}
+
+function startUnlock(e) {
+  e.preventDefault();
+  cancelUnlock();
+  $('lock-hold').classList.add('is-holding');
+  unlockTimer = setTimeout(() => {
+    setLock(false);
+    toast('Kilit açıldı', 1200);
+  }, UNLOCK_MS);
+}
+
+function cancelUnlock() {
+  clearTimeout(unlockTimer);
+  unlockTimer = null;
+  $('lock-hold').classList.remove('is-holding');
+}
+
+function lockNow() {
+  audio.unlock();
+  setLock(true);
+}
+
 // --- Kaydet paneli -----------------------------------------------------------
 
 function swSave() {
@@ -1257,12 +1705,12 @@ function renderSheet() {
   if (picking) {
     pick = `<div class="sheet-list">${sets.map((s, j) => `
       <button class="sheet-set${j === i ? ' is-on' : ''}" data-set="${j}">
-        <i style="background:${blokOf(s).renk}"></i>
+        <i data-bg="${blokOf(s).renk}"></i>
         <span><b>${esc([setTitle(s), s.tur].filter(Boolean).join(' · '))}</b><small>Set ${j + 1}${s.blok ? ` · ${esc(s.blok)}` : ''}${state.session.done[setKey(s, j)] ? ' · ✓' : ''}</small></span>
       </button>`).join('')}</div>`;
   } else {
     pick = `<button class="sheet-pick" data-act="pick">
-      <i style="background:${b.renk}"></i>
+      <i data-bg="${b.renk}"></i>
       <span><small>SET${i === (state.wheel ? state.wheel.index : -1) ? ' · AKTİF' : ''}</small><b>${esc([setTitle(set), set.tur].filter(Boolean).join(' · '))}</b></span>
       <em>Değiştir</em>
     </button>`;
@@ -1284,6 +1732,7 @@ function renderSheet() {
       <span><b>Ortalama + turlar → Not</b><small>Not: ${esc(lapsText)}</small></span>
     </button>` : ''}
     <button class="sheet-cancel" data-act="cancel">Vazgeç</button>`;
+  paint($('sw-sheet-body'));
 }
 
 function onSheetClick(e) {
@@ -1430,6 +1879,30 @@ function buildPayload() {
   };
 }
 
+/** Biten seansın telefonda saklanan kopyası (Yapılmış idmanlar). */
+function keepInHistory(payload, status) {
+  const s = state.session;
+  const rec = {
+    id: `${payload.tarih}-${Date.now()}`,
+    tarih: payload.tarih,
+    savedAt: Date.now(),
+    status,
+    startedAt: s.startedAt,
+    endedAt: s.endedAt,
+    seans: payload.seans,
+    setler: state.plan.setler.map((set, i) => {
+      const k = setKey(set, i);
+      const r = s.results[k] || {};
+      return {
+        sira: set.sira, blok: set.blok, tekrar: set.tekrar, mesafe: set.mesafe, stil: set.stil, tur: set.tur,
+        aciklama: set.aciklama, hedef: set.hedef, dinlen: set.dinlen, alet: set.alet,
+        tamamlandi: Boolean(s.done[k]), gercek: r.gercek || '', not: r.not || '',
+      };
+    }),
+  };
+  if (!data.addHistory(rec)) toast('Telefonda yer kalmadı: seansın kopyası saklanamadı.', 5000);
+}
+
 async function saveForm() {
   const f = state.session.form;
   const msg = $('form-msg');
@@ -1458,6 +1931,7 @@ async function saveForm() {
     btn.disabled = false;
     btn.textContent = 'Kaydet';
   }
+  keepInHistory(payload, 'sent');
   endSessionLocally();
   showDone({ ok: true, result });
 }
@@ -1470,6 +1944,7 @@ async function handleSaveError(err, payload) {
       actions: [{ label: 'Seansı kapat', value: true, cls: 'btn-primary' }, { label: 'Forma dön', value: false }],
     });
     if (close) {
+      keepInHistory(payload, 'duplicate');
       endSessionLocally();
       showDays();
     }
@@ -1496,6 +1971,7 @@ async function handleSaveError(err, payload) {
 
 function queueAndClose(payload, err) {
   data.enqueue(payload, { code: err.code || 'CLIENT', message: err.message });
+  keepInHistory(payload, 'queued');
   endSessionLocally();
   showDone({ ok: false });
 }
@@ -1542,8 +2018,12 @@ function showDone({ ok, result }) {
   $('done-title').textContent = ok ? 'Kaydedildi' : 'Kaydedilemedi';
   let text;
   if (ok) {
-    text = `${result.yazilanSet} set "eski" sayfasına yazıldı, ${result.silinenSet} satır Plan'dan silindi.`;
+    text = result.arsivlenenSet === undefined
+      // Eski Code.gs: arsiv yok, satırlar silinir (Code.gs yeniden dağıtılmalı).
+      ? `${result.yazilanSet} set "eski" sayfasına yazıldı, ${result.silinenSet} satır Plan'dan silindi.`
+      : `${result.yazilanSet} set "eski" sayfasına yazıldı, ${result.arsivlenenSet} plan satırı "arsiv" sayfasına taşındı.`;
     if (result.uyari) text += ` ${result.uyari}`;
+    text += ' Seans bu telefonda da saklandı.';
   } else {
     text = 'Bağlantı gelince denenecek. Kayıt bu cihazda bekliyor; uygulama her açılışta yeniden dener.';
   }
@@ -1559,10 +2039,26 @@ function showDone({ ok, result }) {
 
 function wire() {
   $('setup-save').addEventListener('click', saveSetup);
-  $('setup-back').addEventListener('click', () => showDays());
+  $('setup-back').addEventListener('click', () => showHome());
+  $('setup-forget').addEventListener('click', forgetKey);
+  $('setup-prefs').addEventListener('click', onPrefsClick);
+  $('pref-css').addEventListener('change', onCssChange);
+  $('pref-ses-test').addEventListener('click', () => {
+    audio.unlock();
+    audio.short();
+    setTimeout(() => audio.long(), 500);
+  });
 
-  $('days-refresh').addEventListener('click', () => showDays());
-  $('days-settings').addEventListener('click', () => showSetup(true));
+  $('home-settings').addEventListener('click', () => showSetup(true));
+  $('home-swim').addEventListener('click', () => (state.session ? resumeSession() : showDays()));
+  $('home-gym').addEventListener('click', () => toast('Salon bölümü yakında.'));
+  $('home-history').addEventListener('click', showHistory);
+  $('hist-back').addEventListener('click', () => showHome());
+  $('hist-list').addEventListener('click', onHistoryClick);
+  $('hist-clear').addEventListener('click', clearHistory);
+
+  $('days-back').addEventListener('click', () => showHome());
+  $('days-refresh').addEventListener('click', () => showDays(true));
   $('days-list').addEventListener('click', onDaysClick);
   $('days-banners').addEventListener('click', onDaysClick);
   $('days-today-btn').addEventListener('click', () => { if (state.selDate) openDate(state.selDate); });
@@ -1574,12 +2070,17 @@ function wire() {
   $('btn-complete').addEventListener('click', toggleComplete);
   $('btn-session').addEventListener('click', onSessionButton);
   $('btn-stopwatch').addEventListener('click', openStopwatch);
+  $('prog-lock').addEventListener('click', lockNow);
+  $('sw-lock').addEventListener('click', lockNow);
+  $('lock-hold').addEventListener('pointerdown', startUnlock);
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('lock-hold').addEventListener(ev, cancelUnlock);
+  $('lock-hold').addEventListener('contextmenu', (e) => e.preventDefault());
 
   $('sw-close').addEventListener('click', closeStopwatch);
   $('sw-startstop').addEventListener('click', swStartStop);
   $('sw-reset').addEventListener('click', swReset);
   $('sw-save').addEventListener('click', swSave);
-  $('sw-lap').addEventListener('pointerdown', (e) => { e.preventDefault(); swLap(); });
+  $('sw-lap').addEventListener('pointerdown', (e) => { e.preventDefault(); audio.unlock(); swLap(); });
   $('sw-display').addEventListener('pointerdown', () => { if (sw().running) swLap(); });
   $('sw-sheet-body').addEventListener('click', onSheetClick);
   $('sw-sheet-dim').addEventListener('click', closeSheet);
@@ -1590,6 +2091,8 @@ function wire() {
   $('form-save').addEventListener('click', saveForm);
 
   $('done-back').addEventListener('click', () => showDays());
+  // iOS: ses bağlamı yalnızca bir dokunuşla açılabilir.
+  document.addEventListener('pointerdown', () => { if (prefs().ses) audio.unlock(); }, { capture: true, passive: true });
   $('app-version').textContent = `Sürüm ${APP_VERSION}`;
   // Yazı tipi yüklenince ölçüler değişir: tekerleği ve kronometreyi yeniden ölç.
   if (document.fonts && document.fonts.ready) {
@@ -1633,7 +2136,7 @@ function boot() {
     return;
   }
   if (s) data.clearSession();
-  showDays();
+  showHome();
 }
 
 boot();

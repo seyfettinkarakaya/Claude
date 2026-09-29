@@ -2,6 +2,9 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
+  <!-- Yalnızca kendi dosyalarımız yüklenir; ağ bağlantısı yalnızca Apps Script'e. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>YüzmeSK</title>
   <meta name="description" content="Havuz kenarı idman programı">
@@ -15,22 +18,21 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="style.css?v=7">
-  <script type="module" src="app.js?v=7"></script>
+  <link rel="stylesheet" href="fonts/fonts.css?v=8">
+  <link rel="stylesheet" href="style.css?v=8">
+  <script type="module" src="app.js?v=8"></script>
 </head>
 <body>
 
-  <!-- Kurulum: Apps Script adresi ve token -->
+  <!-- Kurulum / Ayarlar: Apps Script adresi ve token, ses, CSS temposu -->
   <section id="screen-setup" class="screen" hidden>
     <header class="topbar">
       <button class="icon-btn" id="setup-back" aria-label="Geri" hidden>‹</button>
-      <h1 class="topbar-title">Kurulum</h1>
+      <h1 class="topbar-title" id="setup-title">Kurulum</h1>
     </header>
     <div class="scroll pad">
-      <p class="muted">Apps Script web uygulamasının adresini ve gizli anahtarı girin. Bilgiler yalnızca bu cihazda saklanır.</p>
+      <h2 class="set-h">Bağlantı</h2>
+      <p class="muted">Apps Script web uygulamasının adresini (<b>/exec</b> ile biter) ve gizli anahtarı girin. Bilgiler yalnızca bu cihazda saklanır.</p>
       <label class="field">
         <span>Apps Script adresi</span>
         <input id="setup-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
@@ -41,15 +43,83 @@
       </label>
       <p id="setup-msg" class="msg" hidden></p>
       <button id="setup-save" class="btn btn-primary btn-block">Kaydet ve bağlan</button>
+      <button id="setup-forget" class="btn btn-ghost btn-block set-gap" hidden>Anahtarı unut</button>
+
+      <div id="setup-prefs" hidden>
+        <h2 class="set-h">Çıkış sesi</h2>
+        <p class="muted">Kronometrede çıkışa son 3 saniyede kısa bip, çıkışta uzun bip. iPhone sessiz moddaysa ses çıkmaz.</p>
+        <div class="seg" id="pref-ses">
+          <button data-v="1">Açık</button>
+          <button data-v="0">Kapalı</button>
+        </div>
+        <button id="pref-ses-test" class="btn btn-block set-gap">Sesi dene</button>
+
+        <h2 class="set-h">Tempo (CSS)</h2>
+        <p class="muted">Kritik yüzme hızın, 100 m için dd:ss. Set kartında ve kronometrede 100 m temposu bu değere göre bölge rengiyle gösterilir. Ekipmanlı (Alet, Pull, Drill, Kick) setlerde bölge gösterilmez.</p>
+        <label class="field">
+          <span>CSS / 100 m</span>
+          <input id="pref-css" type="text" inputmode="numeric" autocomplete="off" placeholder="1:57">
+        </label>
+        <div class="zones" id="pref-zones"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ana sayfa: Yüzme / Salon -->
+  <section id="screen-home" class="screen days home" hidden>
+    <header class="days-top">
+      <h1 class="days-brand">YüzmeSK</h1>
+      <button class="icon-btn" id="home-settings" aria-label="Ayarlar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
+    </header>
+    <div class="scroll pad">
+      <p class="home-date" id="home-date"></p>
+      <h2 class="home-title">Bugün ne<br>çalışıyoruz?</h2>
+      <button class="home-card swim" id="home-swim">
+        <span class="hc-top">
+          <span class="hc-ic"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="16.5" cy="6" r="1.8"/><path d="M5 11l4-3 3 2.5 3-3"/><path d="M3 15c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1"/><path d="M3 19c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1"/></svg></span>
+          <span class="hc-go"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </span>
+        <svg class="hc-waves" viewBox="0 0 300 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 30 q37 -30 75 0 t75 0 t75 0 t75 0" stroke="#2DD4BF"/><path d="M0 62 q37 -30 75 0 t75 0 t75 0 t75 0" stroke="#38BDF8"/><path d="M0 94 q37 -30 75 0 t75 0 t75 0 t75 0" stroke="#34D399"/></svg>
+        <b class="hc-name">Yüzme</b>
+        <small class="hc-tag" id="home-swim-tag"></small>
+        <span class="hc-meta" id="home-swim-meta"></span>
+      </button>
+      <button class="home-card gym" id="home-gym" aria-disabled="true">
+        <span class="hc-top">
+          <span class="hc-ic"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span>
+          <span class="hc-soon">YAKINDA</span>
+        </span>
+        <b class="hc-name">Salon</b>
+      </button>
+      <button class="home-row" id="home-history">
+        <span><b>Yapılmış idmanlar</b><small id="home-history-meta"></small></span>
+        <em>›</em>
+      </button>
+      <p class="app-version" id="app-version"></p>
+    </div>
+  </section>
+
+  <!-- Telefonda yapılmış idmanlar -->
+  <section id="screen-history" class="screen days" hidden>
+    <header class="days-top">
+      <button class="icon-btn" id="hist-back" aria-label="Ana sayfa">‹</button>
+      <h1 class="days-title">Yapılmış idmanlar</h1>
+    </header>
+    <div class="scroll pad">
+      <p class="hist-note">Bu telefonda saklanan seanslar. Buradan silmek tablodaki kayıtları etkilemez.</p>
+      <div id="hist-list"></div>
+    </div>
+    <div class="bottom-bar" id="hist-bar" hidden>
+      <button class="btn btn-block hist-clear" id="hist-clear">Sil…</button>
     </div>
   </section>
 
   <!-- Gün seçimi: hafta takvimi -->
   <section id="screen-days" class="screen days" hidden>
     <header class="days-top">
-      <h1 class="days-brand">YüzmeSK</h1>
+      <button class="icon-btn" id="days-back" aria-label="Ana sayfa">‹</button>
+      <h1 class="days-brand">Yüzme</h1>
       <button class="icon-btn" id="days-refresh" aria-label="Yenile"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/></svg></button>
-      <button class="icon-btn" id="days-settings" aria-label="Ayarlar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
     </header>
     <div class="scroll pad" id="days-scroll">
       <div class="wk-head">
@@ -61,7 +131,6 @@
       <div id="days-banners"></div>
       <div id="days-hero"></div>
       <div id="days-list"></div>
-      <p class="app-version" id="app-version"></p>
     </div>
     <div class="bottom-bar" id="days-today-bar" hidden>
       <button class="days-cta" id="days-today-btn"><svg width="26" height="26" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg><span id="days-cta-text">Bugünün idmanını aç</span></button>
@@ -76,6 +145,7 @@
         <button class="icon-btn" id="prog-back" aria-label="Gün seçimi">‹</button>
         <div class="prog-stat"><span class="lbl">SÜRE · GEÇEN / HEDEF</span><b class="fit"><span id="prog-clock">00:00</span><span class="dim">/</span><span id="prog-end" class="y">0:00</span></b></div>
         <div class="prog-stat end"><span class="lbl">MESAFE</span><b class="fit" id="prog-dist">0</b></div>
+        <button class="icon-btn lock-btn" id="prog-lock" aria-label="Su kilidi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button>
       </div>
       <div class="seg-bar" id="prog-bar"></div>
     </header>
@@ -92,6 +162,7 @@
     <div class="sw-strip">
       <button class="round-btn" id="sw-close" aria-label="Kapat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <div class="sw-set" id="sw-set"></div>
+      <button class="round-btn" id="sw-lock" aria-label="Su kilidi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button>
       <button class="round-btn" id="sw-reset" aria-label="Sıfırla"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg></button>
     </div>
     <div class="sw-display" id="sw-display">
@@ -101,7 +172,7 @@
       <div class="sw-info">
         <div><span id="sw-diff-label">HEDEFE</span><b id="sw-diff">—</b></div>
         <div><span>ÇIKIŞA</span><b id="sw-cikis">—</b></div>
-        <div><span>SON TUR</span><b id="sw-last">—</b></div>
+        <div><span>SON TUR</span><b id="sw-last">—</b><small class="sw-pace" id="sw-pace"></small></div>
       </div>
     </div>
     <div class="sw-ctrls">
@@ -179,6 +250,11 @@
       <div id="modal-body"></div>
       <div class="modal-actions" id="modal-actions"></div>
     </div>
+  </div>
+
+  <!-- Su kilidi: kilitliyken dokunmalar yok sayılır; açmak için basılı tutulur -->
+  <div class="lock-bar" id="lock-bar" hidden>
+    <button id="lock-hold"><i class="lock-fill"></i><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Kilitli · açmak için basılı tut</span></button>
   </div>
 
   <div class="toast" id="toast" hidden></div>

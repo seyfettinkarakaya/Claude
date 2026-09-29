@@ -939,3 +939,182 @@ button {
 
 .days-cta:active { filter: brightness(1.1); }
 .days .empty { color: var(--d-muted); }
+
+/* --- sürüm 8: ana sayfa, yapılmış idmanlar, ayarlar, tempo, su kilidi ---- */
+
+.home-date { margin: 8px 2px 0; font-size: 18px; font-weight: 700; color: var(--d-muted); }
+
+.home-title {
+  margin: 4px 2px 20px;
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.05;
+  background: linear-gradient(90deg, var(--t-blue), var(--t-teal) 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.home-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 250px;
+  margin: 0 0 16px;
+  padding: 22px 22px 20px;
+  overflow: hidden;
+  border-radius: 34px;
+  text-align: left;
+  font-family: 'Archivo', sans-serif;
+  color: var(--text);
+}
+
+.home-card.swim {
+  border: 1px solid rgba(45, 212, 191, 0.55);
+  background: linear-gradient(160deg, #0F3A48, #0B2027 75%);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), 0 0 40px rgba(45, 212, 191, 0.12);
+}
+
+.home-card.swim:active { filter: brightness(1.12); }
+
+.home-card.gym {
+  min-height: 190px;
+  border: 1.5px dashed #26343B;
+  background: #0B1519;
+  color: #5E7880;
+  cursor: default;
+}
+
+.hc-top { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; margin-bottom: auto; }
+.hc-ic { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 22px; background: rgba(45, 212, 191, 0.18); color: #5EEAD4; }
+.gym .hc-ic { background: #12211F; color: #4F6B6F; }
+.hc-go { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--t-blue), var(--t-green)); color: #032024; }
+.hc-soon { padding: 6px 14px; border: 1.5px solid #34464D; border-radius: 999px; font-size: 13px; font-weight: 800; letter-spacing: 2px; color: #7F979C; }
+.hc-name { position: relative; margin-top: 26px; font-size: 56px; font-weight: 800; line-height: 1; }
+.gym .hc-name { color: #5E7880; }
+.hc-tag { position: relative; margin-top: 6px; font-size: 14px; font-weight: 800; letter-spacing: 2px; color: #5EEAD4; min-height: 17px; }
+.hc-meta { position: relative; margin-top: 4px; font-family: var(--num); font-size: 28px; font-weight: 700; color: #CFF5EF; }
+
+.hc-waves { position: absolute; right: -10px; bottom: 6px; width: 70%; height: 110px; opacity: 0.45; pointer-events: none; }
+.hc-waves path { fill: none; stroke-width: 9; stroke-linecap: round; }
+
+.home-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 76px;
+  padding: 12px 20px;
+  border-radius: 24px;
+  border: 1px solid var(--d-line);
+  background: var(--d-card);
+  color: var(--text);
+  text-align: left;
+  font-family: 'Archivo', sans-serif;
+}
+
+.home-row span { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.home-row b { font-size: 21px; }
+.home-row small { font-size: 16px; font-weight: 600; color: var(--d-muted); }
+.home-row em { font-style: normal; font-size: 32px; color: var(--d-muted); }
+
+.days-top .days-brand, .days-title { flex: 1; }
+.days-title { margin: 0; font-size: 26px; font-weight: 800; }
+
+/* Yapılmış idmanlar */
+.hist-note { margin: 4px 2px 14px; font-size: 17px; color: var(--d-muted); }
+.chip { display: inline-block; margin-left: 6px; padding: 2px 9px; border-radius: 999px; font-style: normal; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; vertical-align: 2px; }
+.chip.ok { background: rgba(52, 211, 153, 0.18); color: var(--t-green); }
+.chip.dim { background: #173238; color: #9CC0C2; }
+.chip.warn { background: rgba(255, 176, 32, 0.18); color: var(--warn); }
+.chip.err { background: rgba(239, 68, 68, 0.18); color: #FF8A8A; }
+.hist-clear { background: var(--d-card); border-color: var(--d-line); color: #FF8A8A; }
+
+.hd p { font-size: 18px; }
+.hd-sets { display: grid; gap: 8px; margin-top: 10px; }
+.hd-set { display: flex; gap: 10px; align-items: flex-start; }
+.hd-set i { flex: none; width: 12px; height: 12px; margin-top: 6px; border-radius: 50%; }
+.hd-set span { display: flex; flex-direction: column; min-width: 0; }
+.hd-set b { font-size: 18px; }
+.hd-set small { font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
+.hd-set.is-skip { opacity: 0.45; }
+
+/* Ayarlar */
+.set-h { margin: 26px 0 6px; font-size: 20px; font-weight: 800; color: var(--accent); }
+.set-h:first-child { margin-top: 4px; }
+.set-gap { margin-top: 12px; }
+#screen-setup .seg button:not(.is-on) { color: var(--text); }
+.zones { display: grid; gap: 6px; margin-bottom: 20px; }
+.zone { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; background: var(--panel); font-size: 17px; }
+.zone b { font-family: var(--num); font-size: 22px; }
+.zone em { font-style: normal; font-family: var(--num); font-size: 20px; font-weight: 700; color: var(--muted); }
+
+/* Tempo bölge renkleri */
+.z1 { color: #60A5FA; }
+.z2 { color: #34D399; }
+.z3 { color: #FACC15; }
+.z4 { color: #FB923C; }
+.z5 { color: #F87171; }
+.zone.z1 b, .zone.z2 b, .zone.z3 b, .zone.z4 b, .zone.z5 b { color: inherit; }
+.zone span { color: var(--text); }
+
+/* Set kartı: tempo · mesafe tek satırda */
+.w-foot .w-last { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.w-foot .w-pace { white-space: nowrap; }
+.w-foot .w-pace b { font-family: var(--num); font-size: 24px; }
+.w-foot .w-pace b.zc.z1 { color: #60A5FA; }
+.w-foot .w-pace b.zc.z2 { color: #34D399; }
+.w-foot .w-pace b.zc.z3 { color: #FACC15; }
+.w-foot .w-pace b.zc.z4 { color: #FB923C; }
+.w-foot .w-pace b.zc.z5 { color: #F87171; }
+.w-foot .w-pace small { font-size: 15px; color: var(--muted); }
+
+/* Kronometre: son turun 100 m temposu */
+.sw-pace { display: block; min-height: 20px; font-family: var(--num); font-size: 18px; font-weight: 700; color: var(--muted); }
+.sw-pace b { font-size: 20px; }
+.sw .sw-pace b.z1 { color: #60A5FA; }
+.sw .sw-pace b.z2 { color: #34D399; }
+.sw .sw-pace b.z3 { color: #FACC15; }
+.sw .sw-pace b.z4 { color: #FB923C; }
+.sw .sw-pace b.z5 { color: #F87171; }
+
+/* Su kilidi */
+.prog-row { grid-template-columns: 60px minmax(0, 1.35fr) minmax(0, 1fr) 60px; gap: 10px; }
+.prog-row .lock-btn { width: 60px; height: 60px; border-radius: 14px; color: #C9D1D9; }
+
+body.is-locked #screen-program,
+body.is-locked #screen-stopwatch .sw-strip,
+body.is-locked #screen-stopwatch .sw-cb:not(.big) { pointer-events: none; }
+body.is-locked #screen-program .dock,
+body.is-locked #screen-stopwatch .sw-strip,
+body.is-locked #screen-stopwatch .sw-cb:not(.big) { opacity: 0.35; }
+
+.lock-bar { position: fixed; left: 12px; right: 12px; z-index: 35; }
+.lock-bar[data-pos="bottom"] { bottom: calc(var(--safe-b) + 10px); }
+.lock-bar[data-pos="top"] { top: calc(var(--safe-t) + 4px); }
+
+#lock-hold {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 72px;
+  overflow: hidden;
+  border: 2px solid var(--accent);
+  border-radius: 24px;
+  background: #141B23;
+  color: var(--accent);
+  font-family: 'Archivo', sans-serif;
+  font-size: 19px;
+  font-weight: 800;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+#lock-hold svg, #lock-hold span { position: relative; }
+.lock-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(255, 210, 63, 0.3); }
+#lock-hold.is-holding .lock-fill { width: 100%; transition: width 1s linear; }

@@ -2,8 +2,9 @@
 
 Havuz kenarında kullanılan, tek kullanıcılı idman programı uygulaması.
 Program Google E-Tablolar'daki **YuzmeProgram** dosyasında hazırlanır; uygulama onu
-büyük puntoyla gösterir, seans bitince yapılan setleri `eski` sayfasına taşır ve
-seans özetini `seans` sayfasına yazar.
+büyük puntoyla gösterir, seans bitince yapılan setleri `eski` sayfasına yazar, seans
+özetini `seans` sayfasına yazar ve günün Plan satırlarını `arsiv` sayfasına taşır.
+Biten seansın bir kopyası telefonda da kalır (**Yapılmış idmanlar**).
 
 - Ön yüz: tek sayfalık PWA (vanilla HTML/CSS/JS, derleme adımı yok), GitHub Pages'te barındırılır.
 - Arka uç: `Code.gs`, tabloya bağlı Google Apps Script web uygulaması.
@@ -18,6 +19,7 @@ seans özetini `seans` sayfasına yazar.
 | `wheel.js` | Tekerlek (wheel) gezinme bileşeni: sürükleme, atalet, oturma |
 | `data.js` | **Tek veri erişim modülü**: Apps Script çağrıları, yerel önbellek, gönderim kuyruğu |
 | `manifest.json`, `icons/` | PWA tanımı ve simgeler (192, 512, apple-touch-icon) |
+| `fonts/` | Archivo ve Barlow Condensed (SIL Open Font License); dışarıdan yazı tipi yüklenmez |
 | `Code.gs` | Apps Script arka ucu (`getDates`, `getPlan`, `finishSession`) |
 | `tests/` | Arka uç ve uçtan uca testler (bkz. en alt) |
 
@@ -31,6 +33,7 @@ seans özetini `seans` sayfasına yazar.
   (yanında Yığımlı Mesafe, Hedef Zone gibi türetilmiş sütunlar da olabilir; uygulama onları okumaz, yazmaz.)
 - **eski**: Plan'daki 17 sütunla aynı başlıklar.
 - **seans**: `Tarih, Süre, Mesafe, Havuz, RPE, MSI, Açıklama`
+- **arsiv** (isteğe bağlı): yoksa ilk seansta Plan'ın başlıklarıyla otomatik oluşturulur.
 
 Script sütunları **başlık adına göre** bulur; sütun sırası önemli değildir ve yeni sütun
 eklemek bir şeyi bozmaz. Karşılaştırma büyük/küçük harf, baştaki/sondaki boşluk ve
@@ -46,7 +49,8 @@ Notlar:
 1. Tabloyu açın → **Uzantılar → Apps Script**.
 2. Varsayılan `Code.gs` içeriğini silin, bu depodaki `Code.gs`'i yapıştırıp kaydedin.
 3. **Token üretme:** Üstteki fonksiyon listesinden `tokenUret`'i seçip **Çalıştır**'a basın.
-   İlk seferde Google yetki ister; onaylayın. **Yürütme günlüğü**'nde
+   İlk seferde Google yetki ister; onaylayın. Betik `@OnlyCurrentDoc` ile işaretlidir:
+   yalnızca bu tabloya erişim ister, Drive'daki diğer dosyalara erişemez. **Yürütme günlüğü**'nde
    `Yeni token: …` satırı çıkar; bu değeri kopyalayın. Token, *Proje Ayarları →
    Script Properties* altında `TOKEN` adıyla saklanır. (Daha sonra görmek için
    `tokenGoster`'i çalıştırın; değiştirmek için `tokenUret`'i tekrar çalıştırın ve
@@ -57,7 +61,22 @@ Notlar:
 5. **Dağıt**'a basın ve verilen `https://script.google.com/macros/s/…/exec` adresini kopyalayın.
 
 `Code.gs`'i güncellediğinizde **Dağıt → Dağıtımları yönet → (kalem) → Sürüm: Yeni sürüm**
-ile yayınlayın; böylece adres değişmez.
+ile yayınlayın; böylece adres değişmez. İzin kapsamı değiştiyse (ör. `@OnlyCurrentDoc`
+eklendiğinde) düzenleyicide bir fonksiyonu (`tokenGoster`) bir kez çalıştırıp yeni izni onaylayın.
+
+### Anahtarı (token) yenileme
+
+Anahtar başkasının eline geçtiyse (ekran görüntüsü, mesaj, kaybolan telefon) ya da
+yalnızca önlem olarak:
+
+1. Apps Script düzenleyicisinde `tokenUret`'i çalıştırın. Yeni anahtar üretilir ve
+   **eski anahtar o anda geçersiz olur**; eski anahtarla gelen istekler `AUTH` hatası alır.
+2. Yürütme günlüğündeki `Yeni token: …` değerini kopyalayın (sonradan `tokenGoster`).
+3. Telefonda **Ana sayfa → ⚙︎ Ayarlar**'da anahtar alanına yapıştırıp **Kaydet ve bağlan**.
+
+Yeniden dağıtım gerekmez; adres aynı kalır. Telefonu değiştirirken veya birine verirken
+**Ayarlar → Anahtarı unut** adres ve anahtarı telefondan siler (yapılmış idmanlar ve
+gönderilmeyi bekleyen kayıtlar kalır).
 
 Hızlı kontrol: `/exec` adresini tarayıcıda açınca `{"ok":true,…}` görmelisiniz.
 
@@ -71,7 +90,13 @@ Hızlı kontrol: `/exec` adresini tarayıcıda açınca `{"ok":true,…}` görme
 
 Token ve Apps Script adresi koda **gömülmez**: ilk açılışta uygulama bunları sorar ve
 yalnızca o cihazın `localStorage`'ında saklar. Bu yüzden depo herkese açık olabilir.
-Ayarlar gün seçimi ekranındaki ⚙︎ düğmesinden sonradan değiştirilebilir.
+Ayarlar ana sayfadaki ⚙︎ düğmesinden sonradan değiştirilebilir.
+
+Güvenlik: sayfa bir Content-Security-Policy taşır; yalnızca kendi dosyalarını yükler ve
+yalnızca `script.google.com` / `script.googleusercontent.com` adreslerine bağlanır.
+Bu yüzden Ayarlar'a yalnızca `https://script.google.com/macros/s/…/exec` biçimindeki adres
+kabul edilir. Sunucudaki beklenmeyen hataların ayrıntısı telefona gönderilmez; telefonda
+kısa bir başvuru numarası görünür, ayrıntı Apps Script **Yürütmeler** günlüğündedir.
 
 ## 4. iPhone'da ana ekrana ekleme
 
@@ -88,12 +113,19 @@ Ayarlar gün seçimi ekranındaki ⚙︎ düğmesinden sonradan değiştirilebil
 
 ## Kullanım
 
+**Ana sayfa.** İki büyük düğme: **Yüzme** (sıradaki idmanın kısa bilgisiyle; hafta
+takvimini açar, devam eden seans varsa seansa döner) ve **Salon** (şimdilik pasif,
+"Yakında"). Altta **Yapılmış idmanlar**, üstte ⚙︎ Ayarlar. Devam eden bir seans varsa
+uygulama doğrudan seansa açılır.
+
 **Gün seçimi (hafta takvimi).** Üstte haftanın 7 günü; idman olan günlerde nokta var,
 bugün çerçeveli. Şeridi sağa/sola kaydırınca önceki/sonraki haftaya geçilir; başka
 haftadayken **Bugün** düğmesi geri getirir. Bir güne ya da alttaki gün satırlarına dokunmak
 yalnızca **seçer**: seçili günün kartında tarih, günün blok renkli hat önizlemesi, set,
 mesafe, ana set ve hedef süre görünür. İdmana yalnızca alttaki **"… idmanını aç"**
-düğmesiyle girilir. Açılışta bugün (plan yoksa en yakın planlı gün) seçilidir.
+düğmesiyle girilir. Açılışta bugün (plan yoksa en yakın planlı gün) seçilidir. Seçili
+olmayan günlerin çubukları gri tonlardadır (ana set en açık, ısınma/soğuma en koyu).
+Sol üstteki ‹ ana sayfaya döner.
 
 **Program (metro hattı).** Setler bir metro hattının durakları gibi dizilir; hat her
 bloğun renginde. Aktif durak "peron"da büyük bir kart olarak açılır (Tekrar × Mesafe,
@@ -103,7 +135,13 @@ kaydırma bilerek "ağır"dır (bir durak için ~170 px, fırlatma en fazla bir 
 o sete kadar tekrar × (hedef + dinlen) toplamı. Üstte solda **Süre** (geçen / toplam hedef), sağda **Mesafe** (yapılan / toplam); altında her set için blok renginde,
 mesafesine oranlı bir ilerleme çubuğu. Alttaki bar: **Kronometre** · **Seti Tamamla**
 (işaretli sette **İşareti Kaldır**) · **Başla** / **Bitir**. Program ekranı açıkken ekran
-sönmez (Screen Wake Lock; desteklenmiyorsa sessizce devam eder).
+sönmez (Screen Wake Lock; desteklenmiyorsa sessizce devam eder). Kartın altında hedefin
+**100 m temposu** (ör. `Tempo 1:35/100 · Z3`) bölge renginde görünür.
+
+**Su kilidi.** Program ekranında sağ üstteki, kronometrede üstteki 🔒 düğmesi ekranı
+kilitler: ıslak parmakla yanlış dokunmalar yok sayılır. Kronometrede kilitliyken yalnızca
+büyük **TUR/BAŞLAT** düğmesi ve göstergeye dokunma çalışır. Açmak için şeridi 1 saniye
+basılı tutun.
 
 **Kronometre.**
 - Süre göstergesi ekranın %70'ini kaplar; yüzerken bir bakışta okunur.
@@ -120,6 +158,16 @@ sönmez (Screen Wake Lock; desteklenmiyorsa sessizce devam eder).
   *Ortalama → Gerçek* veya *Ortalama + turlar → Not*. Tek turda ikinci seçenek çıkmaz.
   Süreli kaydedilen set tamamlandı olarak işaretlenir (programda kaldırılabilir).
 - Gerçek değeri `dd:ss.d` (ör. `01:23.4`) olarak gider ve süre biçiminde yazılır.
+- **Son tur**un altında o turun 100 m temposu ve bölgesi görünür.
+- **Çıkış sesi:** çıkışa son 3 saniyede kısa bip, çıkış anında uzun bip (her tekrar için
+  bir kez). Ayarlar'dan kapatılabilir, **Sesi dene** ile denenebilir. iPhone sessiz
+  moddaysa veya uygulama arka plandaysa ses çıkmaz.
+
+**Tempo ve CSS bölgeleri.** Ayarlar'da CSS (kritik yüzme hızı, 100 m için `dd:ss`,
+varsayılan 1:57) girilir. Bölgeler 100 m temposunun CSS'ten farkına göredir:
+Z1 Toparlanma ≥ CSS+15 sn · Z2 Aerobik +8…+15 · Z3 Tempo +3…+8 · Z4 Eşik (CSS) −2…+3 ·
+Z5 Hız < CSS−2. Ekipmanlı setlerde (Alet dolu ya da Tür Pull/Drill/Kick) tempo gösterilir
+ama bölge rengi verilmez: ekipmanlı tempo ekipmansız bölgelerle karşılaştırılmaz.
 
 **Seans sonu.** Süre (Başla→Bitir) ve mesafe (tamamlanan setlerin toplamı) otomatik gelir,
 elle düzeltilebilir. Havuz 25/50, RPE 0–10. MSI isteğe bağlıdır: dokunulmayan bölge
@@ -133,6 +181,14 @@ kaydedilmez (boş ≠ 0); seçili değere tekrar dokunmak seçimi kaldırır. MS
   açılışta, bağlantı geldiğinde ve öne getirildiğinde yeniden dener. Kuyruk gün seçimi
   ekranında görünür.
 
+**Yapılmış idmanlar.** Biten her seans (tabloya gönderilen, kuyrukta bekleyen veya zaten
+kayıtlı çıkan) telefonda saklanır ve **otomatik silinmez**. Ana sayfadaki *Yapılmış
+idmanlar* listesinde tarih, set, mesafe, süre ve durum (*Tabloda*, *Kuyrukta*, *Zaten
+kayıtlıydı*) görünür; bir kayda dokununca setler, Gerçek süreler ve notlar açılır. Kayıtlar
+tek tek veya **Sil…** ile toplu (tabloya gidenler / tümü) silinir; silmeden önce onay
+sorulur, gönderilmemiş kayıt için ayrıca uyarılır. Buradan silmek ne tabloyu ne de
+gönderim kuyruğunu etkiler.
+
 ## Arka uç davranışı (`finishSession`)
 
 1. `eski` (veya `seans`) sayfasında o tarih varsa **DUPLICATE** döner, hiçbir şey yazılmaz.
@@ -142,10 +198,13 @@ kaydedilmez (boş ≠ 0); seçili değere tekrar dokunmak seçimi kaldırır. MS
    en üstte durur; yeni satırlar mevcut ilk veri satırının biçimini alır.
 3. Yazılan satır sayısı doğrulanır; tutmazsa **WRITE_MISMATCH**.
 4. `seans` sayfasına tek satır eklenir (o da 2. satıra, en yeni en üstte).
-5. Ancak 2–4 başarılıysa o tarihin **tüm** Plan satırları silinir.
+5. Ancak 2–4 başarılıysa o tarihin **tüm** Plan satırları Sıra sırasıyla `arsiv`
+   sayfasının en üstüne kopyalanır (sayfa yoksa oluşturulur) ve sayısı doğrulanır.
+6. Arşiv doğrulanınca Plan satırları silinir.
 
 2–4 arasında bir hata olursa bu çağrının eklediği satırlar geri alınır ve Plan'a
-dokunulmaz. Tüm yazma işlemleri `LockService` kilidi altında yapılır (30 sn bekler,
+dokunulmaz. Arşivleme başarısız olursa seans yine kaydedilmiş sayılır ama Plan satırları
+silinmez (cevapta `uyari`). Tüm yazma işlemleri `LockService` kilidi altında yapılır (30 sn bekler,
 alamazsa **LOCKED**).
 
 Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
@@ -164,4 +223,5 @@ alanları doldurabilir.
 ```sh
 node tests/test-gas.cjs     # Code.gs, sahte SpreadsheetApp ile (bağımlılık yok)
 node tests/test-e2e.cjs     # Ön yüz uçtan uca; Playwright + Chromium gerekir
+                            # (global kuruluysa: NODE_PATH=$(npm root -g) node tests/test-e2e.cjs)
 ```
