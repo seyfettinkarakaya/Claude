@@ -5,7 +5,9 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 ## Bekleyen (kod)
 
-_(boş)_
+- [ ] **İlk sayfa daha sade:** seçili gün dışındaki günlerin çubukları renkli değil gri
+  tonlarda; blok başına farklı açıklık (ana set en açık, ısınma/soğuma en koyu) ki yapı
+  renksiz de okunsun. Seçili günün kartı renkli kalır. (görsel: şimdiki / gri karşılaştırması)
 
 ## İzlenecek
 
