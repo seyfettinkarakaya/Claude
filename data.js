@@ -152,12 +152,17 @@ function asDateList(v) {
 export async function getDates() {
   try {
     const raw = await call('getDates');
-    const dates = asDateList(raw);
-    if (!dates) {
+    const list = asDateList(raw);
+    if (!list) {
       throw new ApiError('BAD_RESPONSE', `Tarih listesi beklenmeyen biçimde geldi: ${JSON.stringify(raw).slice(0, 120)}`);
     }
+    // Yeni Code.gs her günün tüm setlerini (detay) de gönderir: programlar
+    // önbelleğe alınır, gün açılırken ayrı istek beklenmez. Detay tarih
+    // listesinde tutulmaz (önbellek küçük kalsın).
+    const dates = list.filter((d) => d && typeof d.tarih === 'string').map(({ detay, ...rest }) => rest);
     store(KEYS.dates, { dates, savedAt: Date.now() });
     prunePlans(dates.map((d) => d.tarih));
+    cachePlansFrom(list);
     return { dates, fromCache: false, error: null };
   } catch (err) {
     const cached = getCachedDates();
@@ -171,16 +176,40 @@ export function getCachedDates() {
   return cached ? asDateList(cached.dates) : null;
 }
 
+/** getDates'in detay alanındaki programları önbelleğe yazar (devam eden seansın günü hariç). */
+function cachePlansFrom(list) {
+  const session = loadSession();
+  const plans = loadPlans();
+  let changed = false;
+  for (const d of list) {
+    if (!d || typeof d.tarih !== 'string' || !Array.isArray(d.detay) || !d.detay.length) continue;
+    if (session && session.tarih === d.tarih) continue; // seansın programı seans boyunca sabit
+    plans[d.tarih] = { tarih: d.tarih, setler: d.detay, savedAt: Date.now() };
+    changed = true;
+  }
+  if (changed) store(KEYS.plans, plans);
+}
+
+/** Programı sunucudan alır; önbelleğe yazmaz. */
+export async function fetchPlan(tarih) {
+  const plan = await call('getPlan', { tarih });
+  if (!plan || !Array.isArray(plan.setler)) {
+    throw new ApiError('BAD_RESPONSE', `Program beklenmeyen biçimde geldi: ${JSON.stringify(plan).slice(0, 120)}`);
+  }
+  return plan;
+}
+
+export function storePlan(plan) {
+  const plans = loadPlans();
+  plans[plan.tarih] = { ...plan, savedAt: Date.now() };
+  store(KEYS.plans, plans);
+}
+
 /** { plan, fromCache, error } döner. Ağ yoksa o günün son yüklenen kopyası kullanılır. */
 export async function getPlan(tarih) {
   try {
-    const plan = await call('getPlan', { tarih });
-    if (!plan || !Array.isArray(plan.setler)) {
-      throw new ApiError('BAD_RESPONSE', `Program beklenmeyen biçimde geldi: ${JSON.stringify(plan).slice(0, 120)}`);
-    }
-    const plans = loadPlans();
-    plans[tarih] = { ...plan, savedAt: Date.now() };
-    store(KEYS.plans, plans);
+    const plan = await fetchPlan(tarih);
+    storePlan({ ...plan, tarih });
     return { plan, fromCache: false, error: null };
   } catch (err) {
     const cached = getCachedPlan(tarih);

@@ -35,7 +35,7 @@ function makeEnv(sheets, token='secret') {
   const CDate = vm.runInContext('Date', ctx);
   for (const sh of Object.values(sheets)) sh.data = sh.data.map(r=>r.map(v=> v instanceof Date ? new CDate(v.getTime()) : v));
   vm.runInContext(fs.readFileSync(require('path').join(__dirname, '..', 'Code.gs'),'utf8'), ctx);
-  return { ctx, call: req => JSON.parse(ctx.doPost({postData:{contents:JSON.stringify({token, ...req})}}).s), sheets };
+  return { ctx, CDate, call: req => JSON.parse(ctx.doPost({postData:{contents:JSON.stringify({token, ...req})}}).s), sheets };
 }
 const D = s => { const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); };
 const PLAN_H = ['Tarih','Sıra','Blok','Tekrar','Mesafe','Stil','Tür','Açıklama','Hedef','Dinlen','Alet','Gerçek','Kulaç','Nabız','RPE','MSI','Not','Yığımlı Mesafe'];

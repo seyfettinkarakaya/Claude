@@ -49,6 +49,7 @@ const state = {
   selKeep: false,   // kullanıcı bir gün seçtiyse yenilemede korunur
   weekStart: null,  // gösterilen haftanın pazartesisi
   suppressDayClick: false,
+  opening: false,   // program sunucudan yükleniyor (çift dokunmaya karşı)
 };
 
 // ---------------------------------------------------------------------------
@@ -494,6 +495,7 @@ function loadDates(force = false) {
       state.dates = r.dates;
       state.datesInfo = { offline: r.fromCache };
       state.datesAt = Date.now();
+      if (!r.fromCache) prefetchPlans();
     } catch (err) {
       state.datesInfo = { error: err };
     } finally {
@@ -1051,13 +1053,26 @@ async function openDate(tarih) {
     if (!ok) return;
   }
 
-  toast('Program yükleniyor…', 10000);
+  // Program önbellekteyse (tarih listesiyle gelir) beklemeden açılır;
+  // sunucudaki güncel hali arka planda kontrol edilir.
+  const cached = data.getCachedPlan(tarih);
+  if (cached && cached.setler.length) {
+    startSession(tarih, cached);
+    refreshPlan(tarih);
+    return;
+  }
+
+  if (state.opening) return; // çift dokunma
+  state.opening = true;
+  toast('Program yükleniyor…', 30000);
   let r;
   try {
     r = await data.getPlan(tarih);
   } catch (err) {
     toast(`Program yüklenemedi: ${err.message}`, 4000);
     return;
+  } finally {
+    state.opening = false;
   }
   $('toast').hidden = true;
 
@@ -1070,11 +1085,55 @@ async function openDate(tarih) {
     return showDays();
   }
 
-  state.plan = r.plan;
+  startSession(tarih, r.plan);
+  if (r.fromCache) toast('Çevrimdışı: son yüklenen program gösteriliyor.');
+}
+
+function startSession(tarih, plan) {
+  state.plan = { ...plan, tarih };
   state.session = newSession(tarih);
   persist();
   openProgram();
-  if (r.fromCache) toast('Çevrimdışı: son yüklenen program gösteriliyor.');
+}
+
+/**
+ * Önbellekten açılan programın sunucudaki halini kontrol eder. Program
+ * değişmişse ve seansa henüz başlanmadıysa (işaret, süre yok) yenisiyle
+ * değiştirilir; başlanmışsa seans boyunca eldeki program korunur.
+ */
+async function refreshPlan(tarih) {
+  let fresh;
+  try {
+    fresh = await data.fetchPlan(tarih);
+  } catch {
+    return; // çevrimdışı: önbellekteki program yeterli
+  }
+  const s = state.session;
+  if (!s || s.tarih !== tarih || !state.plan) return;
+  if (!fresh.setler.length || JSON.stringify(fresh.setler) === JSON.stringify(state.plan.setler)) return;
+  if (hasProgress(s)) return;
+  data.storePlan({ ...fresh, tarih });
+  state.plan = { ...fresh, tarih };
+  s.pos = 0;
+  persist();
+  if (state.screen === 'program') openProgram();
+  toast('Program tablodan güncellendi.');
+}
+
+/**
+ * Eski Code.gs tarih listesiyle programları göndermez: yaklaşan ilk birkaç
+ * günün programı arka planda indirilir ki açılışta beklenmesin.
+ */
+async function prefetchPlans() {
+  const today = todayKey();
+  const upcoming = visibleDates().filter((d) => d.tarih >= today && !data.getCachedPlan(d.tarih)).slice(0, 3);
+  for (const d of upcoming) {
+    try {
+      await data.getPlan(d.tarih);
+    } catch {
+      return;
+    }
+  }
 }
 
 function resumeSession() {
@@ -1376,15 +1435,21 @@ async function onProgramBack() {
 // ---------------------------------------------------------------------------
 
 const sw = () => state.session.sw;
-const newSw = () => ({ running: false, segStart: null, segAcc: 0, laps: [], repStart: null });
+// set: ölçülen setin indeksi; ilk Başlat'ta sabitlenir, sıfırlanana/kaydedilene kadar değişmez.
+const newSw = () => ({ running: false, segStart: null, segAcc: 0, laps: [], repStart: null, set: null });
 
 function swSegment(now = Date.now()) {
   const w = sw();
   return w.segAcc + (w.running && w.segStart ? now - w.segStart : 0);
 }
 
+/** Kronometrenin setı: ölçüm sürüyorsa ölçülen set, yoksa açıldığı (aktif) set. */
 function swSet() {
-  const i = state.session.swSet != null ? state.session.swSet : (state.wheel ? state.wheel.index : state.session.pos || 0);
+  const w = state.session.sw;
+  let i;
+  if (w && w.set != null && (w.running || w.laps.length) && state.plan.setler[w.set]) i = w.set;
+  else if (state.session.swSet != null) i = state.session.swSet;
+  else i = state.wheel ? state.wheel.index : state.session.pos || 0;
   return { i, set: state.plan.setler[i] };
 }
 
@@ -1533,6 +1598,7 @@ function swStartStop() {
     w.segStart = null;
     w.segAcc = 0;
   } else {
+    if (w.set == null || !w.laps.length) w.set = swSet().i;
     w.running = true;
     w.segStart = now;
     w.segAcc = 0;
@@ -1628,9 +1694,9 @@ function checkBeep(now) {
 
 // --- Su kilidi ---------------------------------------------------------------
 //
-// Kilitliyken program ekranına ve kronometre düğmelerine dokunmalar yok sayılır;
-// kronometrede yalnızca büyük TUR düğmesi ve göstergeye dokunma çalışır.
-// Açmak için üstteki şerit 1 sn basılı tutulur.
+// Kilitliyken ekranın tamamını saydam bir katman örter: hiçbir dokunma (TUR,
+// göstergeye dokunma, kaydırma dahil) alttaki ekrana ulaşmaz. Kronometre
+// çalışmaya devam eder. Açmak için şerit 1 sn basılı tutulur.
 
 const UNLOCK_MS = 1000;
 let unlockTimer = null;
@@ -2080,8 +2146,15 @@ function wire() {
   $('sw-startstop').addEventListener('click', swStartStop);
   $('sw-reset').addEventListener('click', swReset);
   $('sw-save').addEventListener('click', swSave);
-  $('sw-lap').addEventListener('pointerdown', (e) => { e.preventDefault(); audio.unlock(); swLap(); });
-  $('sw-display').addEventListener('pointerdown', () => { if (sw().running) swLap(); });
+  $('sw-lap').addEventListener('pointerdown', (e) => { e.preventDefault(); if (state.locked) return; audio.unlock(); swLap(); });
+  $('sw-display').addEventListener('pointerdown', () => { if (!state.locked && sw().running) swLap(); });
+  // Kilit katmanı: altına hiçbir dokunma geçmesin.
+  for (const ev of ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchmove', 'wheel', 'contextmenu']) {
+    $('lock-bar').addEventListener(ev, (e) => {
+      if (ev === 'touchmove' || ev === 'contextmenu' || ev === 'wheel') e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+  }
   $('sw-sheet-body').addEventListener('click', onSheetClick);
   $('sw-sheet-dim').addEventListener('click', closeSheet);
 

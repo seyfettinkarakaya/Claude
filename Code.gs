@@ -139,42 +139,79 @@ function tokenGoster() {
 // getDates
 // ---------------------------------------------------------------------------
 
+/**
+ * Planlı günlerin listesi. Her gün için:
+ *   setler: gün kartı önizlemesi (blok, toplam mesafe, hedef süre sn)
+ *   detay : getPlan ile aynı biçimde tüm setler — uygulama programı ayrı bir
+ *           istek beklemeden açabilsin diye.
+ */
 function getDates_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var tz = ss.getSpreadsheetTimeZone();
   var plan = readSheet_(ss, SHEET_PLAN, { display: true });
-  var cTarih = col_(plan, COL.tarih, true);
-  var cSira = col_(plan, COL.sira, false);
-  var cBlok = col_(plan, COL.blok, false);
-  var cTekrar = col_(plan, COL.tekrar, false);
-  var cMesafe = col_(plan, COL.mesafe, false);
-  var cHedef = col_(plan, COL.hedef, false);
-  var cDinlen = col_(plan, COL.dinlen, false);
+  var c = planColumns_(plan, false);
 
   var byDate = {};
   plan.values.forEach(function (row, i) {
-    var key = dateKey_(row[cTarih], tz);
+    var key = dateKey_(row[c.tarih], tz);
     if (!key) return;
-    var g = byDate[key] || (byDate[key] = { tarih: key, setSayisi: 0, toplamMesafe: 0, hedefSure: 0, setler: [] });
+    var g = byDate[key] || (byDate[key] = { tarih: key, setSayisi: 0, toplamMesafe: 0, hedefSure: 0, setler: [], detay: [] });
     var disp = plan.display[i];
-    var tekrar = toNumber_(cell_(row, cTekrar)) || 1;
-    var mesafe = setDistance_(row, cTekrar, cMesafe);
-    var sure = tekrar * ((parseDuration_(durationText_(cell_(disp, cHedef))) || 0) +
-      (parseDuration_(durationText_(cell_(disp, cDinlen))) || 0));
+    var tekrar = toNumber_(cell_(row, c.tekrar)) || 1;
+    var mesafe = setDistance_(row, c.tekrar, c.mesafe);
+    var sure = tekrar * ((parseDuration_(durationText_(cell_(disp, c.hedef))) || 0) +
+      (parseDuration_(durationText_(cell_(disp, c.dinlen))) || 0));
     g.setSayisi++;
     g.toplamMesafe += mesafe;
     g.hedefSure += sure;
-    // Ön yüzdeki gün kartı önizlemesi için: blok, mesafe, hedef süre (sn)
-    g.setler.push({ sira: toNumber_(cell_(row, cSira)), _satir: i, blok: text_(disp, cBlok), mesafe: mesafe, sure: sure });
+    g.setler.push({ sira: toNumber_(cell_(row, c.sira)), _satir: i, blok: text_(disp, c.blok), mesafe: mesafe, sure: sure });
+    g.detay.push(planSet_(plan, c, i));
   });
 
   return Object.keys(byDate).sort().map(function (k) {
     var g = byDate[k];
     g.setler.sort(bySira_);
     g.setler.forEach(function (s) { delete s._satir; delete s.sira; });
+    g.detay.sort(bySira_);
+    g.detay.forEach(function (s) { delete s._satir; });
     g.hedefSure = Math.round(g.hedefSure);
     return g;
   });
+}
+
+function planColumns_(plan, siraRequired) {
+  return {
+    tarih: col_(plan, COL.tarih, true),
+    sira: col_(plan, COL.sira, siraRequired),
+    blok: col_(plan, COL.blok, false),
+    tekrar: col_(plan, COL.tekrar, false),
+    mesafe: col_(plan, COL.mesafe, false),
+    stil: col_(plan, COL.stil, false),
+    tur: col_(plan, COL.tur, false),
+    aciklama: col_(plan, COL.aciklama, false),
+    hedef: col_(plan, COL.hedef, false),
+    dinlen: col_(plan, COL.dinlen, false),
+    alet: col_(plan, COL.alet, false)
+  };
+}
+
+/** Bir Plan satırı → uygulamadaki set nesnesi (_satir sıralama içindir). */
+function planSet_(plan, c, i) {
+  var row = plan.values[i];
+  var disp = plan.display[i];
+  return {
+    _satir: i,
+    sira: toNumber_(cell_(row, c.sira)),
+    blok: text_(disp, c.blok),
+    tekrar: toNumber_(cell_(row, c.tekrar)) || 1,
+    mesafe: toNumber_(cell_(row, c.mesafe)) || 0,
+    stil: text_(disp, c.stil),
+    tur: text_(disp, c.tur),
+    aciklama: text_(disp, c.aciklama),
+    hedef: durationText_(cell_(disp, c.hedef)),
+    dinlen: durationText_(cell_(disp, c.dinlen)),
+    alet: text_(disp, c.alet)
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -186,37 +223,12 @@ function getPlan_(req) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var tz = ss.getSpreadsheetTimeZone();
   var plan = readSheet_(ss, SHEET_PLAN, { display: true });
-  var c = {
-    tarih: col_(plan, COL.tarih, true),
-    sira: col_(plan, COL.sira, true),
-    blok: col_(plan, COL.blok, false),
-    tekrar: col_(plan, COL.tekrar, false),
-    mesafe: col_(plan, COL.mesafe, false),
-    stil: col_(plan, COL.stil, false),
-    tur: col_(plan, COL.tur, false),
-    aciklama: col_(plan, COL.aciklama, false),
-    hedef: col_(plan, COL.hedef, false),
-    dinlen: col_(plan, COL.dinlen, false),
-    alet: col_(plan, COL.alet, false)
-  };
+  var c = planColumns_(plan, true);
 
   var setler = [];
   plan.values.forEach(function (row, i) {
     if (dateKey_(row[c.tarih], tz) !== tarih) return;
-    var disp = plan.display[i];
-    setler.push({
-      _satir: i,
-      sira: toNumber_(row[c.sira]),
-      blok: text_(disp, c.blok),
-      tekrar: toNumber_(cell_(row, c.tekrar)) || 1,
-      mesafe: toNumber_(cell_(row, c.mesafe)) || 0,
-      stil: text_(disp, c.stil),
-      tur: text_(disp, c.tur),
-      aciklama: text_(disp, c.aciklama),
-      hedef: durationText_(cell_(disp, c.hedef)),
-      dinlen: durationText_(cell_(disp, c.dinlen)),
-      alet: text_(disp, c.alet)
-    });
+    setler.push(planSet_(plan, c, i));
   });
 
   setler.sort(bySira_);
