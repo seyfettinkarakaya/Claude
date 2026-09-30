@@ -7,6 +7,25 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılması (aşağıda).
 
+## Sıradaki — Sürüm 10: Zamanlama modeli
+
+Şartname: `ZAMANLAMA.md` · Görseller: `tasarim/v12/idman-zamanlama-2.png`, `tasarim/v12/seans-sonu.png`.
+Görsel tasarım Sürüm 8 görünümünde kalır.
+
+- [ ] `zaman.js`: saf zaman modülü (olaylar → durum, tekrar/dinlenme/set sonu süreleri) + birim testleri.
+- [ ] İdman ekranı: tek büyük düğme (İDMANA BAŞLA → ÇIK → GELDİM …), tekrar kutucukları, büyük saat
+  (yukarı sayma / dinlenme geri sayımı, eksiye kırmızı), üstte büyük süre ve mesafe (54 px).
+- [ ] Setin son GELDİM'i seti, son setin son GELDİM'i idmanı bitirir; set sonu dinlenmesi.
+- [ ] 3-2-1 + 0 bipleri her dinlenmede; alt barda Ses düğmesi; GELDİM onay sesi; ekran yanıp sönmesi.
+- [ ] Geri al (5 sn), çift dokunma koruması (2 sn), yüzerken kaydırma ve ‹ kapalı.
+- [ ] Erken bitirme: dinlenirken kaydır + ÇIK (n/N); ‹ → "İdmanı bitir ve kaydet / Devam et".
+- [ ] Seans sonu: RPE (tek dokunuş) → MSI ("Ağrı yok" / bölge döngüsü) → Özet ve kaydet
+  (onaylı not satırları, şüpheli tekrar düzeltme, hazır açıklama ifadeleri, havuz hatırlanır).
+- [ ] Veri: Gerçek = ortalama tekrar; Not = işaretlenenler; seans Mesafe = yapılan tekrarlar.
+- [ ] Kaldır: kronometre ekranı, TUR, Kaydet paneli, Çıkışa sayacı, Seti Tamamla, Başla/Bitir, su kilidi, eski form.
+- [ ] Devam eden eski biçim seansın yeni modele geçişi.
+- [ ] Testler: zaman.js birim testleri; uçtan uca senaryolar yeni akışa göre yeniden yazılır.
+
 ## 2. Aşama — Orta vade
 
 ### İşlev
@@ -14,12 +33,13 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 - [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
 - [ ] **F.3** Set başına kulaç sayısı / nabız girişi (isteğe bağlı alanlar).
-- [ ] **F.4** Tekrar takibi ve otomatik aralık modu: çıkış saatine göre tekrarları
-  kendiliğinden sayar, sonraki tekrara geçer.
+- [ ] İdman sırasında ağrı (MSI) kaydı — menü kaldırıldığı için Sürüm 10'da yok; yeri sonra konuşulacak.
 - [ ] **F.7** Service worker: uygulama dosyaları önbellekte, internet yokken de açılır.
 - [ ] **F.8** Uygulama içinde plan düzeltme (tekrar, mesafe, hedef) ve tabloya yazma.
 
 ### Görsel
+
+Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenileme sonra konuşulacak.
 
 - [ ] Form, kurulum ve "Kaydedildi" ekranlarını yeni tasarıma uyarlamak; renk
   paletlerini (sarı set ekranı / turkuaz takvim / gri ana sayfa) tek sistemde toplamak.
