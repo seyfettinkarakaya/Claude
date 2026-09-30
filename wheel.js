@@ -33,6 +33,7 @@ export class Wheel {
     this.drag = null;
     this.wheelAcc = 0;
     this.cardH = 400;
+    this.locked = false; // true iken kaydırma ve dokunarak geçiş kapalı (yüzerken)
 
     // Peron: aktif durağın oturduğu sabit halka.
     this.platform = document.createElement('div');
@@ -138,6 +139,7 @@ export class Wheel {
   // --- etkileşim ---------------------------------------------------------
 
   _down(e) {
+    if (this.locked) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     this._stopAnim();
     this.drag = {
@@ -203,6 +205,7 @@ export class Wheel {
 
   _wheel(e) {
     e.preventDefault();
+    if (this.locked) return;
     this.wheelAcc += e.deltaY;
     if (Math.abs(this.wheelAcc) < 40) return;
     const dir = Math.sign(this.wheelAcc);
@@ -223,8 +226,8 @@ export class Wheel {
     // Durağa yanaşma: biraz daha yavaş ve yumuşak
     const duration = Math.min(900, 380 + dist * 160);
     const start = performance.now();
-    const tick = (now) => {
-      const k = Math.min(1, (now - start) / duration);
+    const tick = () => {
+      const k = Math.max(0, Math.min(1, (performance.now() - start) / duration));
       this.pos = from + (t - from) * easeOutCubic(k);
       this.render();
       if (k < 1) this.anim = requestAnimationFrame(tick);

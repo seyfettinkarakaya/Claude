@@ -15,7 +15,8 @@ Biten seansın bir kopyası telefonda da kalır (**Yapılmış idmanlar**).
 |---|---|
 | `index.html` | Ekranların iskeleti |
 | `style.css` | Koyu, yüksek kontrastlı havuz kenarı tasarımı |
-| `app.js` | Arayüz: ekranlar, program, kronometre, form |
+| `app.js` | Arayüz: ekranlar, program ve zamanlama, seans sonu |
+| `zaman.js` | Saf zamanlama modülü: dokunuş olaylarından tekrar/dinlenme süreleri (bkz. `ZAMANLAMA.md`) |
 | `wheel.js` | Tekerlek (wheel) gezinme bileşeni: sürükleme, atalet, oturma |
 | `data.js` | **Tek veri erişim modülü**: Apps Script çağrıları, yerel önbellek, gönderim kuyruğu |
 | `manifest.json`, `icons/` | PWA tanımı ve simgeler (192, 512, apple-touch-icon) |
@@ -138,36 +139,25 @@ bloğun renginde. Aktif durak "peron"da büyük bir kart olarak açılır (Tekra
 Stil · Tür, açıklama, Hedef, Dinlen, Alet ve set / yığımlı mesafe); üstünde ve altında
 ikişer durak görünür. Yukarı/aşağı kaydırdıkça hat akar ve bir sonraki durak perona gelir;
 kaydırma bilerek "ağır"dır (bir durak için ~170 px, fırlatma en fazla bir durak); bırakınca en yakın durağa oturur. Hattın solundaki süreler yığımlı hedef süredir:
-o sete kadar tekrar × (hedef + dinlen) toplamı. Üstte solda **Süre** (geçen / toplam hedef), sağda **Mesafe** (yapılan / toplam); altında her set için blok renginde,
-mesafesine oranlı bir ilerleme çubuğu. Alttaki bar: **Kronometre** · **Seti Tamamla**
-(işaretli sette **İşareti Kaldır**) · **Başla** / **Bitir**. Program ekranı açıkken ekran
-sönmez (Screen Wake Lock; desteklenmiyorsa sessizce devam eder). Kartın altında hedefin
-**100 m temposu** (ör. `Tempo 1:35/100 · Z3`) bölge renginde görünür.
+o sete kadar tekrar × (hedef + dinlen) toplamı. Üstte büyük yazıyla solda **Süre** (geçen / toplam hedef), sağda **Mesafe** (yüzülen / toplam); altında her set için blok renginde,
+mesafesine oranlı bir ilerleme çubuğu. Program ekranı açıkken ekran sönmez (Screen Wake
+Lock; desteklenmiyorsa sessizce devam eder). Kartın altında hedefin **100 m temposu**
+(ör. `Tempo 1:35/100 · Z3`) bölge renginde görünür.
 
-**Su kilidi.** Program ekranında sağ üstteki, kronometrede üstteki 🔒 düğmesi ekranı
-kilitler: ekranın tamamı saydam bir katmanla örtülür, hiçbir dokunma (TUR, göstergeye
-dokunma, kaydırma dahil) işlenmez; kronometre çalışmaya devam eder. Açmak için şeridi
-1 saniye basılı tutun.
-
-**Kronometre.**
-- Süre göstergesi ekranın %70'ini kaplar; yüzerken bir bakışta okunur.
-- Altında hedef çubuğu ve üç değer: **Hedefe** kalan (dururken son turun hedefe **Fark**ı),
-  **Çıkışa** kalan (hedef + dinlen aralığıyla bir sonraki tekrarın başlamasına kalan süre)
-  ve **Son tur**. Hedefin altı yeşil, üstü kırmızı.
-- Büyük sarı düğme (ve çalışırken göstergenin kendisi): durmuşken **BAŞLAT**, çalışırken **TUR**.
-- **Durdur** o ana kadarki süreyi de tur olarak kaydeder. Böylece:
-  - aralıklı tekrarlar için *Başlat → Durdur, Başlat → Durdur…*
-  - kesintisiz ara dereceler için *Başlat → Tur → Tur → Durdur*
-  aynı tur listesini üretir.
-- **Kaydet** alttan bir panel açar: set (aktif set seçili, *Değiştir* ile başka set),
-  turlar (hedeften hızlı olanlar yeşil), ortalama ve iki seçenek:
-  *Ortalama → Gerçek* veya *Ortalama + turlar → Not*. Tek turda ikinci seçenek çıkmaz.
-  Süreli kaydedilen set tamamlandı olarak işaretlenir (programda kaldırılabilir).
-- Gerçek değeri `dd:ss.d` (ör. `01:23.4`) olarak gider ve süre biçiminde yazılır.
-- **Son tur**un altında o turun 100 m temposu ve bölgesi görünür.
-- **Çıkış sesi:** çıkışa son 3 saniyede kısa bip, çıkış anında uzun bip (her tekrar için
-  bir kez). Ayarlar'dan kapatılabilir, **Sesi dene** ile denenebilir. iPhone sessiz
-  moddaysa veya uygulama arka plandaysa ses çıkmaz.
+**Zamanlama (tek düğme).** Ayrı kronometre yoktur; ayrıntılı kurallar `ZAMANLAMA.md`'de.
+- Alttaki büyük düğme sırayla **İDMANA BAŞLA → ÇIK → GELDİM → ÇIK → …** olur. Tekrar ve
+  dinlenme süreleri yalnızca dokunuş zamanlarından hesaplanır; uygulama kapanıp açılsa da kaymaz.
+- Aktif kartta tekrar kutucukları (yüzülen tekrarların süreleri) ve büyük saat: yüzerken
+  yukarı sayar, dinlenirken plandaki dinlenmeden geri sayar, süre aşılınca eksiye kırmızı geçer.
+- Setin son GELDİM'i seti bitirir ve kart sıradaki sete geçer (araya giren dinlenme
+  "Set sonu" olarak biten sete yazılır). Son setin son GELDİM'i idmanı bitirir.
+- Dinlenmenin son 3 saniyesinde kısa bip, çıkış anında uzun bip; GELDİM'de onay sesi.
+  Alt bardaki **Ses** düğmesi sesi açar/kapatır. iPhone sessiz moddaysa ses çıkmaz.
+- **Geri al** (sol alt) son dokunuşu 5 saniye boyunca geri alır. 2 saniye içindeki ikinci
+  dokunuş yok sayılır. Yüzerken setler kaydırılamaz ve ‹ çalışmaz.
+- **Seti erken bitirmek:** dinlenirken başka sete kaydırın; kart hangi setin kaç tekrarla
+  kapanacağını yazar, ÇIK'a basınca önceki set n/N olarak kapanır. Geri kaydırmak vazgeçer.
+- **İdmanı erken bitirmek:** ‹ → *İdmanı bitir ve kaydet* / *Devam et* / *Takvime dön (idman sürer)*.
 
 **Tempo ve CSS bölgeleri.** Ayarlar'da CSS (kritik yüzme hızı, 100 m için `dd:ss`,
 varsayılan 1:57) girilir. Bölgeler 100 m temposunun CSS'ten farkına göredir:
@@ -175,14 +165,21 @@ Z1 Toparlanma ≥ CSS+15 sn · Z2 Aerobik +8…+15 · Z3 Tempo +3…+8 · Z4 Eş
 Z5 Hız < CSS−2. Ekipmanlı setlerde (Alet dolu ya da Tür Pull/Drill/Kick) tempo gösterilir
 ama bölge rengi verilmez: ekipmanlı tempo ekipmansız bölgelerle karşılaştırılmaz.
 
-**Seans sonu.** Süre (Başla→Bitir) ve mesafe (tamamlanan setlerin toplamı) otomatik gelir,
-elle düzeltilebilir. Havuz 25/50, RPE 0–10. MSI isteğe bağlıdır: dokunulmayan bölge
-kaydedilmez (boş ≠ 0); seçili değere tekrar dokunmak seçimi kaldırır. MSI, seans sayfasına
-`sag omuz 1; bel 0.5` biçiminde yazılır.
+**Seans sonu.** Üç kısa adım:
+1. **RPE** — 0–10 arası tek dokunuş (5 sn içinde *İdmana dön* ile son adım geri alınır).
+2. **MSI** — *Ağrı yok* ya da vücut şemasında bölgeye dokundukça 0,5 → 1 → 1,5 → 2 → 3 → boş.
+   Dokunulmayan bölge kaydedilmez; MSI seans sayfasına `sag omuz 1; bel 0.5` biçiminde yazılır.
+3. **Özet ve kaydet** — süre (İDMANA BAŞLA → bitiş) ve mesafe (yapılan tekrarlar × mesafe)
+   otomatik; havuz 25/50 (son seçim hatırlanır); hazır ifadeler ve açıklama. Her set için
+   ortalama tekrar süresi **Gerçek**'e gider. Nota yazılabilecek satırlar (tekrar süreleri,
+   plandan belirgin sapan dinlenmeler, eksik tekrar) işaret kutusuyla gösterilir; yalnızca
+   işaretlenenler **Not**'a yazılır. Ortancadan çok sapan (unutulmuş dokunuş) tekrar
+   işaretlenir; düzeltilebilir veya ortalamadan çıkarılabilir.
 
 **Çevrimdışı ve kurtarma.**
-- Seçilen günün programı ve devam eden seansın tüm durumu (başlangıç, işaretler,
-  kronometre, form) her değişiklikte cihazda saklanır; uygulama kapanırsa kaldığı yerden açılır.
+- Seçilen günün programı ve devam eden seansın tüm durumu (dokunuş olayları, seans sonu
+  girişleri) her değişiklikte cihazda saklanır; uygulama kapanırsa kaldığı yerden açılır.
+  Sürüm 9 ve öncesinden kalan seans yeni modele taşınır (işaretli setler ve turlar korunur).
 - Kayıt gönderilemezse (internet yok, sunucu meşgul) kuyruğa alınır; uygulama her
   açılışta, bağlantı geldiğinde ve öne getirildiğinde yeniden dener. Kuyruk gün seçimi
   ekranında görünür.
@@ -220,9 +217,9 @@ Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
 
 Arayüz (`app.js`) tabloya, `localStorage`'a veya kuyruğa doğrudan erişmez; hepsi `data.js`
 üzerinden geçer. Faz 2'de Garmin/FIT gibi yeni kaynaklar `data.js`'e yeni fonksiyon,
-`Code.gs`'e yeni `action` olarak eklenir. Set sonuçları seans durumunda
-`results[sira] = { gercek, kulac, nabiz, rpe, msi, not }` olarak tutulur; Garmin verisi aynı
-alanları doldurabilir.
+`Code.gs`'e yeni `action` olarak eklenir. Seans durumu bir olay listesidir
+(`basla`, `cik`, `geldim`, `bitir` + zaman damgası); tüm süreler `zaman.js` ile bu listeden
+hesaplanır. Garmin verisi aynı set alanlarını (Gerçek, Kulaç, Nabız, Not) doldurabilir.
 
 ## Testler
 
@@ -231,13 +228,15 @@ sh tests/run-all.sh           # hepsi
 node tests/test-gas.cjs       # Code.gs ana akış (sahte SpreadsheetApp, bağımlılık yok)
 node tests/test-gas-edge.cjs  # Code.gs uç durumlar: kimlik, başlıklar, tarih/süre biçimleri, geri alma, kilit, arsiv
 node tests/test-data.mjs      # data.js: ayarlar, önbellek, kuyruk, geçmiş, hata kodları
+node tests/test-zaman.mjs     # zaman.js: olaylardan süreler, düğme sırası, bip, şüpheli tekrar
 node tests/e2e-senaryolar.cjs [filtre]  # 30+ uçtan uca senaryo (Playwright + Chromium)
 node tests/test-e2e.cjs       # baştan sona tam akış
 ```
 
 Uçtan uca testler için Playwright gerekir (global kuruluysa `NODE_PATH=$(npm root -g)`).
-Senaryolar: su kilidi, hızlı açılış ve arka plan yenileme, eski Code.gs uyumu, çevrimdışı,
-geçersiz anahtar, kalıcı/geçici sunucu hataları, DUPLICATE, gizli hata ayrıntısı, form
-doğrulama ve çift gönderim, yeniden açılışta devam, tüm setleri tamamlama, gün değiştirme,
-40 setlik program, kronometrenin ölçülen sete bağlı kalması, çıkış sesleri, kuyruk ve geçmiş
-yönetimi, ayarlar, kurulum, 320–430 px ekranlarda taşma.
+Senaryolar: tam idman (otomatik set geçişi, son GELDİM'le bitiş), dinlenme sayacı ve bipler,
+ses düğmesi, çift dokunma ve geri al, yüzerken kaydırma/‹ kilidi, seti ve idmanı erken bitirme,
+şüpheli tekrar düzeltme, dinlenme notu onayı, RPE/MSI/havuz, yeniden açılışta devam, Sürüm 9
+seansının taşınması, hızlı açılış ve arka plan yenileme, eski Code.gs uyumu, çevrimdışı,
+geçersiz anahtar, kalıcı/geçici sunucu hataları, DUPLICATE, gizli hata ayrıntısı, gün değiştirme,
+40 setlik program, kuyruk ve geçmiş yönetimi, ayarlar, kurulum, 320–430 px ekranlarda taşma.

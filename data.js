@@ -83,7 +83,8 @@ export function isConfigured() {
 // Tercihler (ses, CSS temposu)
 // ---------------------------------------------------------------------------
 
-const DEFAULT_PREFS = { ses: true, css: 117 }; // css: 100 m kritik yüzme hızı (sn)
+// css: 100 m kritik yüzme hızı (sn); havuz: son seansın havuz uzunluğu (m)
+const DEFAULT_PREFS = { ses: true, css: 117, havuz: 25 };
 
 export function getPrefs() {
   const p = load(KEYS.prefs, null);
@@ -91,6 +92,7 @@ export function getPrefs() {
   if (p && typeof p === 'object') {
     if (typeof p.ses === 'boolean') out.ses = p.ses;
     if (p.css === null || (typeof p.css === 'number' && p.css > 0)) out.css = p.css;
+    if (p.havuz === 25 || p.havuz === 50) out.havuz = p.havuz;
   }
   return out;
 }
@@ -251,12 +253,20 @@ export function forgetDate(tarih) {
 // Devam eden seans
 // ---------------------------------------------------------------------------
 
+/**
+ * Devam eden seans. Sürüm 10 biçimi: { v: 2, tarih, events: [...] }.
+ * Eski biçim (done/results/sw) de kabul edilir; arayüz yeni modele taşır.
+ */
 export function loadSession() {
   const s = load(KEYS.session, null);
-  const ok = s && typeof s === 'object' && typeof s.tarih === 'string' &&
-    s.done && typeof s.done === 'object' && s.results && typeof s.results === 'object' &&
+  if (!s || typeof s !== 'object' || typeof s.tarih !== 'string') return null;
+  if (s.v === 2) {
+    const okEvents = Array.isArray(s.events) && s.events.every((e) => e && typeof e.t === 'string' && typeof e.ts === 'number');
+    return okEvents ? s : null;
+  }
+  const legacy = s.done && typeof s.done === 'object' && s.results && typeof s.results === 'object' &&
     s.sw && Array.isArray(s.sw.laps);
-  return ok ? s : null;
+  return legacy ? s : null;
 }
 
 export function saveSession(session) {

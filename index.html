@@ -18,9 +18,9 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="fonts/fonts.css?v=9">
-  <link rel="stylesheet" href="style.css?v=9">
-  <script type="module" src="app.js?v=9"></script>
+  <link rel="stylesheet" href="fonts/fonts.css?v=10">
+  <link rel="stylesheet" href="style.css?v=10">
+  <script type="module" src="app.js?v=10"></script>
 </head>
 <body>
 
@@ -47,7 +47,7 @@
 
       <div id="setup-prefs" hidden>
         <h2 class="set-h">Çıkış sesi</h2>
-        <p class="muted">Kronometrede çıkışa son 3 saniyede kısa bip, çıkışta uzun bip. iPhone sessiz moddaysa ses çıkmaz.</p>
+        <p class="muted">Dinlenmede çıkışa 3-2-1 saniye kala kısa bip, çıkışta uzun bip; GELDİM'de kısa onay sesi. İdman ekranındaki ses düğmesiyle de açılıp kapanır. iPhone sessiz moddaysa ses çıkmaz.</p>
         <div class="seg" id="pref-ses">
           <button data-v="1">Açık</button>
           <button data-v="0">Kapalı</button>
@@ -137,99 +137,83 @@
     </div>
   </section>
 
-  <!-- Program (havuz kenarı): metro hattı -->
+  <!-- İdman ekranı: metro hattı + tek büyük düğme (ZAMANLAMA.md) -->
   <section id="screen-program" class="screen" hidden>
     <div class="prog-amb" id="prog-amb"></div>
     <header class="prog-head">
       <div class="prog-row">
-        <button class="icon-btn" id="prog-back" aria-label="Gün seçimi">‹</button>
-        <div class="prog-stat"><span class="lbl">SÜRE · GEÇEN / HEDEF</span><b class="fit"><span id="prog-clock">00:00</span><span class="dim">/</span><span id="prog-end" class="y">0:00</span></b></div>
+        <button class="icon-btn" id="prog-back" aria-label="Geri / idmanı bitir">‹</button>
+        <div class="prog-stat"><span class="lbl">SÜRE</span><b class="fit"><span id="prog-clock">0:00</span><small id="prog-end" class="y"></small></b></div>
         <div class="prog-stat end"><span class="lbl">MESAFE</span><b class="fit" id="prog-dist">0</b></div>
-        <button class="icon-btn lock-btn" id="prog-lock" aria-label="Su kilidi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button>
       </div>
       <div class="seg-bar" id="prog-bar"></div>
     </header>
     <div class="wheel" id="wheel"></div>
     <footer class="dock">
-      <button class="dock-side" id="btn-stopwatch"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M9.5 2.5h5M18.5 6l1.5-1.5"/></svg><span>Kronometre</span></button>
-      <button class="dock-main" id="btn-complete"><span class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5L19.5 7"/></svg></span><span id="btn-complete-text">Seti Tamamla</span></button>
-      <button class="dock-side" id="btn-session"></button>
+      <button class="dock-side" id="btn-undo" aria-label="Son dokunuşu geri al"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span>Geri al</span></button>
+      <button class="dock-main" id="btn-main"><b id="btn-main-label">İDMANA BAŞLA</b><small id="btn-main-sub"></small></button>
+      <button class="dock-side" id="btn-sound" aria-label="Ses"></button>
     </footer>
   </section>
 
-  <!-- Kronometre -->
-  <section id="screen-stopwatch" class="screen sw" hidden>
-    <div class="sw-strip">
-      <button class="round-btn" id="sw-close" aria-label="Kapat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <div class="sw-set" id="sw-set"></div>
-      <button class="round-btn" id="sw-lock" aria-label="Su kilidi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button>
-      <button class="round-btn" id="sw-reset" aria-label="Sıfırla"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg></button>
-    </div>
-    <div class="sw-display" id="sw-display">
-      <div class="sw-top"><span class="sw-tag" id="sw-tag"></span><span class="sw-reps" id="sw-reps"></span></div>
-      <div class="sw-dz" id="sw-dz"><div class="sw-time" id="sw-time"><span id="sw-main">0:00</span><span class="sw-tenth" id="sw-tenth">.0</span></div></div>
-      <div class="sw-pbar" id="sw-pbar"><div class="f" id="sw-pfill"></div><div class="mk" id="sw-pmark"></div></div>
-      <div class="sw-info">
-        <div><span id="sw-diff-label">HEDEFE</span><b id="sw-diff">—</b></div>
-        <div><span>ÇIKIŞA</span><b id="sw-cikis">—</b></div>
-        <div><span>SON TUR</span><b id="sw-last">—</b><small class="sw-pace" id="sw-pace"></small></div>
-      </div>
-    </div>
-    <div class="sw-ctrls">
-      <div class="sw-cb"><button id="sw-startstop" aria-label="Başlat / Durdur"></button><span id="sw-ss-label">Başlat</span></div>
-      <div class="sw-cb big"><button id="sw-lap">BAŞLAT</button></div>
-      <div class="sw-cb"><button id="sw-save" aria-label="Kaydet"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19h14"/></svg></button><span>Kaydet</span></div>
-    </div>
-    <!-- Kaydet paneli -->
-    <div class="sheet-wrap" id="sw-sheet" hidden>
-      <div class="sheet-dim" id="sw-sheet-dim"></div>
-      <div class="sheet" id="sw-sheet-body"></div>
+  <!-- Seans sonu 1/3: RPE -->
+  <section id="screen-rpe" class="screen fin" hidden>
+    <header class="fin-top"><button class="icon-btn" id="rpe-back" aria-label="İdmana dön">‹</button><div class="steps"><i class="on"></i><i></i><i></i></div></header>
+    <div class="scroll pad">
+      <button class="fin-undo" id="rpe-undo" hidden>↶ Yanlışlıkla mı bitti? İdmana dön</button>
+      <h1 class="fin-h">İdman nasıldı?</h1>
+      <p class="fin-sub">Zorluk (RPE) — dokun, kendisi geçer</p>
+      <div class="rpe-big" id="rpe-grid"></div>
+      <p class="fin-info" id="rpe-info"></p>
     </div>
   </section>
 
-  <!-- Seans sonu formu -->
-  <section id="screen-form" class="screen" hidden>
-    <header class="topbar">
-      <button class="icon-btn" id="form-back" aria-label="Programa dön">‹</button>
-      <h1 class="topbar-title">Seans Sonu</h1>
-    </header>
-    <div class="scroll pad" id="form-scroll">
-      <div class="form-grid2">
-        <label class="field">
-          <span>Süre (ss:dd:ss)</span>
-          <input id="f-sure" type="text" inputmode="numeric" autocomplete="off" placeholder="01:24:08">
-        </label>
-        <label class="field">
-          <span>Mesafe (m)</span>
-          <input id="f-mesafe" type="number" inputmode="numeric" min="0" step="25">
-        </label>
+  <!-- Seans sonu 2/3: MSI -->
+  <section id="screen-msi" class="screen fin" hidden>
+    <header class="fin-top"><button class="icon-btn" id="msi-back" aria-label="Geri">‹</button><div class="steps"><i class="on"></i><i class="on"></i><i></i></div></header>
+    <div class="scroll pad">
+      <h1 class="fin-h">Ağrı / rahatsızlık</h1>
+      <p class="fin-sub">MSI — ağrı varsa bölgeye dokun; her dokunuş değeri artırır (0,5 → 1 → 1,5 → 2 → 3 → boş)</p>
+      <button class="fin-none" id="msi-none">✓ Ağrı yok<small>MSI boş kalır, özete geçer</small></button>
+      <div class="msi-body" id="msi-body"></div>
+      <p class="fin-info">0,5 gözlem · 1–1,5 hafiflet · 2 durdur · 3+ tıbbi</p>
+    </div>
+    <div class="bottom-bar"><button class="fin-btn" id="msi-next" hidden>Devam</button></div>
+  </section>
+
+  <!-- Seans sonu 3/3: Özet ve kaydet -->
+  <section id="screen-ozet" class="screen fin" hidden>
+    <header class="fin-top"><button class="icon-btn" id="oz-back" aria-label="Geri">‹</button><div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div></header>
+    <div class="scroll pad">
+      <h1 class="fin-h">Özet ve kaydet</h1>
+      <div class="oz-sum">
+        <div><span class="lbl">SÜRE</span><b class="n" id="oz-sure"></b></div>
+        <div><span class="lbl">MESAFE</span><b class="n" id="oz-mesafe"></b></div>
+        <button id="oz-rpe-box"><span class="lbl">RPE</span><b class="n" id="oz-rpe"></b></button>
       </div>
-
-      <div class="field">
-        <span>Havuz</span>
-        <div class="seg" id="f-havuz">
-          <button data-v="25">25 m</button>
-          <button data-v="50">50 m</button>
-        </div>
+      <button class="oz-msi" id="oz-msi-box"><span class="lbl">MSI</span><span id="oz-msi"></span></button>
+      <div class="seg" id="oz-havuz"><button data-v="25">25 m</button><button data-v="50">50 m</button></div>
+      <p class="lbl oz-h">TABLODAKİ NOTA YAZILACAKLAR</p>
+      <div id="oz-notes"></div>
+      <p class="lbl oz-h">AÇIKLAMA</p>
+      <div class="oz-chips" id="oz-chips"></div>
+      <textarea id="oz-aciklama" rows="2" placeholder="Not yaz (klavyedeki mikrofonla da yazılabilir)"></textarea>
+      <p id="oz-msg" class="msg" hidden></p>
+    </div>
+    <div class="bottom-bar"><button class="fin-btn" id="oz-save">Kaydet</button></div>
+    <!-- Şüpheli tekrarı düzeltme -->
+    <div class="sheet-wrap" id="ed-sheet" hidden>
+      <div class="sheet-dim" id="ed-dim"></div>
+      <div class="sheet" id="ed-sheet-body">
+        <div class="sheet-grab"></div>
+        <h3 id="ed-title"></h3>
+        <p class="fin-sub">Diğerlerinden çok farklı — "Geldim" geç ya da erken basılmış olabilir.</p>
+        <div class="ed-reps" id="ed-reps"></div>
+        <div class="ed-step"><button data-step="-5">−5</button><button data-step="-1">−1</button><b class="n" id="ed-val"></b><button data-step="1">+1</button><button data-step="5">+5</button></div>
+        <button class="fin-btn" data-ed="apply" id="ed-apply"></button>
+        <button class="btn btn-block" data-ed="drop">Bu tekrarı ortalamadan çıkar</button>
+        <button class="btn btn-block btn-ghost" data-ed="keep">Olduğu gibi bırak</button>
       </div>
-
-      <div class="field">
-        <span>RPE</span>
-        <div class="rpe-grid" id="f-rpe"></div>
-      </div>
-
-      <div class="field">
-        <span>MSI <small class="muted">(isteğe bağlı — dokunulmayan bölge kaydedilmez)</small></span>
-        <div class="msi" id="f-msi"></div>
-      </div>
-
-      <label class="field">
-        <span>Açıklama</span>
-        <textarea id="f-aciklama" rows="4" placeholder="Seans notu"></textarea>
-      </label>
-
-      <p id="form-msg" class="msg" hidden></p>
-      <button class="btn btn-primary btn-xl btn-block" id="form-save">Kaydet</button>
     </div>
   </section>
 
@@ -250,11 +234,6 @@
       <div id="modal-body"></div>
       <div class="modal-actions" id="modal-actions"></div>
     </div>
-  </div>
-
-  <!-- Su kilidi: kilitliyken tüm ekranı örter, dokunmalar yok sayılır; açmak için basılı tutulur -->
-  <div class="lock-bar" id="lock-bar" hidden>
-    <button id="lock-hold"><i class="lock-fill"></i><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Kilitli · açmak için basılı tut</span></button>
   </div>
 
   <div class="toast" id="toast" hidden></div>

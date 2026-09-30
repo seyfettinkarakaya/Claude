@@ -53,15 +53,19 @@ await test('config boş/bozuk/geçerli', () => {
 });
 
 await test('tercihler: varsayılan, doğrulama, kısmi güncelleme', () => {
-  assert.deepEqual(data.getPrefs(), { ses: true, css: 117 });
+  assert.deepEqual(data.getPrefs(), { ses: true, css: 117, havuz: 25 });
   LS.setItem('ysk.prefs', JSON.stringify({ ses: 'evet', css: -3 }));
-  assert.deepEqual(data.getPrefs(), { ses: true, css: 117 }, 'geçersiz değerler yok sayılır');
+  assert.deepEqual(data.getPrefs(), { ses: true, css: 117, havuz: 25 }, 'geçersiz değerler yok sayılır');
   data.setPrefs({ ses: false });
-  assert.deepEqual(data.getPrefs(), { ses: false, css: 117 });
+  assert.deepEqual(data.getPrefs(), { ses: false, css: 117, havuz: 25 });
+  data.setPrefs({ havuz: 50 });
+  assert.equal(data.getPrefs().havuz, 50);
+  data.setPrefs({ havuz: 33 });
+  assert.equal(data.getPrefs().havuz, 25, 'geçersiz havuz varsayılana döner');
   data.setPrefs({ css: null });
-  assert.deepEqual(data.getPrefs(), { ses: false, css: null });
+  assert.deepEqual(data.getPrefs(), { ses: false, css: null, havuz: 25 });
   LS.setItem('ysk.prefs', '[]');
-  assert.deepEqual(data.getPrefs(), { ses: true, css: 117 });
+  assert.deepEqual(data.getPrefs(), { ses: true, css: 117, havuz: 25 });
 });
 
 // --- Sunucu çağrıları ----------------------------------------------------------
@@ -185,6 +189,14 @@ await test('seans doğrulaması', () => {
   data.saveSession(s);
   assert.deepEqual(data.loadSession(), s);
   data.clearSession();
+  assert.equal(data.loadSession(), null);
+  // Sürüm 10 biçimi: olay listesi
+  const v2 = { v: 2, tarih: '2026-09-29', events: [{ t: 'basla', ts: 1 }, { t: 'cik', ts: 2, set: 0 }], pos: 0 };
+  data.saveSession(v2);
+  assert.deepEqual(data.loadSession(), v2);
+  data.saveSession({ ...v2, events: [{ t: 'cik' }] });
+  assert.equal(data.loadSession(), null, 'zaman damgası olmayan olay reddedilir');
+  data.saveSession({ ...v2, events: 'x' });
   assert.equal(data.loadSession(), null);
 });
 

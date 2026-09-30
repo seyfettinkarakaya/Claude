@@ -1,10 +1,11 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=9';
-import { Wheel } from './wheel.js?v=9';
+import * as data from './data.js?v=10';
+import { Wheel } from './wheel.js?v=10';
+import * as zaman from './zaman.js?v=10';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '9';
+export const APP_VERSION = '10';
 
 const $ = (id) => document.getElementById(id);
 
@@ -21,11 +22,9 @@ const MSI_BOLGELER = [
   { key: 'bel', label: 'Bel' },
   { key: 'boyun', label: 'Boyun' },
 ];
-const MSI_DEGERLER = [0, 0.5, 1, 1.5, 2, 3];
 
-const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'stopwatch', 'form', 'done'];
-const WAKE_SCREENS = new Set(['program', 'stopwatch', 'form']);
-const LOCK_SCREENS = new Set(['program', 'stopwatch']);
+const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'rpe', 'msi', 'ozet', 'done'];
+const WAKE_SCREENS = new Set(['program', 'rpe', 'msi', 'ozet']);
 
 const state = {
   screen: null,
@@ -36,14 +35,14 @@ const state = {
   datesInfo: {},
   datesAt: 0,       // tarih listesinin sunucudan son alındığı an
   datesLoading: null,
-  locked: false,    // su kilidi
-  beep: null,       // { rep, marks } — çıkış sesleri bir kez çalsın
+  zst: null,       // zaman.replay önbelleği (her olayda sıfırlanır)
+  beep: null,       // { key, marks } — çıkış sesleri bir kez çalsın
   prefs: null,      // data.getPrefs() önbelleği (her karede localStorage okunmasın)
   ticker: null,
-  swFrame: null,
-  swShown: '',
   doneTimer: null,
-  sheet: null,      // kronometre Kaydet paneli durumu
+  edit: null,       // şüpheli tekrar düzeltme paneli
+  saving: false,
+  rpeTimer: null,
   sentDates: new Set(), // bu açılışta kuyruktan gönderilen günler
   selDate: null,    // gün seçiminde seçili gün (YYYY-MM-DD)
   selKeep: false,   // kullanıcı bir gün seçtiyse yenilemede korunur
@@ -81,15 +80,6 @@ function fmtClock(ms) {
   const h = Math.floor(t / 3600);
   const mm = pad2(Math.floor(t / 60) % 60);
   return h ? `${h}:${mm}:${pad2(t % 60)}` : `${mm}:${pad2(t % 60)}`;
-}
-
-/** Kronometre göstergesi: { main: "1:23", tenth: ".4" } */
-function fmtSw(ms) {
-  const tenths = Math.floor(Math.max(0, ms) / 100);
-  const s = Math.floor(tenths / 10);
-  const h = Math.floor(s / 3600);
-  if (h) return { main: `${h}:${pad2(Math.floor(s / 60) % 60)}:${pad2(s % 60)}`, tenth: '' };
-  return { main: `${Math.floor(s / 60)}:${pad2(s % 60)}`, tenth: `.${tenths % 10}` };
 }
 
 /** Gerçek alanına yazılan süre: "01:23.4" (bir saati aşarsa "1:02:03.4"). */
@@ -225,9 +215,6 @@ function show(name) {
   if (WAKE_SCREENS.has(name)) wake.acquire();
   else wake.release();
   if (name !== 'program') stopTicker();
-  if (name !== 'stopwatch') stopSwLoop();
-  if (!LOCK_SCREENS.has(name)) setLock(false);
-  else placeLockBar();
 }
 
 const wake = {
@@ -297,16 +284,32 @@ function modal({ title, body = '', actions = [] }) {
 // ---------------------------------------------------------------------------
 
 function newSession(tarih) {
+  return { v: 2, tarih, events: [], pos: 0, screen: 'program', form: null, legacy: null };
+}
+
+/**
+ * Sürüm 9 ve öncesinin seansı (işaretler + kronometre) yeni modele taşınır:
+ * işaretli setler "tamamlandı, süre yok" olarak korunur, kaydedilmemiş turlar nota eklenir.
+ */
+function migrateSession(s) {
+  if (s.v === 2) return s;
+  const results = JSON.parse(JSON.stringify(s.results || {}));
+  const w = s.sw;
+  const plan = data.getCachedPlan(s.tarih);
+  if (w && Array.isArray(w.laps) && w.laps.length && w.set != null && plan && plan.setler[w.set]) {
+    const k = setKey(plan.setler[w.set], w.set);
+    const r = results[k] || (results[k] = {});
+    const t = `Turlar: ${w.laps.map(fmtLap).join(', ')}`;
+    r.not = r.not ? `${r.not} | ${t}` : t;
+  }
   return {
-    tarih,
-    startedAt: null,
-    endedAt: null,
-    done: {},
-    results: {},
-    pos: 0,
+    v: 2,
+    tarih: s.tarih,
+    events: s.startedAt ? [{ t: 'basla', ts: s.startedAt }] : [],
+    pos: s.pos || 0,
     screen: 'program',
-    sw: newSw(),
     form: null,
+    legacy: { done: { ...(s.done || {}) }, results },
   };
 }
 
@@ -315,22 +318,17 @@ function persist() {
 }
 
 function hasProgress(s) {
-  return Boolean(s && (s.startedAt || Object.keys(s.done).length || Object.keys(s.results).length));
+  return Boolean(s && ((s.events && s.events.length) || (s.legacy && Object.keys(s.legacy.done || {}).length)));
 }
 
-function doneCount() {
-  return state.plan.setler.filter((s, i) => state.session.done[setKey(s, i)]).length;
-}
-
-function doneDistance() {
-  return state.plan.setler.reduce((sum, s, i) => sum + (state.session.done[setKey(s, i)] ? setDist(s) : 0), 0);
-}
+const sessionStarted = (s) => Boolean(s && s.events && s.events.some((e) => e.t === 'basla'));
 
 /** Seansı cihazdan kaldırır. Hata fırlatmaz: kullanıcıyı hiçbir ekranda kilitlememeli. */
 function endSessionLocally() {
   const tarih = state.session && state.session.tarih;
   state.session = null;
   state.plan = null;
+  state.zst = null;
   // Biten gün listeden kalkar; gün seçimi yeniden en uygun güne otursun.
   state.selDate = null;
   state.selKeep = false;
@@ -587,7 +585,7 @@ function renderBanners() {
   if (s) {
     banners.push(`
       <div class="banner banner-live">
-        <div><strong>Devam eden seans</strong><br>${esc(fmtDateTR(s.tarih))}${s.startedAt ? ' · başladı' : ''}</div>
+        <div><strong>Devam eden seans</strong><br>${esc(fmtDateTR(s.tarih))}${sessionStarted(s) ? ' · başladı' : ''}</div>
         <div class="banner-actions">
           <button class="btn btn-primary" data-act="resume">Devam et</button>
           <button class="btn btn-ghost" data-act="discard">Sil</button>
@@ -886,7 +884,7 @@ function renderHome() {
   const s = state.session;
   if (s) {
     tag = 'DEVAM EDEN SEANS';
-    meta = `${fmtDateTR(s.tarih)}${s.startedAt ? ' · başladı' : ''}`;
+    meta = `${fmtDateTR(s.tarih)}${sessionStarted(s) ? ' · başladı' : ''}`;
   } else if (!state.dates && state.datesInfo.loading) {
     meta = 'Yükleniyor…';
   } else if (!state.dates && state.datesInfo.error) {
@@ -1144,46 +1142,157 @@ function resumeSession() {
     state.session = null;
     return showDays();
   }
-  state.session = s;
+  state.session = migrateSession(s);
   state.plan = plan;
-  if (s.screen === 'form') return openForm();
-  if (s.screen === 'stopwatch') {
-    openProgram();
-    return openStopwatch();
-  }
+  state.zst = null;
+  persist();
+  if (state.session.screen === 'rpe' && zst().phase === 'done') return openRpe();
+  if (state.session.screen === 'msi' && zst().phase === 'done') { ensureForm(); return openMsi(); }
+  if (state.session.screen === 'ozet' && zst().phase === 'done') { ensureForm(); return openOzet(); }
+  if (zst().phase === 'done') return openRpe();
   return openProgram();
 }
 
 // ---------------------------------------------------------------------------
-// Program ekranı
+// İdman ekranı (ZAMANLAMA.md)
+//
+// Tek büyük düğme: İDMANA BAŞLA → ÇIK → GELDİM → ÇIK … Her dokunuş yalnızca
+// bir olay (zaman damgası) ekler; durum ve süreler zaman.js ile olay
+// listesinden hesaplanır. Setin son GELDİM'i seti, son setin son GELDİM'i
+// idmanı bitirir. Geri al son olayı siler.
 // ---------------------------------------------------------------------------
 
-// Durak düzeni (metro tekerleği):
-//   satır : yığımlı hedef süre · durak noktası · "Tekrar × Mesafe Stil Tür"
-//   kart  : blok · ad · n/N; Tekrar × Mesafe; Stil · Tür; açıklama;
-//           Hedef / Dinlen; Alet · set mesafesi / yığımlı mesafe
-// Yığımlı süre = o sete kadar tekrar × (hedef + dinlen) toplamı.
 const hexA = (hex, a) => {
   const h = hex.replace('#', '');
   return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`;
 };
 
+const GUARD_MS = 2000;  // geçişten sonra ikinci dokunuş yok sayılır
+const UNDO_MS = 5000;   // Geri al bu süre görünür
+
+const ev = () => state.session.events;
+const zst = () => state.zst || (state.zst = zaman.replay(ev(), state.plan.setler));
+const tekrarOf = (s) => Number(s.tekrar) || 1;
+const legacyDone = (i) => {
+  const L = state.session.legacy;
+  return Boolean(L && L.done && L.done[setKey(state.plan.setler[i], i)]);
+};
+
+/** 'bekliyor' | 'suruyor' | 'tamam' | 'eksik' (eski sürümden gelen işaretli setler 'tamam'). */
+function statusOf(i) {
+  const st = zst();
+  if (!st.per[i].reps.length && legacyDone(i)) return 'tamam';
+  return zaman.setStatus(st, i, tekrarOf(state.plan.setler[i]));
+}
+
+/** from'dan sonraki ilk başlanmamış set (baştan sarar); yoksa -1. */
+function nextOpenSet(from) {
+  const n = state.plan.setler.length;
+  for (let k = 1; k <= n; k++) {
+    const j = (from + k) % n;
+    if (statusOf(j) === 'bekliyor') return j;
+  }
+  return -1;
+}
+
+function sessionDistance() {
+  const st = zst();
+  let d = zaman.doneDistance(st, state.plan.setler);
+  state.plan.setler.forEach((s, i) => { if (!st.per[i].reps.length && legacyDone(i)) d += setDist(s); });
+  return d;
+}
+
+const fmtShort = (ms) => fmtDur(Math.round(ms / 1000));
+/** Ekrandaki ortalama: "1:29.8" (tabloya fmtLap ile "01:29.8" yazılır). */
+const fmtAvg = (ms) => fmtLap(ms).replace(/^0(\d:)/, '$1');
+const signed = (sec) => `${sec < 0 ? '−' : '+'}${Math.abs(Math.round(sec))} sn`;
+
+/** Kartın içeriği hangi kipte: 'live' (yüzülen/dinlenilen set), 'next' (dinlenirken odaktaki başka set), 'sum' (biten), 'ready'. */
+function cardMode(i) {
+  const st = zst();
+  const pos = state.wheel ? state.wheel.index : state.session.pos || 0;
+  const status = statusOf(i);
+  if (st.phase === 'swim' && i === st.cur) return 'live';
+  if (st.phase === 'rest') {
+    if (i === st.cur && status !== 'tamam') return 'live';
+    if (i === pos && i !== st.cur) return 'next';
+  }
+  if (status === 'tamam' || status === 'eksik') return 'sum';
+  return 'ready';
+}
+
+function repBoxes(i, withLive) {
+  const s = state.plan.setler[i];
+  const st = zst();
+  const reps = st.per[i].reps;
+  const n = tekrarOf(s);
+  const boxes = [];
+  for (let r = 0; r < Math.max(n, reps.length); r++) {
+    const rep = reps[r];
+    let cls = '';
+    let v = '—';
+    if (rep && rep.geldim != null) { cls = 'ok'; v = fmtShort(rep.geldim - rep.cik); }
+    else if (rep && withLive) { cls = 'now'; v = ''; }
+    if (withLive && st.phase === 'rest' && st.cur === i && r === reps.length && r < n) { cls = 'rest'; v = ''; }
+    boxes.push(`<div class="${cls}"><small>${r + 1}.</small><b class="n">${v}</b></div>`);
+  }
+  return `<div class="w-reps${boxes.length > 6 ? ' is-many' : ''}">${boxes.join('')}</div>`;
+}
+
 function renderItem(node, s, i, cum) {
-  const k = setKey(s, i);
-  const isDone = Boolean(state.session.done[k]);
-  const r = state.session.results[k] || {};
+  const st = zst();
+  const status = statusOf(i);
+  const mode = cardMode(i);
   const blok = String(s.blok || '').trim().toUpperCase();
   const b = blokOf(s);
   const n = state.plan.setler.length;
   const c = cum[i];
   const styleTur = [s.stil, s.tur].filter(Boolean).join(' · ');
   const rowName = [setTitle(s), s.tur].filter(Boolean).join(' ');
-  // Ekranda dakikanın baştaki sıfırı atılır ("01:30" → "1:30"); tablodaki değer değişmez.
   const short = (v) => String(v).replace(/^0(\d:)/, '$1');
   const tile = (label, value) => `<div class="w-tile"><small>${label}</small><b>${esc(short(value))}</b></div>`;
   const tiles = [s.hedef ? tile('HEDEF', s.hedef) : '', s.dinlen ? tile('DİNLEN', s.dinlen) : ''].join('');
+  const d = zaman.doneReps(st, i);
+  const T = tekrarOf(s);
+  const isDone = status === 'tamam' || status === 'eksik';
 
-  node.className = `w-item${isDone ? ' is-done' : ''}`;
+  let tag = `${esc(blok)}${b.ad ? ` · ${esc(b.ad.toLocaleUpperCase('tr'))}` : ''} · ${i + 1}/${n}`;
+  if (status === 'tamam') tag = `✓ TAMAMLANDI · ${tag}`;
+  else if (status === 'eksik') tag = `${d}/${T} · ERKEN BİTTİ · ${tag}`;
+
+  const title = `<div class="w-title">${esc(`${T} × ${s.mesafe}`)}${styleTur ? `<small>${esc(styleTur)}</small>` : ''}</div>`;
+  const timer = '<div class="w-timer"><span class="w-tmode"></span><b class="w-tbig n"></b><span class="w-tsub n"></span></div>';
+  let body;
+  if (mode === 'live') {
+    body = `${title}${repBoxes(i, true)}${timer}`;
+  } else if (mode === 'next') {
+    const cs = state.plan.setler[st.cur];
+    const cd = zaman.doneReps(st, st.cur);
+    const ct = tekrarOf(cs);
+    const banner = cd >= ct || legacyDone(st.cur)
+      ? `<div class="w-banner ok">✓ ${esc(setTitle(cs))} bitti · ort. ${fmtAvg(zaman.effectiveTimes(zaman.repTimes(st, st.cur)).avgMs)} · ${cd}/${ct}</div>`
+      : `<div class="w-banner warn">⚠ ${esc(setTitle(cs))} ${cd}/${ct}'te kapanacak · ${ct - cd} tekrar yapılmadı</div>`;
+    body = `${title}${banner}${timer}`;
+  } else if (mode === 'sum') {
+    const times = zaman.repTimes(st, i);
+    const avg = times.length ? fmtAvg(zaman.effectiveTimes(times).avgMs) : '';
+    body = `${title}${times.length ? repBoxes(i, false) : ''}
+      <div class="w-summary n">${avg ? `Ortalama <b>${avg}</b> · ` : ''}${times.length ? `${d}/${T} tekrar` : 'Önceki sürümde işaretlendi'}</div>
+      ${tiles ? `<div class="w-tiles">${tiles}</div>` : ''}`;
+  } else {
+    body = `${title}
+      ${s.aciklama ? `<div class="w-desc">${esc(s.aciklama)}</div>` : '<div class="w-desc"></div>'}
+      ${tiles ? `<div class="w-tiles">${tiles}</div>` : ''}
+      <div class="w-foot">
+        ${s.alet ? `<span><span class="w-alet">Alet</span> <b>${esc(s.alet)}</b></span>` : ''}
+        <span class="w-last">${s.hedef && pacePer100(parseSec(s.hedef), s.mesafe) ? `<span class="w-pace"><span class="w-alet">Tempo</span> ${paceHtml(parseSec(s.hedef), s)}</span>` : '<span></span>'}<span class="w-dist">${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span></span>
+      </div>`;
+  }
+
+  node.classList.toggle('is-done', isDone);
+  for (const m of ['live', 'next', 'sum', 'ready']) node.classList.toggle(`m-${m}`, m === mode);
+  node.classList.add('w-item');
+  node.dataset.mode = mode;
   node.style.setProperty('--c', b.renk);
   node.style.setProperty('--c-soft', hexA(b.renk, 0.35));
   node.style.setProperty('--c-glow', hexA(b.renk, 0.55));
@@ -1193,26 +1302,15 @@ function renderItem(node, s, i, cum) {
     <div class="w-dot"></div>
     <div class="w-row">
       <span class="w-tm">${c.time ? fmtDur(c.time) : ''}</span>
-      <span class="w-nm">${esc(rowName)}</span>
+      <span class="w-nm">${esc(rowName)}${status === 'eksik' ? ` · ${d}/${T}` : ''}</span>
     </div>
     <div class="w-ctm">${c.time ? fmtDur(c.time) : ''}${setTime(s) ? `<small>+${fmtDur(setTime(s))}</small>` : ''}</div>
-    <div class="w-card">
-      <div class="w-tag">${isDone ? '✓ TAMAMLANDI · ' : ''}${esc(blok)}${b.ad ? ` · ${esc(b.ad.toLocaleUpperCase('tr'))}` : ''} · ${i + 1}/${n}</div>
-      <div class="w-title">${esc(`${Number(s.tekrar) || 1} × ${s.mesafe}`)}</div>
-      ${styleTur ? `<div class="w-sub">${esc(styleTur)}</div>` : ''}
-      ${s.aciklama ? `<div class="w-desc">${esc(s.aciklama)}</div>` : '<div class="w-desc"></div>'}
-      ${tiles ? `<div class="w-tiles">${tiles}</div>` : ''}
-      <div class="w-foot">
-        ${s.alet ? `<span><span class="w-alet">Alet</span> <b>${esc(s.alet)}</b></span>` : ''}
-        ${r.gercek ? `<span><span class="w-alet">Gerçek</span> <b class="w-gercek">${esc(r.gercek)}</b></span>` : ''}
-        <span class="w-last">${s.hedef && pacePer100(parseSec(s.hedef), s.mesafe) ? `<span class="w-pace"><span class="w-alet">Tempo</span> ${paceHtml(parseSec(s.hedef), s)}</span>` : '<span></span>'}<span class="w-dist">${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span></span>
-      </div>
-    </div>`;
+    <div class="w-card"><div class="w-tag">${tag}</div>${body}</div>`;
 }
 
 function openProgram() {
   state.session.screen = 'program';
-  state.session.endedAt = null;
+  state.zst = null;
   persist();
   show('program');
 
@@ -1220,12 +1318,16 @@ function openProgram() {
     state.wheel = new Wheel($('wheel'), {
       onLayout: () => fitAllCards(),
       onChange: (i) => {
-        if (!state.session) return;
+        if (!state.session || !state.plan) return;
+        const prev = state.session.pos;
         state.session.pos = i;
         persist();
         updateAmbient(i);
+        // Odak değişince dinlenme kartı (sonraki set / uyarı) yeniden çizilir.
+        if (zst().phase === 'rest') { refreshItem(prev, false); refreshItem(i, false); }
         updateControls();
         updateBar();
+        tick();
       },
     });
   }
@@ -1258,8 +1360,8 @@ function fitAllCards() {
   if (state.wheel) state.wheel.items.forEach(fitCardText);
 }
 
-/** Başlıktaki değer kutuya sığmazsa yazıyı küçültür (ör. 1:05:12 / 1:30:00). */
-function fitText(el, max = 36, min = 22) {
+/** Başlıktaki değer kutuya sığmazsa yazıyı küçültür. */
+function fitText(el, max = 54, min = 30) {
   el.style.fontSize = `${max}px`;
   let size = max;
   while (el.scrollWidth > el.clientWidth + 1 && size > min) {
@@ -1276,25 +1378,32 @@ function fitHeader() {
 function updateAmbient(i) {
   const set = state.plan && state.plan.setler[i];
   if (!set) return;
-  const c = blokOf(set).renk;
-  $('screen-program').style.setProperty('--amb', hexA(c, 0.12));
+  $('screen-program').style.setProperty('--amb', hexA(blokOf(set).renk, 0.12));
 }
 
-function refreshItem(i) {
+function refreshItem(i, redraw = true) {
+  if (!state.wheel || i == null) return;
   const node = state.wheel.items[i];
   if (node) {
     renderItem(node, state.plan.setler[i], i, cumulative(state.plan.setler));
     fitCardText(node);
   }
+  if (redraw) state.wheel.render();
+}
+
+function refreshAllItems() {
+  if (!state.wheel) return;
+  const cum = cumulative(state.plan.setler);
+  state.wheel.items.forEach((node, i) => { renderItem(node, state.plan.setler[i], i, cum); fitCardText(node); });
   state.wheel.render();
 }
 
 function updateBar() {
   if (!state.session || !state.plan) return;
   const active = state.wheel ? state.wheel.index : -1;
-  // Her set bir parça: blok renginde, mesafesiyle orantılı; yapılanlar parlak.
   $('prog-bar').innerHTML = state.plan.setler.map((s, i) => {
-    const cls = state.session.done[setKey(s, i)] ? ' is-on' : (i === active ? ' is-cur' : '');
+    const status = statusOf(i);
+    const cls = status === 'tamam' || status === 'eksik' ? ' is-on' : (i === active || status === 'suruyor' ? ' is-cur' : '');
     const c = blokOf(s).renk;
     return `<span class="seg${cls}" data-grow="${Math.max(1, setDist(s))}" data-bg="${c}" data-glow="${c}"></span>`;
   }).join('');
@@ -1306,52 +1415,55 @@ function updateProgram() {
   const sets = state.plan.setler;
   const totalDist = sets.reduce((a, s) => a + setDist(s), 0);
   const totalTime = sets.reduce((a, s) => a + setTime(s), 0);
-  $('prog-dist').innerHTML = `${fmtNum(doneDistance())}<span class="dim">/${fmtNum(totalDist)}</span>`;
-  $('prog-end').textContent = totalTime ? fmtDur(totalTime) : '—';
+  $('prog-dist').innerHTML = `${fmtNum(sessionDistance())}<small class="dim"> /${fmtNum(totalDist)}</small>`;
+  $('prog-end').textContent = totalTime ? ` /${fmtDur(totalTime)}` : '';
+  if (state.wheel) state.wheel.locked = zst().phase === 'swim';
+  $('prog-back').classList.toggle('is-off', zst().phase === 'swim');
   updateBar();
-  updateClock();
   updateControls();
+  tick();
   fitHeader();
 }
 
-function updateClock() {
-  const s = state.session;
-  const el = $('prog-clock');
-  if (!s) return;
-  const text = s.startedAt ? fmtClock(Date.now() - s.startedAt) : '00:00';
-  if (el.textContent !== text) {
-    const grew = text.length !== el.textContent.length;
-    el.textContent = text;
-    if (grew) fitHeader();
-  }
-  el.classList.toggle('is-idle', !s.startedAt);
+const ICON_SES_ON = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+const ICON_SES_OFF = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+
+function updateSoundButton() {
+  const on = prefs().ses;
+  const b = $('btn-sound');
+  b.innerHTML = `${on ? ICON_SES_ON : ICON_SES_OFF}<span>${on ? 'Ses açık' : 'Ses kapalı'}</span>`;
+  b.classList.toggle('is-off', !on);
+  b.setAttribute('aria-pressed', String(on));
 }
 
-const ICON_PLAY = '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
-const ICON_FLAG = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>';
-
+/** Büyük düğmenin yazısı ve alt satırı. */
 function updateControls() {
   const s = state.session;
   if (!s || !state.plan || !state.wheel) return;
-  const i = state.wheel.index;
-  const set = state.plan.setler[i];
-  const isDone = Boolean(set && s.done[setKey(set, i)]);
-  $('btn-complete-text').textContent = isDone ? 'İşareti Kaldır' : 'Seti Tamamla';
-  $('btn-complete').classList.toggle('is-undo', isDone);
-
-  const sb = $('btn-session');
-  sb.innerHTML = s.startedAt ? `${ICON_FLAG}<span>Bitir</span>` : `${ICON_PLAY}<span>Başla</span>`;
-  sb.classList.toggle('is-go', !s.startedAt);
-  sb.classList.toggle('is-end', Boolean(s.startedAt));
-  sb.setAttribute('aria-label', s.startedAt ? 'İdmanı Bitir' : 'İdmana Başla');
+  const st = zst();
+  const pos = state.wheel.index;
+  const a = zaman.mainAction(st, state.plan.setler, pos);
+  const btn = $('btn-main');
+  let label = '';
+  let sub = '';
+  if (a.kind === 'basla') { label = 'İDMANA BAŞLA'; sub = 'İdman saati başlar'; }
+  else if (a.kind === 'geldim') { label = 'GELDİM'; sub = `${a.rep}. tekrar biter, dinlenme başlar`; }
+  else if (a.kind === 'cik') {
+    label = 'ÇIK';
+    const set = state.plan.setler[a.set];
+    sub = st.cur === a.set || st.phase === 'ready' ? `${a.rep}. tekrar başlar` : `${setTitle(set)} ${set.tur || ''} · ${a.rep}. tekrar`.replace(/\s+·/, ' ·');
+  } else { label = 'SET TAMAM'; sub = 'Kaydırıp başka sete geç'; }
+  $('btn-main-label').textContent = label;
+  $('btn-main-sub').textContent = sub;
+  btn.classList.toggle('is-geldim', a.kind === 'geldim');
+  btn.classList.toggle('is-idle', a.kind === 'yok');
+  updateSoundButton();
 }
 
 function startTicker() {
   stopTicker();
-  state.ticker = setInterval(() => {
-    updateClock();
-    checkBeep(Date.now());
-  }, 250);
+  state.ticker = setInterval(tick, 200);
+  tick();
 }
 
 function stopTicker() {
@@ -1359,288 +1471,188 @@ function stopTicker() {
   state.ticker = null;
 }
 
-function toggleComplete() {
+/** Saatleri, büyük saati ve bipleri günceller (her 200 ms ve her olayda). */
+function tick() {
   const s = state.session;
-  const i = state.wheel.index;
-  const set = state.plan.setler[i];
-  if (!set) return;
-  const k = setKey(set, i);
+  if (!s || !state.plan || state.screen !== 'program') return;
+  const now = Date.now();
+  const st = zst();
+  const clock = $('prog-clock');
+  const t = st.basla == null ? '0:00' : fmtClock(zaman.idmanMs(st, now));
+  if (clock.textContent !== t) {
+    const grew = t.length !== clock.textContent.length;
+    clock.textContent = t;
+    if (grew) fitHeader();
+  }
+  clock.classList.toggle('is-idle', st.basla == null);
 
-  if (s.done[k]) {
-    delete s.done[k];
-    persist();
-    refreshItem(i);
-    updateProgram();
+  // Geri al: son olaydan sonra 5 sn.
+  const last = st.last;
+  $('btn-undo').classList.toggle('is-on', Boolean(last && st.phase !== 'done' && now - last.ts < UNDO_MS));
+
+  if (!state.wheel) return;
+  const pos = state.wheel.index;
+  const node = state.wheel.items[st.phase === 'swim' ? st.cur : pos];
+  const box = node && node.querySelector('.w-timer');
+  if (st.phase === 'swim') {
+    const s0 = state.plan.setler[st.cur];
+    const reps = st.per[st.cur].reps;
+    const el = (now - reps[reps.length - 1].cik) / 1000;
+    const hedef = parseSec(s0.hedef);
+    if (box) {
+      setTimer(box, `YÜZÜYOR · ${reps.length}/${tekrarOf(s0)}`, 'y', fmtDur(Math.floor(el)), '',
+        hedef ? (el <= hedef ? `Hedef ${fmtDur(hedef)} · <span class="g">${Math.ceil(hedef - el)} sn kaldı</span>` : `Hedef ${fmtDur(hedef)} · <span class="r">${signed(el - hedef)}</span>`) : '');
+      const now1 = node.querySelector('.w-reps .now b');
+      if (now1) now1.textContent = fmtDur(Math.floor(el));
+    }
+  } else if (st.phase === 'rest') {
+    const i = st.cur;
+    const s0 = state.plan.setler[i];
+    const reps = st.per[i].reps;
+    const lastRep = reps[reps.length - 1];
+    const dinlen = parseSec(s0.dinlen);
+    const el = (now - lastRep.geldim) / 1000;
+    const rem = dinlen - el;
+    const lastT = (lastRep.geldim - lastRep.cik) / 1000;
+    const hedef = parseSec(s0.hedef);
+    const sub = `Son tekrar ${fmtDur(Math.round(lastT))}${hedef ? ` · <span class="${lastT <= hedef ? 'g' : 'r'}">${signed(lastT - hedef)}</span>` : ''}`;
+    const setOver = zaman.doneReps(st, i) >= tekrarOf(s0);
+    if (box) {
+      if (!dinlen) {
+        setTimer(box, setOver ? 'SET SONU DİNLENMESİ' : 'DİNLENME', 'b', fmtDur(Math.floor(el)), '', sub);
+      } else {
+        const big = rem >= 0 ? fmtDur(Math.ceil(rem)) : `−${fmtDur(Math.floor(-rem) || 0)}`;
+        const mode = rem < 0 ? 'DİNLENME UZADI' : (setOver ? 'SET SONU DİNLENMESİ' : 'DİNLENME · ÇIKIŞA');
+        setTimer(box, mode, rem < 0 ? 'r' : 'b', big, rem < 0 ? 'r' : (rem <= 3 ? 'y' : ''), sub);
+      }
+      box.classList.toggle('is-flash', Boolean(dinlen) && rem > 0 && rem <= 3);
+      const rb = node.querySelector('.w-reps .rest b');
+      if (rb) rb.textContent = dinlen ? (rem >= 0 ? fmtDur(Math.ceil(rem)) : `−${fmtDur(Math.floor(-rem))}`) : fmtDur(Math.floor(el));
+    }
+    if (dinlen) checkBeep(lastRep.geldim, rem);
+  } else if (box) {
+    box.hidden = true;
+  }
+}
+
+function setTimer(box, mode, modeCls, big, bigCls, subHtml) {
+  box.hidden = false;
+  const m = box.querySelector('.w-tmode');
+  const b = box.querySelector('.w-tbig');
+  const su = box.querySelector('.w-tsub');
+  if (m.textContent !== mode) m.textContent = mode;
+  m.className = `w-tmode ${modeCls}`;
+  if (b.textContent !== big) b.textContent = big;
+  // Uzun değer (−0:07, 1:05:00) kutuya sığsın diye küçülür.
+  const len = big.length;
+  b.className = `w-tbig n ${bigCls}${len >= 7 ? ' l7' : len === 6 ? ' l6' : len === 5 ? ' l5' : ''}`;
+  if (su.innerHTML !== subHtml) su.innerHTML = subHtml;
+}
+
+/** Olay ekler, durumu yeniden hesaplar, kaydeder. */
+function pushEvent(e) {
+  ev().push({ ...e, ts: e.ts || Date.now() });
+  state.zst = null;
+  persist();
+}
+
+function onMainButton() {
+  const s = state.session;
+  if (!s || !state.plan || !state.wheel) return;
+  const now = Date.now();
+  const st = zst();
+  if (st.last && now - st.last.ts < GUARD_MS) return; // çift dokunma
+  audio.unlock();
+  const a = zaman.mainAction(st, state.plan.setler, state.wheel.index);
+  if (a.kind === 'yok') {
+    toast('Bu set tamamlandı. Başka bir sete kaydırın.');
     return;
   }
+  if (a.kind === 'basla') pushEvent({ t: 'basla', ts: now });
+  else if (a.kind === 'cik') pushEvent({ t: 'cik', ts: now, set: a.set });
+  else if (a.kind === 'geldim') {
+    pushEvent({ t: 'geldim', ts: now });
+    if (prefs().ses) audio.ok();
+    const st2 = zst();
+    const i = st2.cur;
+    if (zaman.doneReps(st2, i) >= tekrarOf(state.plan.setler[i])) {
+      const next = nextOpenSet(i);
+      if (i === state.plan.setler.length - 1 || next < 0) {
+        pushEvent({ t: 'bitir', ts: now, auto: true });
+        openRpe();
+        return;
+      }
+      afterEvent();
+      state.wheel.scrollTo(next);
+      return;
+    }
+  }
+  afterEvent();
+}
 
-  s.done[k] = true;
-  persist();
-  refreshItem(i);
+function afterEvent() {
+  refreshAllItems();
   updateProgram();
-  const next = nextUndone(i);
-  if (next >= 0) state.wheel.scrollTo(next);
 }
 
-/** Aktif setten sonraki ilk işaretsiz set (sona gelince başa sarar). */
-function nextUndone(from) {
-  const sets = state.plan.setler;
-  for (let j = 1; j < sets.length; j++) {
-    const idx = (from + j) % sets.length;
-    if (!state.session.done[setKey(sets[idx], idx)]) return idx;
-  }
-  return -1;
-}
-
-async function onSessionButton() {
-  const s = state.session;
-  if (!s.startedAt) {
-    s.startedAt = Date.now();
-    persist();
-    updateProgram();
-    return;
-  }
-  if (!doneCount()) {
-    const ok = await modal({
-      title: 'Hiç set işaretlenmedi',
-      body: '<p>Seans yine de kapatılsın mı?</p>',
-      actions: [{ label: 'Evet, kapat', value: true, cls: 'btn-danger' }, { label: 'Vazgeç', value: false }],
-    });
-    if (!ok) return;
-  }
-  s.endedAt = Date.now();
+function onUndo() {
+  const st = zst();
+  if (!st.last || st.phase === 'done') return;
+  ev().pop();
+  state.zst = null;
   persist();
-  openForm();
+  const st2 = zst();
+  afterEvent();
+  if (st2.phase === 'swim' && state.wheel.index !== st2.cur) state.wheel.scrollTo(st2.cur);
+  toast('Son dokunuş geri alındı', 1500);
+}
+
+function onSoundButton() {
+  data.setPrefs({ ses: !prefs().ses });
+  refreshPrefs();
+  if (prefs().ses) audio.unlock();
+  updateSoundButton();
 }
 
 async function onProgramBack() {
-  if (!hasProgress(state.session)) {
+  const s = state.session;
+  const st = zst();
+  if (st.phase === 'swim') {
+    toast('Yüzerken kullanılamaz. Önce GELDİM.');
+    return;
+  }
+  if (!hasProgress(s)) {
     data.clearSession();
     state.session = null;
     state.plan = null;
+    return showDays();
   }
-  showDays();
+  const sets = state.plan.setler;
+  const full = sets.filter((x, i) => statusOf(i) === 'tamam').length;
+  const partial = sets.map((x, i) => [x, i]).filter(([, i]) => ['eksik', 'suruyor'].includes(statusOf(i)))
+    .map(([x, i]) => `${setTitle(x)} ${zaman.doneReps(st, i)}/${tekrarOf(x)}`);
+  const choice = await modal({
+    title: 'İdmanı bitir?',
+    body: `<p>Yapılan: ${full} set tam${partial.length ? `, ${esc(partial.join(', '))}` : ''} · ${fmtNum(sessionDistance())} m · ${fmtClock(zaman.idmanMs(st, Date.now()))}</p>`,
+    actions: [
+      { label: 'İdmanı bitir ve kaydet', value: 'bitir', cls: 'btn-primary' },
+      { label: 'Devam et', value: '' },
+      { label: 'Takvime dön (idman sürer)', value: 'cik', cls: 'btn-ghost' },
+    ],
+  });
+  if (choice === 'bitir') {
+    if (st.phase === 'idle') pushEvent({ t: 'basla' });
+    pushEvent({ t: 'bitir', auto: false });
+    openRpe();
+  } else if (choice === 'cik') {
+    showDays();
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Kronometre
+// --- Ses ---------------------------------------------------------------------
 //
-// Tur: o ana kadarki segmenti tur olarak kaydeder, yeni segment başlar.
-// Durdur: çalışan segmenti de tur olarak kaydeder ve durur. Böylece hem
-// "Başlat–Durdur" ile tekrar tekrar ölçüm hem de sürekli "Tur" ile ara
-// dereceler aynı tur listesine düşer.
-//
-// Çıkışa: hedef + dinlen aralığıyla ("@1:50") bir sonraki tekrarın başlamasına
-// kalan süre; son tekrarın başladığı andan sayılır.
-// ---------------------------------------------------------------------------
-
-const sw = () => state.session.sw;
-// set: ölçülen setin indeksi; ilk Başlat'ta sabitlenir, sıfırlanana/kaydedilene kadar değişmez.
-const newSw = () => ({ running: false, segStart: null, segAcc: 0, laps: [], repStart: null, set: null });
-
-function swSegment(now = Date.now()) {
-  const w = sw();
-  return w.segAcc + (w.running && w.segStart ? now - w.segStart : 0);
-}
-
-/** Kronometrenin setı: ölçüm sürüyorsa ölçülen set, yoksa açıldığı (aktif) set. */
-function swSet() {
-  const w = state.session.sw;
-  let i;
-  if (w && w.set != null && (w.running || w.laps.length) && state.plan.setler[w.set]) i = w.set;
-  else if (state.session.swSet != null) i = state.session.swSet;
-  else i = state.wheel ? state.wheel.index : state.session.pos || 0;
-  return { i, set: state.plan.setler[i] };
-}
-
-const fmtSigned = (sec) => `${sec < 0 ? '−' : '+'}${Math.abs(sec).toFixed(1)}`;
-
-function openStopwatch() {
-  state.session.screen = 'stopwatch';
-  state.session.swSet = state.wheel ? state.wheel.index : state.session.pos || 0;
-  persist();
-  show('stopwatch');
-  const { set } = swSet();
-  $('sw-set').innerHTML = set
-    ? `<b>${esc([setTitle(set), set.tur].filter(Boolean).join(' · '))}</b>${set.hedef ? ` · Hedef ${esc(set.hedef)}` : ''}`
-    : '';
-  $('sw-sheet').hidden = true;
-  state.swShown = '';
-  state.swPace = null;
-  renderSw();
-  fitStopwatch();
-  startSwLoop();
-}
-
-function closeStopwatch() {
-  state.session.swSet = null;
-  openProgram();
-}
-
-function startSwLoop() {
-  stopSwLoop();
-  const loop = () => {
-    renderSwTime();
-    state.swFrame = requestAnimationFrame(loop);
-  };
-  state.swFrame = requestAnimationFrame(loop);
-}
-
-function stopSwLoop() {
-  if (state.swFrame) cancelAnimationFrame(state.swFrame);
-  state.swFrame = null;
-}
-
-const setText = (id, text) => {
-  const el = $(id);
-  if (el.textContent !== text) el.textContent = text;
-};
-
-function renderSwTime() {
-  const w = sw();
-  const now = Date.now();
-  const { set } = swSet();
-  const hedef = set ? parseSec(set.hedef) : 0;
-  const aralik = set ? hedef + parseSec(set.dinlen) : 0;
-  const laps = w.laps;
-  const last = laps.length ? laps[laps.length - 1] : 0;
-  const ms = w.running ? swSegment(now) : last;
-
-  // Dev rakamlar
-  const f = fmtSw(ms);
-  const shown = f.main + f.tenth;
-  if (shown !== state.swShown) {
-    const lengthChanged = shown.length !== state.swShown.length;
-    state.swShown = shown;
-    $('sw-main').textContent = f.main;
-    $('sw-tenth').textContent = f.tenth;
-    if (lengthChanged) fitStopwatch();
-  }
-
-  // Hedef çubuğu: işaret hedefte; hedefi aşınca kırmızı.
-  if (hedef) {
-    const ratio = ms / 1000 / (hedef * 1.1);
-    $('sw-pfill').style.width = `${Math.min(100, ratio * 100).toFixed(1)}%`;
-    $('sw-pbar').classList.toggle('is-over', ms / 1000 > hedef);
-  }
-
-  // Hedefe kalan (çalışırken) / son turun hedefe farkı (dururken)
-  const diff = $('sw-diff');
-  if (!hedef) {
-    setText('sw-diff', '—');
-  } else if (w.running) {
-    const rem = hedef - ms / 1000;
-    setText('sw-diff-label', 'HEDEFE');
-    setText('sw-diff', rem >= 0 ? rem.toFixed(1) : fmtSigned(-rem));
-    diff.className = rem >= 0 ? 'g' : 'r';
-  } else if (laps.length) {
-    const d = last / 1000 - hedef;
-    setText('sw-diff-label', 'FARK');
-    setText('sw-diff', fmtSigned(d));
-    diff.className = d <= 0 ? 'g' : 'r';
-  } else {
-    setText('sw-diff-label', 'HEDEF');
-    setText('sw-diff', set.hedef);
-    diff.className = '';
-  }
-
-  // Çıkışa kalan
-  const cikis = $('sw-cikis');
-  if (aralik && w.repStart) {
-    const rem = aralik - (now - w.repStart) / 1000;
-    setText('sw-cikis', rem >= 0 ? fmtDur(Math.ceil(rem)) : `+${fmtDur(Math.floor(-rem))}`);
-    cikis.className = rem >= 0 ? 'y' : 'r';
-  } else {
-    setText('sw-cikis', aralik ? `@${fmtDur(aralik)}` : '—');
-    cikis.className = '';
-  }
-  setText('sw-last', laps.length ? fmtLap(last) : '—');
-  const pace = laps.length && set ? paceHtml(last / 1000, set) : '';
-  if (state.swPace !== pace) {
-    state.swPace = pace;
-    $('sw-pace').innerHTML = pace;
-  }
-  checkBeep(now);
-}
-
-function renderSw() {
-  const w = sw();
-  const { set } = swSet();
-  const tekrar = set ? Number(set.tekrar) || 1 : 1;
-  const cur = w.running ? w.laps.length + 1 : Math.max(1, w.laps.length);
-
-  $('sw-startstop').innerHTML = w.running
-    ? '<svg width="24" height="24" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>'
-    : '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>';
-  $('sw-startstop').classList.toggle('is-stop', w.running);
-  $('sw-ss-label').textContent = w.running ? 'Durdur' : 'Başlat';
-  $('sw-lap').textContent = w.running ? 'TUR' : 'BAŞLAT';
-  $('screen-stopwatch').classList.toggle('is-running', w.running);
-
-  $('sw-tag').textContent = `${Math.min(cur, Math.max(tekrar, cur))}. TEKRAR / ${tekrar}`;
-  const bars = Math.min(12, Math.max(tekrar, w.laps.length + (w.running ? 1 : 0)));
-  $('sw-reps').innerHTML = Array.from({ length: bars }, (_, i) => {
-    const cls = i < w.laps.length ? 'ok' : (w.running && i === w.laps.length ? 'now' : '');
-    return `<i class="${cls}"></i>`;
-  }).join('');
-  $('sw-pbar').hidden = !(set && parseSec(set.hedef));
-  state.swShown = '';
-  renderSwTime();
-}
-
-function swStartStop() {
-  const w = sw();
-  const now = Date.now();
-  if (w.running) {
-    const lap = swSegment(now);
-    if (lap > 0) w.laps.push(lap);
-    w.running = false;
-    w.segStart = null;
-    w.segAcc = 0;
-  } else {
-    if (w.set == null || !w.laps.length) w.set = swSet().i;
-    w.running = true;
-    w.segStart = now;
-    w.segAcc = 0;
-    w.repStart = now;
-  }
-  persist();
-  renderSw();
-}
-
-function swLap() {
-  const w = sw();
-  if (!w.running) return swStartStop();
-  const now = Date.now();
-  const lap = swSegment(now);
-  if (lap < 300) return; // yanlışlıkla çift dokunma
-  w.laps.push(lap);
-  w.segStart = now;
-  w.segAcc = 0;
-  w.repStart = now;
-  persist();
-  renderSw();
-}
-
-async function swReset() {
-  const w = sw();
-  if (w.laps.length || w.running) {
-    const ok = await modal({
-      title: 'Sıfırlansın mı?',
-      body: '<p>Süre ve alınan turlar silinecek.</p>',
-      actions: [{ label: 'Sıfırla', value: true, cls: 'btn-danger' }, { label: 'Vazgeç', value: false }],
-    });
-    if (!ok) return;
-  }
-  state.session.sw = newSw();
-  persist();
-  renderSw();
-}
-
-// --- Çıkış sesi --------------------------------------------------------------
-//
-// Çıkışa son 3 saniyede kısa bip, çıkış anında uzun bip. iOS sesi yalnızca bir
-// dokunuştan sonra açar: ilk dokunuşta ses bağlamı açılır (audio.unlock).
+// Dinlenmede çıkışa 3-2-1 kısa, 0'da uzun bip; GELDİM'de kısa onay. iOS sesi
+// yalnızca bir dokunuştan sonra açar (audio.unlock).
 
 const audio = {
   ctx: null,
@@ -1672,19 +1684,15 @@ const audio = {
   },
   short() { this.beep(880, 140); },
   long() { this.beep(1320, 650); },
+  ok() { this.beep(660, 90, 0.35); },
 };
 
-/** Çıkışa geri sayım: 3-2-1 kısa, 0'da uzun bip (her tekrar için birer kez). */
-function checkBeep(now) {
-  if (!state.session || !state.plan || !prefs().ses) return;
-  const w = sw();
-  const { set } = swSet();
-  const aralik = set ? parseSec(set.hedef) + parseSec(set.dinlen) : 0;
-  if (!aralik || !w.repStart) return;
-  const rem = aralik - (now - w.repStart) / 1000;
-  if (rem > 3 || rem <= -1.5) return;
-  const mark = rem > 0 ? Math.ceil(rem) : 0;
-  if (!state.beep || state.beep.rep !== w.repStart) state.beep = { rep: w.repStart, marks: new Set() };
+/** 3-2-1 kısa, 0'da uzun bip — her dinlenmede her işaret bir kez. */
+function checkBeep(key, rem) {
+  if (!prefs().ses) return;
+  const mark = zaman.beepMark(rem);
+  if (mark == null) return;
+  if (!state.beep || state.beep.key !== key) state.beep = { key, marks: new Set() };
   if (state.beep.marks.has(mark)) return;
   // Geç açılan ekranda eski işaretler çalmasın: yalnızca şu anki saniye.
   for (let m = mark; m <= 3; m++) state.beep.marks.add(m);
@@ -1692,212 +1700,247 @@ function checkBeep(now) {
   else audio.short();
 }
 
-// --- Su kilidi ---------------------------------------------------------------
-//
-// Kilitliyken ekranın tamamını saydam bir katman örter: hiçbir dokunma (TUR,
-// göstergeye dokunma, kaydırma dahil) alttaki ekrana ulaşmaz. Kronometre
-// çalışmaya devam eder. Açmak için şerit 1 sn basılı tutulur.
-
-const UNLOCK_MS = 1000;
-let unlockTimer = null;
-
-function setLock(on) {
-  state.locked = Boolean(on);
-  document.body.classList.toggle('is-locked', state.locked);
-  $('lock-bar').hidden = !state.locked;
-  placeLockBar();
-  cancelUnlock();
-}
-
-/** Programda şerit alttaki barın, kronometrede üstteki şeridin yerini alır (TUR açık kalır). */
-function placeLockBar() {
-  $('lock-bar').dataset.pos = state.screen === 'stopwatch' ? 'top' : 'bottom';
-}
-
-function startUnlock(e) {
-  e.preventDefault();
-  cancelUnlock();
-  $('lock-hold').classList.add('is-holding');
-  unlockTimer = setTimeout(() => {
-    setLock(false);
-    toast('Kilit açıldı', 1200);
-  }, UNLOCK_MS);
-}
-
-function cancelUnlock() {
-  clearTimeout(unlockTimer);
-  unlockTimer = null;
-  $('lock-hold').classList.remove('is-holding');
-}
-
-function lockNow() {
-  audio.unlock();
-  setLock(true);
-}
-
-// --- Kaydet paneli -----------------------------------------------------------
-
-function swSave() {
-  const w = sw();
-  if (w.running) swStartStop();
-  if (!w.laps.length) {
-    toast('Kaydedilecek tur yok.');
-    return;
-  }
-  state.sheet = { i: swSet().i, picking: false };
-  renderSheet();
-  $('sw-sheet').hidden = false;
-}
-
-function closeSheet() {
-  $('sw-sheet').hidden = true;
-  state.sheet = null;
-}
-
-function renderSheet() {
-  const { i, picking } = state.sheet;
-  const sets = state.plan.setler;
-  const set = sets[i];
-  const hedef = parseSec(set.hedef);
-  const laps = sw().laps;
-  const avg = laps.reduce((a, b) => a + b, 0) / laps.length;
-  const b = blokOf(set);
-  const lapChip = (l, n) => {
-    const cls = hedef ? (l / 1000 <= hedef ? ' g' : ' r') : '';
-    return `<div><small>${n}</small><b class="${cls}">${fmtLap(l)}</b></div>`;
-  };
-
-  let pick;
-  if (picking) {
-    pick = `<div class="sheet-list">${sets.map((s, j) => `
-      <button class="sheet-set${j === i ? ' is-on' : ''}" data-set="${j}">
-        <i data-bg="${blokOf(s).renk}"></i>
-        <span><b>${esc([setTitle(s), s.tur].filter(Boolean).join(' · '))}</b><small>Set ${j + 1}${s.blok ? ` · ${esc(s.blok)}` : ''}${state.session.done[setKey(s, j)] ? ' · ✓' : ''}</small></span>
-      </button>`).join('')}</div>`;
-  } else {
-    pick = `<button class="sheet-pick" data-act="pick">
-      <i data-bg="${b.renk}"></i>
-      <span><small>SET${i === (state.wheel ? state.wheel.index : -1) ? ' · AKTİF' : ''}</small><b>${esc([setTitle(set), set.tur].filter(Boolean).join(' · '))}</b></span>
-      <em>Değiştir</em>
-    </button>`;
-  }
-
-  const lapsText = laps.map(fmtLap).join(', ');
-  $('sw-sheet-body').innerHTML = `
-    <div class="sheet-grab"></div>
-    <h3>Kaydet</h3>
-    ${pick}
-    <div class="sheet-laps">${laps.slice(0, 12).map((l, n) => lapChip(l, n + 1)).join('')}</div>
-    <div class="sheet-avg"><span>${laps.length > 1 ? `ORTALAMA · ${laps.length} TUR` : 'SÜRE'}</span><b>${fmtLap(avg)}</b></div>
-    <button class="sheet-opt o1" data-act="avg">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5L19.5 7"/></svg>
-      <span><b>${laps.length > 1 ? 'Ortalama → Gerçek' : 'Süre → Gerçek'}</b><small>Gerçek sütununa ${fmtLap(avg)} yazılır</small></span>
-    </button>
-    ${laps.length > 1 ? `<button class="sheet-opt o2" data-act="avg+laps">
-      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19h14"/></svg>
-      <span><b>Ortalama + turlar → Not</b><small>Not: ${esc(lapsText)}</small></span>
-    </button>` : ''}
-    <button class="sheet-cancel" data-act="cancel">Vazgeç</button>`;
-  paint($('sw-sheet-body'));
-}
-
-function onSheetClick(e) {
-  const setBtn = e.target.closest('[data-set]');
-  if (setBtn) {
-    state.sheet = { i: Number(setBtn.dataset.set), picking: false };
-    renderSheet();
-    return;
-  }
-  const act = e.target.closest('[data-act]');
-  if (!act) return;
-  if (act.dataset.act === 'pick') {
-    state.sheet.picking = true;
-    renderSheet();
-  } else if (act.dataset.act === 'cancel') {
-    closeSheet();
-  } else {
-    applySwResult(state.sheet.i, act.dataset.act);
-  }
-}
-
-function applySwResult(i, how) {
-  const set = state.plan.setler[i];
-  const laps = sw().laps.slice();
-  const avg = laps.reduce((a, b) => a + b, 0) / laps.length;
-  const k = setKey(set, i);
-  const r = state.session.results[k] || (state.session.results[k] = {});
-  r.gercek = fmtLap(avg);
-  if (how === 'avg+laps') {
-    const text = `Turlar: ${laps.map(fmtLap).join(', ')}`;
-    r.not = r.not ? `${r.not} | ${text}` : text;
-  }
-  // Ölçülen set yapılmış demektir; işareti kullanıcı programda kaldırabilir.
-  state.session.done[k] = true;
-  state.session.sw = newSw();
-  state.session.pos = i;
-  persist();
-  closeSheet();
-  closeStopwatch();
-  toast(`Set ${i + 1}: Gerçek ${r.gercek} kaydedildi`);
-}
-
-/** Süre rakamlarını panele sığan en büyük boyuta getirir, sonra dikeyde uzatır. */
-function fitStopwatch() {
-  const box = $('sw-dz');
-  const time = $('sw-time');
-  if (!box.clientWidth) return;
-  time.style.fontSize = '100px';
-  time.style.transform = 'none';
-  const w = time.scrollWidth || 1;
-  const size = Math.floor((100 * box.clientWidth * 0.96) / w);
-  time.style.fontSize = `${size}px`;
-  // Yüzerken uzaktan okunabilsin: rakamlar alanın yüksekliğini doldurur.
-  const glyph = size * 0.74;
-  const stretch = Math.max(1, Math.min(2.8, (box.clientHeight * 0.9) / glyph));
-  time.style.transform = `scaleY(${stretch.toFixed(3)})`;
-}
-
 // ---------------------------------------------------------------------------
-// Seans sonu formu
+// Seans sonu: RPE → MSI → Özet ve kaydet
 // ---------------------------------------------------------------------------
 
-function openForm() {
+const RPE_ETIKET = ['dinlenme', 'çok kolay', 'kolay', 'rahat', 'orta', 'orta+', 'zorlu', 'zor', 'çok zor', 'aşırı', 'maks.'];
+const MSI_DONGU = [0.5, 1, 1.5, 2, 3];
+const HAZIR_IFADE = ['İyi hissettim', 'Yorgun', 'Omuz hassas', 'Teknik iyi', 'Tempo zorladı'];
+
+function ensureForm() {
   const s = state.session;
-  s.screen = 'form';
-  if (!s.endedAt) s.endedAt = Date.now();
-  const autoSure = s.startedAt ? fmtHMS(s.endedAt - s.startedAt) : '';
-  const autoMesafe = doneDistance();
-  if (!s.form) {
-    s.form = { sure: autoSure, mesafe: autoMesafe, havuz: 25, rpe: null, msi: {}, aciklama: '', sureEdited: false, mesafeEdited: false };
-  } else {
-    if (!s.form.sureEdited) s.form.sure = autoSure;
-    if (!s.form.mesafeEdited) s.form.mesafe = autoMesafe;
+  if (!s.form || s.form.v !== 2) {
+    s.form = { v: 2, rpe: null, msi: {}, havuz: prefs().havuz || 25, notes: {}, edits: {}, chips: [], aciklama: '' };
   }
+  return s.form;
+}
+
+function openRpe() {
+  ensureForm();
+  state.session.screen = 'rpe';
+  state.zst = null;
   persist();
-  show('form');
-  renderForm();
-  $('form-msg').hidden = true;
-  $('form-scroll').scrollTop = 0;
-}
-
-function renderForm() {
+  show('rpe');
   const f = state.session.form;
-  $('f-sure').value = f.sure;
-  $('f-mesafe').value = f.mesafe;
-  $('f-aciklama').value = f.aciklama;
-  for (const b of $('f-havuz').children) b.classList.toggle('is-on', Number(b.dataset.v) === f.havuz);
-
-  $('f-rpe').innerHTML = Array.from({ length: 11 }, (_, n) =>
-    `<button data-v="${n}" class="${f.rpe === n ? 'is-on' : ''}">${n}</button>`).join('');
-
-  $('f-msi').innerHTML = MSI_BOLGELER.map((b) => `
-    <div class="msi-row">
-      <span class="msi-label">${b.label}</span>
-      <div class="msi-vals">
-        ${MSI_DEGERLER.map((v) => `<button data-bolge="${b.key}" data-v="${v}" class="${f.msi[b.key] === v ? 'is-on' : ''}">${String(v).replace('.', ',')}</button>`).join('')}
-      </div>
-    </div>`).join('');
+  const st = zst();
+  $('rpe-grid').innerHTML = RPE_ETIKET.map((l, n) => `<button data-v="${n}" class="${f.rpe === n ? 'is-on' : ''}"><b class="n">${n}</b><small>${l}</small></button>`).join('');
+  const done = state.plan.setler.filter((x, i) => ['tamam', 'eksik'].includes(statusOf(i))).length;
+  $('rpe-info').textContent = `İdman: ${fmtClock(zaman.idmanMs(st, Date.now()))} · ${fmtNum(sessionDistance())} m · ${done} set`;
+  // "İdmana dön" yalnızca bitişten sonraki ilk 5 sn belirgin; ‹ her zaman döner.
+  const b = st.bitir;
+  $('rpe-undo').hidden = !(b && Date.now() - b < UNDO_MS);
+  clearTimeout(state.rpeTimer);
+  if (!$('rpe-undo').hidden) state.rpeTimer = setTimeout(() => { $('rpe-undo').hidden = true; }, UNDO_MS - (Date.now() - b));
 }
+
+/** Bitişi geri alır: otomatik bitişte son GELDİM de geri alınır (tekrar sürüyor olur). */
+function backToWorkout() {
+  const e = ev();
+  const last = e[e.length - 1];
+  if (!last || last.t !== 'bitir') return openProgram();
+  e.pop();
+  if (last.auto && e.length && e[e.length - 1].t === 'geldim') e.pop();
+  state.zst = null;
+  persist();
+  openProgram();
+  const st = zst();
+  if (st.cur == null) return;
+  // Son tekrar geri alınmadıysa tamamlanan set yerine sıradaki açık sete dur.
+  const next = statusOf(st.cur) === 'tamam' ? nextOpenSet(st.cur) : -1;
+  state.wheel.scrollTo(next >= 0 ? next : st.cur, false);
+  updateProgram();
+}
+
+function onRpeClick(e) {
+  const b = e.target.closest('button[data-v]');
+  if (!b) return;
+  state.session.form.rpe = Number(b.dataset.v);
+  persist();
+  openMsi();
+}
+
+function openMsi() {
+  state.session.screen = 'msi';
+  persist();
+  show('msi');
+  renderMsi();
+}
+
+function renderMsi() {
+  const f = state.session.form;
+  $('msi-body').innerHTML = MSI_BOLGELER.map((b) => {
+    const v = f.msi[b.key];
+    const cls = v == null ? '' : v >= 2 ? 'w2' : v >= 1 ? 'w1' : 'w05';
+    return `<button data-bolge="${b.key}" class="${cls}">${b.label}<em class="n">${v == null ? '—' : String(v).replace('.', ',')}</em></button>`;
+  }).join('');
+  const any = Object.keys(f.msi).length > 0;
+  $('msi-next').hidden = !any;
+  $('msi-none').classList.toggle('is-dim', any);
+}
+
+function onMsiClick(e) {
+  const f = state.session.form;
+  if (e.target.closest('#msi-none')) {
+    f.msi = {};
+    persist();
+    return openOzet();
+  }
+  if (e.target.closest('#msi-next')) return openOzet();
+  const b = e.target.closest('button[data-bolge]');
+  if (!b) return;
+  const k = b.dataset.bolge;
+  const cur = f.msi[k];
+  const idx = cur == null ? -1 : MSI_DONGU.indexOf(cur);
+  if (idx === MSI_DONGU.length - 1) delete f.msi[k];
+  else f.msi[k] = MSI_DONGU[idx + 1];
+  persist();
+  renderMsi();
+}
+
+/** Setin not satırları: { key, lines: [{ id, text, on, warn }], suspects } */
+function setNotes(i) {
+  const s = state.plan.setler[i];
+  const k = setKey(s, i);
+  const st = zst();
+  const f = state.session.form;
+  const times = zaman.repTimes(st, i);
+  const edits = f.edits[k] || {};
+  const eff = zaman.effectiveTimes(times, edits);
+  const chosen = f.notes[k] || {};
+  const lines = [];
+  const T = tekrarOf(s);
+  const d = times.length;
+  const sus = zaman.suspects(times);
+  if (d >= 1) {
+    const txt = eff.all.map((x, r) => `${fmtShort(x.ms)}${x.dropped ? ' (çıkarıldı)' : ''}`).join(', ');
+    lines.push({ id: 'reps', text: `Tekrarlar: ${txt}`, on: chosen.reps ?? d >= 2, sus });
+  }
+  const rests = st.per[i].rests;
+  const dev = zaman.restDeviation(rests, parseSec(s.dinlen));
+  const sonu = st.per[i].sonu;
+  if (dev.show) {
+    const txt = `Dinlenme: ${rests.map(fmtShort).join(', ')} (ort. ${signed(dev.avgDev)})${sonu != null ? ` · Set sonu ${fmtShort(sonu)}` : ''}`;
+    lines.push({ id: 'rest', text: txt, on: chosen.rest ?? false });
+  }
+  if (d > 0 && d < T) lines.push({ id: 'eksik', text: `${d}/${T} tekrar yapıldı`, on: chosen.eksik ?? true });
+  return { k, lines, eff, times, sus };
+}
+
+function openOzet() {
+  state.session.screen = 'ozet';
+  persist();
+  show('ozet');
+  renderOzet();
+}
+
+function msiSummary(msi) {
+  const parts = MSI_BOLGELER.filter((b) => msi[b.key] != null).map((b) => `${b.label.toLocaleLowerCase('tr')} ${String(msi[b.key]).replace('.', ',')}`);
+  return parts.length ? parts.join(', ') : 'ağrı yok';
+}
+
+function renderOzet() {
+  const f = state.session.form;
+  const st = zst();
+  $('oz-sure').textContent = fmtClock(zaman.idmanMs(st, Date.now()));
+  $('oz-mesafe').textContent = fmtNum(sessionDistance());
+  $('oz-rpe').textContent = f.rpe == null ? '—' : String(f.rpe);
+  $('oz-msi').textContent = msiSummary(f.msi);
+  for (const b of $('oz-havuz').children) b.classList.toggle('is-on', Number(b.dataset.v) === f.havuz);
+
+  const blocks = [];
+  state.plan.setler.forEach((s, i) => {
+    if (!st.per[i].reps.length) return;
+    const { k, lines, eff, sus } = setNotes(i);
+    const title = `${setTitle(s)} ${s.tur || ''}`.trim();
+    const susHtml = sus.map((r) => {
+      const x = eff.all[r];
+      return `<button class="oz-sus" data-set="${i}" data-rep="${r}">⚠ ${r + 1}. tekrar ${fmtShort(x.ms)}${x.edited ? ' (düzeltildi)' : x.dropped ? ' (çıkarıldı)' : ''} — düzelt</button>`;
+    }).join('');
+    const ls = lines.map((l) => `<button class="oz-line" data-set="${k}" data-line="${l.id}"><i class="cb${l.on ? ' on' : ''}">${l.on ? '✓' : ''}</i><span>${esc(l.text)}</span></button>`).join('');
+    blocks.push(`<div class="oz-set"><div class="oz-st"><b>${esc(title)}</b><span class="n">ort. ${eff.avgMs ? fmtAvg(eff.avgMs) : '—'}</span></div>${ls}${susHtml}</div>`);
+  });
+  $('oz-notes').innerHTML = blocks.length ? blocks.join('') : '<p class="muted">Süresi ölçülen set yok.</p>';
+  $('oz-chips').innerHTML = HAZIR_IFADE.map((c) => `<button class="oz-chip${f.chips.includes(c) ? ' on' : ''}" data-chip="${esc(c)}">${esc(c)}</button>`).join('');
+  if (document.activeElement !== $('oz-aciklama')) $('oz-aciklama').value = f.aciklama;
+  $('oz-msg').hidden = true;
+}
+
+function onOzetClick(e) {
+  const f = state.session.form;
+  const hv = e.target.closest('#oz-havuz button[data-v]');
+  if (hv) { f.havuz = Number(hv.dataset.v); persist(); return renderOzet(); }
+  const chip = e.target.closest('button[data-chip]');
+  if (chip) {
+    const c = chip.dataset.chip;
+    f.chips = f.chips.includes(c) ? f.chips.filter((x) => x !== c) : [...f.chips, c];
+    persist();
+    return renderOzet();
+  }
+  const line = e.target.closest('button[data-line]');
+  if (line) {
+    const k = line.dataset.set;
+    const id = line.dataset.line;
+    const i = state.plan.setler.findIndex((s, j) => setKey(s, j) === k);
+    const cur = setNotes(i).lines.find((l) => l.id === id);
+    f.notes[k] = { ...(f.notes[k] || {}), [id]: !cur.on };
+    persist();
+    return renderOzet();
+  }
+  const sus = e.target.closest('button.oz-sus');
+  if (sus) return openEdit(Number(sus.dataset.set), Number(sus.dataset.rep));
+  if (e.target.closest('#oz-rpe-box')) return openRpe();
+  if (e.target.closest('#oz-msi-box')) return openMsi();
+}
+
+// --- Şüpheli tekrarı düzeltme ------------------------------------------------
+
+function openEdit(i, r) {
+  const st = zst();
+  const times = zaman.repTimes(st, i);
+  const s = state.plan.setler[i];
+  const k = setKey(s, i);
+  const e = (state.session.form.edits[k] || {})[r];
+  const others = times.filter((_, j) => j !== r);
+  const start = typeof e === 'number' ? e : Math.round(zaman.median(others) / 1000) * 1000;
+  state.edit = { i, r, k, ms: start };
+  $('ed-title').textContent = `${setTitle(s)} ${s.tur || ''} · ${r + 1}. tekrar`;
+  $('ed-reps').innerHTML = times.map((t, j) => `<div class="${j === r ? 'bad' : ''}"><small>${j + 1}</small><b class="n">${fmtShort(t)}</b></div>`).join('');
+  renderEdit();
+  $('ed-sheet').hidden = false;
+}
+
+function renderEdit() {
+  $('ed-val').textContent = fmtShort(state.edit.ms);
+  $('ed-apply').textContent = `${fmtShort(state.edit.ms)} olarak düzelt`;
+}
+
+function onEditClick(e) {
+  const E = state.edit;
+  if (!E) return;
+  const f = state.session.form;
+  const step = e.target.closest('[data-step]');
+  if (step) {
+    E.ms = Math.max(1000, E.ms + Number(step.dataset.step) * 1000);
+    return renderEdit();
+  }
+  const act = e.target.closest('[data-ed]');
+  if (!act) return;
+  const edits = f.edits[E.k] || (f.edits[E.k] = {});
+  if (act.dataset.ed === 'apply') edits[E.r] = E.ms;
+  else if (act.dataset.ed === 'drop') edits[E.r] = 'drop';
+  else if (act.dataset.ed === 'keep') delete edits[E.r];
+  persist();
+  closeEdit();
+  renderOzet();
+}
+
+function closeEdit() {
+  $('ed-sheet').hidden = true;
+  state.edit = null;
+}
+
+// --- Kaydet --------------------------------------------------------------------
 
 function formMsiString(msi) {
   return MSI_BOLGELER
@@ -1906,85 +1949,73 @@ function formMsiString(msi) {
     .join('; ');
 }
 
-function normalizeSure(v) {
-  const m = String(v).trim().match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
-  if (!m) return null;
-  return m[3] === undefined
-    ? `00:${pad2(m[1])}:${pad2(m[2])}`
-    : `${pad2(m[1])}:${pad2(m[2])}:${pad2(m[3])}`;
-}
-
 function buildPayload() {
   const s = state.session;
   const f = s.form;
+  const st = zst();
+  const legacyRes = (s.legacy && s.legacy.results) || {};
+  const aciklama = [...f.chips, String(f.aciklama || '').trim()].filter(Boolean).join('. ');
   return {
     tarih: s.tarih,
     seans: {
-      sure: f.sure,
-      mesafe: Number(f.mesafe) || 0,
+      sure: fmtHMS(zaman.idmanMs(st, Date.now())),
+      mesafe: sessionDistance(),
       havuz: f.havuz,
       rpe: f.rpe === null ? '' : f.rpe,
       msi: formMsiString(f.msi),
-      aciklama: f.aciklama,
+      aciklama,
     },
     setler: state.plan.setler.map((set, i) => {
       const k = setKey(set, i);
-      if (!s.done[k]) return { sira: set.sira, tamamlandi: false };
-      const r = s.results[k] || {};
-      return {
-        sira: set.sira,
-        tamamlandi: true,
-        gercek: r.gercek || '',
-        kulac: r.kulac ?? '',
-        nabiz: r.nabiz ?? '',
-        rpe: r.rpe ?? '',
-        msi: r.msi || '',
-        not: r.not || '',
-      };
+      const old = legacyRes[k] || {};
+      if (st.per[i].reps.length && zaman.doneReps(st, i) > 0) {
+        const { lines, eff } = setNotes(i);
+        const not = [old.not, ...lines.filter((l) => l.on).map((l) => l.text)].filter(Boolean).join(' | ');
+        return { sira: set.sira, tamamlandi: true, gercek: eff.avgMs ? fmtLap(eff.avgMs) : '', kulac: '', nabiz: '', rpe: '', msi: '', not };
+      }
+      if (legacyDone(i)) {
+        return { sira: set.sira, tamamlandi: true, gercek: old.gercek || '', kulac: '', nabiz: '', rpe: '', msi: '', not: old.not || '' };
+      }
+      return { sira: set.sira, tamamlandi: false };
     }),
   };
 }
 
 /** Biten seansın telefonda saklanan kopyası (Yapılmış idmanlar). */
 function keepInHistory(payload, status) {
-  const s = state.session;
+  const st = zst();
+  const byS = new Map(payload.setler.map((x) => [String(x.sira), x]));
   const rec = {
     id: `${payload.tarih}-${Date.now()}`,
     tarih: payload.tarih,
     savedAt: Date.now(),
     status,
-    startedAt: s.startedAt,
-    endedAt: s.endedAt,
+    startedAt: st.basla,
+    endedAt: st.bitir,
     seans: payload.seans,
     setler: state.plan.setler.map((set, i) => {
-      const k = setKey(set, i);
-      const r = s.results[k] || {};
+      const p = byS.get(String(set.sira)) || {};
       return {
         sira: set.sira, blok: set.blok, tekrar: set.tekrar, mesafe: set.mesafe, stil: set.stil, tur: set.tur,
         aciklama: set.aciklama, hedef: set.hedef, dinlen: set.dinlen, alet: set.alet,
-        tamamlandi: Boolean(s.done[k]), gercek: r.gercek || '', not: r.not || '',
+        tamamlandi: Boolean(p.tamamlandi), gercek: p.gercek || '', not: p.not || '',
+        yapilan: zaman.doneReps(st, i),
       };
     }),
   };
   if (!data.addHistory(rec)) toast('Telefonda yer kalmadı: seansın kopyası saklanamadı.', 5000);
 }
 
-async function saveForm() {
+async function saveSessionForm() {
   const f = state.session.form;
-  const msg = $('form-msg');
-  msg.hidden = true;
-
-  const sure = f.sure === '' ? '' : normalizeSure(f.sure);
-  if (sure === null) {
-    msg.textContent = 'Süre ss:dd:ss biçiminde olmalı (ör. 01:24:08).';
-    msg.hidden = false;
-    return;
-  }
-  f.sure = sure;
+  if (state.saving) return;
+  f.aciklama = $('oz-aciklama').value;
+  data.setPrefs({ havuz: f.havuz });
+  refreshPrefs();
   persist();
-
   const payload = buildPayload();
-  const btn = $('form-save');
+  const btn = $('oz-save');
+  state.saving = true;
   btn.disabled = true;
   btn.textContent = 'Kaydediliyor…';
   let result;
@@ -1994,6 +2025,7 @@ async function saveForm() {
     await handleSaveError(err, payload);
     return;
   } finally {
+    state.saving = false;
     btn.disabled = false;
     btn.textContent = 'Kaydet';
   }
@@ -2007,7 +2039,7 @@ async function handleSaveError(err, payload) {
     const close = await modal({
       title: 'Bu seans zaten kayıtlı',
       body: `<p>${esc(fmtDateTR(payload.tarih))} için tabloda kayıt var; ikinci kez yazılmadı ve hiçbir şey silinmedi.</p>`,
-      actions: [{ label: 'Seansı kapat', value: true, cls: 'btn-primary' }, { label: 'Forma dön', value: false }],
+      actions: [{ label: 'Seansı kapat', value: true, cls: 'btn-primary' }, { label: 'Özete dön', value: false }],
     });
     if (close) {
       keepInHistory(payload, 'duplicate');
@@ -2028,10 +2060,10 @@ async function handleSaveError(err, payload) {
     actions: [
       { label: 'Tekrar dene', value: 'retry', cls: 'btn-primary' },
       { label: 'Kuyruğa al, sonra dene', value: 'queue' },
-      { label: 'Forma dön', value: '' },
+      { label: 'Özete dön', value: '' },
     ],
   });
-  if (choice === 'retry') saveForm();
+  if (choice === 'retry') saveSessionForm();
   else if (choice === 'queue') queueAndClose(payload, err);
 }
 
@@ -2040,38 +2072,6 @@ function queueAndClose(payload, err) {
   keepInHistory(payload, 'queued');
   endSessionLocally();
   showDone({ ok: false });
-}
-
-function onFormInput(e) {
-  const f = state.session.form;
-  const t = e.target;
-  if (t.id === 'f-sure') { f.sure = t.value; f.sureEdited = true; }
-  else if (t.id === 'f-mesafe') { f.mesafe = t.value; f.mesafeEdited = true; }
-  else if (t.id === 'f-aciklama') f.aciklama = t.value;
-  else return;
-  persist();
-}
-
-function onFormClick(e) {
-  const f = state.session.form;
-  const b = e.target.closest('button[data-v]');
-  if (!b) return;
-  const v = Number(b.dataset.v);
-  if (b.parentElement.id === 'f-havuz') f.havuz = v;
-  else if (b.parentElement.id === 'f-rpe') f.rpe = f.rpe === v ? null : v;
-  else if (b.dataset.bolge) {
-    // Tekrar dokunmak seçimi kaldırır: boş ile 0 aynı şey değildir.
-    const k = b.dataset.bolge;
-    if (f.msi[k] === v) delete f.msi[k];
-    else f.msi[k] = v;
-  } else return;
-  persist();
-  renderForm();
-}
-
-function onFormBack() {
-  state.session.endedAt = null;
-  openProgram();
 }
 
 // ---------------------------------------------------------------------------
@@ -2133,35 +2133,21 @@ function wire() {
   wireWeekSwipe();
 
   $('prog-back').addEventListener('click', onProgramBack);
-  $('btn-complete').addEventListener('click', toggleComplete);
-  $('btn-session').addEventListener('click', onSessionButton);
-  $('btn-stopwatch').addEventListener('click', openStopwatch);
-  $('prog-lock').addEventListener('click', lockNow);
-  $('sw-lock').addEventListener('click', lockNow);
-  $('lock-hold').addEventListener('pointerdown', startUnlock);
-  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) $('lock-hold').addEventListener(ev, cancelUnlock);
-  $('lock-hold').addEventListener('contextmenu', (e) => e.preventDefault());
+  $('btn-main').addEventListener('click', onMainButton);
+  $('btn-undo').addEventListener('click', onUndo);
+  $('btn-sound').addEventListener('click', onSoundButton);
 
-  $('sw-close').addEventListener('click', closeStopwatch);
-  $('sw-startstop').addEventListener('click', swStartStop);
-  $('sw-reset').addEventListener('click', swReset);
-  $('sw-save').addEventListener('click', swSave);
-  $('sw-lap').addEventListener('pointerdown', (e) => { e.preventDefault(); if (state.locked) return; audio.unlock(); swLap(); });
-  $('sw-display').addEventListener('pointerdown', () => { if (!state.locked && sw().running) swLap(); });
-  // Kilit katmanı: altına hiçbir dokunma geçmesin.
-  for (const ev of ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchmove', 'wheel', 'contextmenu']) {
-    $('lock-bar').addEventListener(ev, (e) => {
-      if (ev === 'touchmove' || ev === 'contextmenu' || ev === 'wheel') e.preventDefault();
-      e.stopPropagation();
-    }, { passive: false });
-  }
-  $('sw-sheet-body').addEventListener('click', onSheetClick);
-  $('sw-sheet-dim').addEventListener('click', closeSheet);
-
-  $('screen-form').addEventListener('input', onFormInput);
-  $('screen-form').addEventListener('click', onFormClick);
-  $('form-back').addEventListener('click', onFormBack);
-  $('form-save').addEventListener('click', saveForm);
+  $('rpe-back').addEventListener('click', backToWorkout);
+  $('rpe-undo').addEventListener('click', backToWorkout);
+  $('rpe-grid').addEventListener('click', onRpeClick);
+  $('msi-back').addEventListener('click', openRpe);
+  $('screen-msi').addEventListener('click', onMsiClick);
+  $('oz-back').addEventListener('click', openMsi);
+  $('screen-ozet').addEventListener('click', onOzetClick);
+  $('oz-aciklama').addEventListener('input', (e) => { state.session.form.aciklama = e.target.value; persist(); });
+  $('oz-save').addEventListener('click', saveSessionForm);
+  $('ed-sheet-body').addEventListener('click', onEditClick);
+  $('ed-dim').addEventListener('click', closeEdit);
 
   $('done-back').addEventListener('click', () => showDays());
   // iOS: ses bağlamı yalnızca bir dokunuşla açılabilir.
@@ -2171,7 +2157,7 @@ function wire() {
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => {
       if (state.wheel) state.wheel.layout();
-      if (state.screen === 'stopwatch') fitStopwatch();
+      if (state.screen === 'program') fitHeader();
     });
   }
 
@@ -2183,7 +2169,6 @@ function wire() {
   window.addEventListener('error', (e) => report(e.message));
   window.addEventListener('unhandledrejection', (e) => report((e.reason && e.reason.message) || String(e.reason)));
 
-  window.addEventListener('resize', () => { if (state.screen === 'stopwatch') fitStopwatch(); });
   window.addEventListener('online', () => flushQueue());
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
@@ -2204,7 +2189,7 @@ function boot() {
   const s = data.loadSession();
   if (s && data.getCachedPlan(s.tarih)) {
     state.session = s;
-    resumeSession();
+    resumeSession(); // eski biçim seans burada yeni modele taşınır
     flushQueue();
     return;
   }

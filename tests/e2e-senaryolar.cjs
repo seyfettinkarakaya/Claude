@@ -5,75 +5,19 @@ const { runScenarios, prow, D } = require('./harness.cjs');
 
 const T23 = '2026-09-23';
 const stripDetay = (r) => (r.ok ? { ...r, data: r.data.map(({ detay, ...d }) => d) } : r);
-const lapsOf = async (s) => (await s.session()).sw.laps.length;
 
-async function startStopwatchOn(s, idx) {
+/** Bugünün programını açar, idmana başlar, ilk setten reps tekrar yüzer, seans sonu → özet. */
+async function toOzet(s, reps = 1) {
   await s.openToday();
-  if (idx) await s.goTo(idx);
-  await s.page.click('#btn-stopwatch');
-  await s.waitScreen('stopwatch');
-}
-
-async function toForm(s, { complete = 1 } = {}) {
-  await s.openToday();
-  await s.page.click('#btn-session');
-  for (let i = 0; i < complete; i++) { await s.page.click('#btn-complete'); await s.page.waitForTimeout(700); }
-  await s.page.click('#btn-session');
-  await s.waitScreen('form');
+  await s.tap(3);
+  for (let i = 0; i < reps; i++) { await s.tap(60); await s.tap(i < reps - 1 ? 20 : 3); }
+  await s.finishToOzet();
 }
 
 const S = [];
 const sc = (name, fn) => S.push([name, fn]);
 
 // --- Su kilidi -----------------------------------------------------------------
-sc('Kilit (kronometre): dokunma, TUR, kaydırma ve düğmeler yok sayılır; kronometre çalışır', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await startStopwatchOn(s, 2);
-  await p.click('#sw-lap'); // BAŞLAT
-  await p.clock.runFor(5000);
-  await p.click('#sw-lock');
-  assert.ok(await p.isVisible('#lock-bar'));
-  const pts = [];
-  for (const sel of ['#sw-display', '#sw-lap', '#sw-startstop', '#sw-save', '#sw-reset', '#sw-close', '#sw-time']) pts.push(await s.center(sel));
-  for (const pt of pts) { await p.mouse.click(pt.x, pt.y); await p.clock.runFor(400); }
-  for (let i = 0; i < 3; i++) { await p.touchscreen.tap(pts[0].x, pts[0].y); await p.touchscreen.tap(pts[1].x, pts[1].y); await p.clock.runFor(400); }
-  const w = (await s.session()).sw;
-  assert.strictEqual(w.laps.length, 0, 'kilitliyken tur eklenmemeli');
-  assert.strictEqual(w.running, true, 'kronometre durmamalı');
-  assert.strictEqual(await p.$$eval('#sw-reps i.ok', (e) => e.length), 0, 'tekrar çubuğu eklenmemeli');
-  assert.strictEqual(await s.screen(), 'stopwatch');
-  assert.ok(await p.isHidden('#sw-sheet'));
-  await s.hold('#lock-hold', 400);
-  assert.ok(await p.isVisible('#lock-bar'), 'kısa basış açmamalı');
-  await s.hold('#lock-hold', 1100);
-  assert.ok(await p.isHidden('#lock-bar'), 'basılı tutunca açılmalı');
-  await p.click('#sw-lap');
-  assert.strictEqual(await lapsOf(s), 1, 'kilit açılınca TUR çalışmalı');
-});
-
-sc('Kilit (program): kaydırma ve düğmeler yok sayılır; yeniden açılışta kilit kalkar', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await s.openToday();
-  await p.click('#prog-lock');
-  const w = await s.center('#wheel');
-  await p.mouse.move(w.x, w.y);
-  for (let i = 0; i < 3; i++) { await p.mouse.wheel(0, 80); await p.waitForTimeout(300); }
-  await p.mouse.move(w.x, w.y); await p.mouse.down(); await p.mouse.move(w.x, w.y - 200, { steps: 8 }); await p.mouse.up();
-  await p.waitForTimeout(500);
-  assert.strictEqual(await s.activeIdx(), 0, 'kilitliyken setler kaymamalı');
-  for (const sel of ['#btn-complete', '#btn-session', '#btn-stopwatch', '#prog-back']) { const c = await s.center(sel); await p.mouse.click(c.x, c.y); }
-  await p.waitForTimeout(300);
-  assert.strictEqual(await s.screen(), 'program');
-  const ses = await s.session();
-  assert.deepStrictEqual([ses.startedAt, Object.keys(ses.done).length], [null, 0]);
-  await p.reload();
-  await s.waitScreen('program');
-  assert.ok(await p.isHidden('#lock-bar'));
-  await p.click('#btn-complete');
-  assert.strictEqual(Object.keys((await s.session()).done).length, 1);
-});
-
-// --- Program açılış hızı ----------------------------------------------------------------
 sc('Hızlı açılış: program tarih listesiyle gelir, getPlan beklenmez', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   s.net.delay.getPlan = 4000;
@@ -86,7 +30,7 @@ sc('Hızlı açılış: program tarih listesiyle gelir, getPlan beklenmez', asyn
   await p.click('#days-today-btn');
   await s.waitScreen('program', 1500);
   assert.ok(Date.now() - t < 1500, `program ${Date.now() - t} ms'de açıldı`);
-  assert.strictEqual(await p.textContent('.w-item.is-active .w-title'), '1 × 200');
+  assert.strictEqual(await s.title(), '1 × 200');
   assert.strictEqual((await s.ls('ysk.dates')).dates.some((d) => d.detay), false, 'detay tarih önbelleğinde tutulmaz');
 });
 
@@ -96,7 +40,7 @@ sc('Arka plan yenileme: plan değiştiyse ve başlanmadıysa güncellenir', asyn
   await s.openToday();
   s.env.sheets.Plan.data.find((r) => r[1] === 1 && r[4] === 200)[4] = 300;
   await p.waitForFunction(() => /güncellendi/.test(document.getElementById('toast').textContent), null, { timeout: 5000 });
-  assert.strictEqual(await p.textContent('.w-item.is-active .w-title'), '1 × 300');
+  assert.strictEqual(await s.title(), '1 × 300');
   assert.strictEqual((await s.ls('ysk.plans'))[T23].setler[0].mesafe, 300);
 });
 
@@ -104,13 +48,13 @@ sc('Arka plan yenileme: seansa başlandıysa program korunur', async ({ launch }
   const s = await launch(); const p = s.page;
   s.net.delay.getPlan = 1500;
   await s.openToday();
-  await p.click('#btn-session');
+  await s.tap(3);
   s.env.sheets.Plan.data.find((r) => r[1] === 1 && r[4] === 200)[4] = 300;
   await p.waitForTimeout(2500);
-  assert.strictEqual(await p.textContent('.w-item.is-active .w-title'), '1 × 200');
+  assert.strictEqual(await s.title(), '1 × 200');
   assert.strictEqual((await s.ls('ysk.plans'))[T23].setler[0].mesafe, 200, 'önbellek de korunur');
   await p.reload(); await s.waitScreen('program');
-  assert.strictEqual(await p.textContent('.w-item.is-active .w-title'), '1 × 200');
+  assert.strictEqual(await s.title(), '1 × 200');
 });
 
 sc('Eski Code.gs (detay yok): yaklaşan günler arka planda indirilir, açılış hızlı', async ({ launch }) => {
@@ -139,7 +83,7 @@ sc('Eski Code.gs + önbellek yok: program istekle yüklenir, çift dokunma tek i
   await p.waitForTimeout(1500);
   const n = s.net.calls.filter((c) => c === 'getPlan').length;
   assert.ok(n <= 3, `getPlan ${n} kez (önceden indirme dahil)`);
-  assert.strictEqual(await p.textContent('.w-item.is-active .w-title'), '1 × 200');
+  assert.strictEqual(await s.title(), '1 × 200');
 });
 
 // --- Bağlantı ve sunucu hataları ------------------------------------------------------------
@@ -162,7 +106,7 @@ sc('Çevrimdışı ama önbellek var: liste ve program açılır', async ({ laun
   s.net.offline = true;
   await p.reload();
   await s.openToday();
-  assert.strictEqual(await p.textContent('.w-item.is-active .w-title'), '1 × 200');
+  assert.strictEqual(await s.title(), '1 × 200');
 });
 
 sc('Geçersiz anahtar (AUTH): ana sayfa ve takvimde yönlendirme', async ({ launch }) => {
@@ -177,14 +121,14 @@ sc('Geçersiz anahtar (AUTH): ana sayfa ve takvimde yönlendirme', async ({ laun
 sc('Kalıcı sunucu hatası: modal → forma dön → kuyruğa al', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   s.net.override = (b) => (b.action === 'finishSession' ? { ok: false, error: 'PLAN_MISMATCH', message: 'Sıra 9 bulunamadı.' } : null);
-  await toForm(s);
-  await p.click('#form-save');
+  await toOzet(s, 1);
+  await p.click('#oz-save');
   await s.waitModal('Kaydedilemedi');
   assert.match(await p.textContent('#modal-body'), /Sıra 9 bulunamadı.*PLAN_MISMATCH/s);
-  await s.modalClick('Forma dön');
-  assert.strictEqual(await s.screen(), 'form');
+  await s.modalClick('Özete dön');
+  assert.strictEqual(await s.screen(), 'ozet');
   assert.deepStrictEqual(await s.ls('ysk.queue'), null);
-  await p.click('#form-save');
+  await p.click('#oz-save');
   await s.waitModal('Kaydedilemedi');
   await s.modalClick('Kuyruğa al');
   await s.waitScreen('done');
@@ -197,8 +141,8 @@ sc('Kalıcı sunucu hatası: modal → forma dön → kuyruğa al', async ({ lau
 sc('Geçici hata (LOCKED): otomatik kuyruk, bağlantıda gönderilir, geçmiş "Tabloda" olur', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   s.net.override = (b) => (b.action === 'finishSession' ? { ok: false, error: 'LOCKED', message: 'meşgul' } : null);
-  await toForm(s, { complete: 2 });
-  await p.click('#form-save');
+  await toOzet(s, 2);
+  await p.click('#oz-save');
   await s.waitScreen('done');
   assert.strictEqual((await s.ls('ysk.queue')).length, 1);
   s.net.override = null;
@@ -211,9 +155,9 @@ sc('Geçici hata (LOCKED): otomatik kuyruk, bağlantıda gönderilir, geçmiş "
 
 sc('Zaten kayıtlı (DUPLICATE): seansı kapat → geçmişte "Zaten kayıtlıydı"', async ({ launch }) => {
   const s = await launch(); const p = s.page;
-  await toForm(s);
+  await toOzet(s, 1);
   const sh = s.env.sheets.seans; sh._row(1); sh.data[1] = [new s.env.CDate(Date.UTC(2026, 8, 23)), '', 0, 25, '', '', ''];
-  await p.click('#form-save');
+  await p.click('#oz-save');
   await s.waitModal('Bu seans zaten kayıtlı');
   await s.modalClick('Seansı kapat');
   await s.waitScreen('days');
@@ -224,8 +168,8 @@ sc('Zaten kayıtlı (DUPLICATE): seansı kapat → geçmişte "Zaten kayıtlıyd
 sc('Sunucu hata ayrıntısı gizli, başvuru numarası görünür', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   s.env.sheets.seans.failOn = 'write';
-  await toForm(s);
-  await p.click('#form-save'); // SERVER geçicidir → kuyruk
+  await toOzet(s, 1);
+  await p.click('#oz-save'); // SERVER geçicidir → kuyruk
   await s.waitScreen('done');
   const q = await s.ls('ysk.queue');
   assert.strictEqual(q[0].lastError.code, 'SERVER');
@@ -235,98 +179,6 @@ sc('Sunucu hata ayrıntısı gizli, başvuru numarası görünür', async ({ lau
 });
 
 // --- Form ------------------------------------------------------------------------------------
-sc('Form: süre doğrulama, RPE/MSI seç-kaldır, havuz, çift dokunmada tek gönderim', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await toForm(s);
-  await p.fill('#f-sure', '1:2x');
-  await p.click('#form-save');
-  assert.match(await p.textContent('#form-msg'), /ss:dd:ss/);
-  assert.ok(!s.net.calls.includes('finishSession'));
-  await p.fill('#f-sure', '1:5');
-  await p.click('#f-rpe button[data-v="8"]'); await p.click('#f-rpe button[data-v="8"]'); // kaldır
-  await p.click('#f-msi button[data-bolge="bel"][data-v="0"]'); // 0 da kayıttır
-  await p.click('#f-msi button[data-bolge="kalca"][data-v="2"]'); await p.click('#f-msi button[data-bolge="kalca"][data-v="2"]');
-  await p.click('#f-havuz button[data-v="50"]');
-  await p.fill('#f-mesafe', '750');
-  s.net.delay.finishSession = 800;
-  await p.evaluate(() => { const b = document.getElementById('form-save'); b.click(); b.click(); b.click(); });
-  await s.waitScreen('done', 6000);
-  assert.strictEqual(s.net.calls.filter((c) => c === 'finishSession').length, 1, 'tek gönderim');
-  const r = s.env.sheets.seans.data[1];
-  assert.ok(Math.abs(r[1] * 86400 - 65) < 1e-6, 'süre 00:01:05');
-  assert.deepStrictEqual([r[2], r[3], r[4], r[5]], [750, 50, '', 'bel 0']);
-});
-
-sc('Form: yeniden açılışta girilenler korunur; geri dönüp set değiştirince mesafe güncellenir', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await toForm(s);
-  await p.fill('#f-aciklama', 'kalsın');
-  await p.click('#f-rpe button[data-v="6"]');
-  await p.reload(); await s.waitScreen('form');
-  assert.strictEqual(await p.inputValue('#f-aciklama'), 'kalsın');
-  assert.strictEqual(await p.getAttribute('#f-rpe button[data-v="6"]', 'class'), 'is-on');
-  assert.strictEqual(await p.inputValue('#f-mesafe'), '200');
-  await p.click('#form-back'); await s.waitScreen('program');
-  await p.click('#btn-complete'); await p.waitForTimeout(700);
-  await p.click('#btn-session'); await s.waitScreen('form');
-  assert.strictEqual(await p.inputValue('#f-mesafe'), '400', 'elle değiştirilmediyse yeniden hesaplanır');
-  assert.strictEqual(await p.inputValue('#f-aciklama'), 'kalsın');
-});
-
-// --- Program akışı ----------------------------------------------------------------------------
-sc('Tüm setleri tamamlama, işaret kaldırma, sona gelince başa sarma', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await s.openToday();
-  await p.click('#btn-session');
-  await s.goTo(3);
-  await p.click('#btn-complete'); await p.waitForTimeout(700);
-  assert.strictEqual(await s.activeIdx(), 4);
-  await p.click('#btn-complete'); await p.waitForTimeout(700);
-  assert.strictEqual(await s.activeIdx(), 0, 'sonra baştaki işaretsiz sete sarar');
-  for (let i = 0; i < 3; i++) { await p.click('#btn-complete'); await p.waitForTimeout(700); }
-  assert.strictEqual(await p.$$eval('.w-item.is-done', (e) => e.length), 5);
-  assert.strictEqual(await p.textContent('#btn-complete-text'), 'İşareti Kaldır');
-  assert.match(await p.textContent('#prog-dist'), /^1\.200\/1\.200/);
-  await p.click('#btn-complete');
-  assert.strictEqual(await p.$$eval('.w-item.is-done', (e) => e.length), 4);
-  await p.click('#btn-complete'); await p.waitForTimeout(500);
-  await p.click('#btn-session'); await s.waitScreen('form');
-  assert.strictEqual(await p.inputValue('#f-mesafe'), '1200');
-});
-
-sc('Hiç set işaretlenmeden Bitir: onay sorulur', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await s.openToday();
-  await p.click('#btn-session'); await p.click('#btn-session');
-  await s.waitModal('Hiç set işaretlenmedi');
-  await s.modalClick('Vazgeç');
-  assert.strictEqual(await s.screen(), 'program');
-  await p.click('#btn-session');
-  await s.waitModal('Hiç set işaretlenmedi');
-  await s.modalClick('Evet, kapat');
-  await s.waitScreen('form');
-  assert.strictEqual(await p.inputValue('#f-mesafe'), '0');
-});
-
-sc('Seans sürerken başka güne geçmek onay ister', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await s.openToday();
-  await p.click('#btn-session');
-  await p.click('#prog-back'); await s.waitScreen('days');
-  await p.waitForSelector('.banner-live');
-  await p.click('.day-row[data-tarih="2026-09-24"]');
-  await p.click('#days-today-btn');
-  await s.waitModal('Devam eden seans var');
-  await s.modalClick('Vazgeç');
-  assert.strictEqual((await s.session()).tarih, T23);
-  await p.click('#days-today-btn');
-  await s.waitModal('Devam eden seans var');
-  await s.modalClick('Sil ve geç');
-  await s.waitScreen('program');
-  assert.strictEqual((await s.session()).tarih, '2026-09-24');
-  assert.strictEqual(await p.textContent('.w-item.is-active .w-title'), '1 × 400');
-});
-
 sc('Uzun program (40 set) ve uzun açıklama: açılır, gezinilir, kırpılmaz', async ({ launch }) => {
   const rows = [];
   const long = 'Her 25 metrede nefes 3-5-7, son 25 hızlı; dönüşlerde su altı dolfin en az 5, kol çekişi tam, ayak vuruşu sürekli ve ritmik, baş nötr.';
@@ -343,126 +195,6 @@ sc('Uzun program (40 set) ve uzun açıklama: açılır, gezinilir, kırpılmaz'
 });
 
 // --- Kronometre ---------------------------------------------------------------------------------
-sc('Kronometre ölçülen sete bağlı kalır (kapatıp başka sete geçince)', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await startStopwatchOn(s, 2);
-  await p.click('#sw-lap');
-  await p.clock.runFor(3000);
-  await p.click('#sw-close'); await s.waitScreen('program');
-  await s.goTo(4);
-  await p.click('#btn-stopwatch'); await s.waitScreen('stopwatch');
-  assert.match(await p.textContent('#sw-set'), /4 × 100/, 'başlık ölçülen seti göstermeli');
-  await p.click('#sw-lap'); // tur
-  await p.click('#sw-save');
-  await p.waitForSelector('#sw-sheet:not([hidden])');
-  assert.match(await p.textContent('.sheet-pick'), /4 × 100/);
-  await p.click('#sw-sheet .sheet-opt.o1');
-  await s.waitScreen('program');
-  const ses = await s.session();
-  assert.ok(ses.results['3'] && ses.results['3'].gercek, 'sonuç 3. sete yazılmalı');
-  assert.ok(!ses.results['5']);
-  assert.strictEqual(await s.activeIdx(), 2);
-});
-
-sc('Kronometre: kaydet panelinde set değiştirme', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await startStopwatchOn(s, 1);
-  await p.click('#sw-lap'); await p.clock.runFor(62000); await p.click('#sw-startstop');
-  await p.click('#sw-save');
-  await p.click('.sheet-pick');
-  await p.click('.sheet-set[data-set="3"]');
-  assert.match(await p.textContent('.sheet-pick'), /2 × 100/);
-  await p.click('#sw-sheet .sheet-opt.o1');
-  await s.waitScreen('program');
-  assert.match((await s.session()).results['4'].gercek, /^01:02\.\d$/);
-});
-
-sc('Kronometre: çift dokunma koruması, sıfırla onayı, turlar olmadan kaydet', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await startStopwatchOn(s, 2);
-  await p.click('#sw-save');
-  assert.match(await p.textContent('#toast'), /Kaydedilecek tur yok/);
-  await p.click('#sw-lap'); await p.clock.runFor(5000);
-  await p.click('#sw-lap'); await p.clock.runFor(100); await p.click('#sw-lap');
-  assert.strictEqual(await lapsOf(s), 1, '300 ms içinde ikinci tur sayılmaz');
-  await p.click('#sw-reset'); await s.waitModal('Sıfırlansın mı?');
-  await s.modalClick('Vazgeç');
-  assert.strictEqual(await lapsOf(s), 1);
-  await p.click('#sw-reset'); await s.waitModal('Sıfırlansın mı?');
-  await s.modalClick('Sıfırla');
-  const w = (await s.session()).sw;
-  assert.deepStrictEqual([w.laps.length, w.running, w.set], [0, false, null]);
-});
-
-sc('Çıkış sesi: her tekrarda 3-2-1 kısa + uzun; ses kapalıyken çalmaz', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await startStopwatchOn(s, 2); // aralık 1:30 + 0:20 = 110 sn
-  await p.click('#sw-lap');
-  await p.clock.fastForward(106200);
-  for (let i = 0; i < 12; i++) await p.clock.runFor(500);
-  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [880, 880, 880, 1320]);
-  await p.click('#sw-lap'); // yeni tekrar
-  await p.clock.fastForward(106200);
-  for (let i = 0; i < 12; i++) await p.clock.runFor(500);
-  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [880, 880, 880, 1320, 880, 880, 880, 1320]);
-
-  const s2 = await launch({ storage: { 'ysk.prefs': { ses: false, css: 117 } } }); const p2 = s2.page;
-  await startStopwatchOn(s2, 2);
-  await p2.click('#sw-lap');
-  await p2.clock.fastForward(106200);
-  for (let i = 0; i < 12; i++) await p2.clock.runFor(500);
-  assert.deepStrictEqual(await p2.evaluate(() => window.__beeps), []);
-  await s2.close();
-});
-
-sc('Çıkış sesi program ekranında da çalar (kronometre kapalıyken)', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await startStopwatchOn(s, 2);
-  await p.click('#sw-lap');
-  await p.click('#sw-close'); await s.waitScreen('program');
-  await s.goTo(0); // başka sete bakarken de ölçülen setin aralığı kullanılır
-  await p.clock.fastForward(106200);
-  for (let i = 0; i < 12; i++) await p.clock.runFor(500);
-  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [880, 880, 880, 1320]);
-});
-
-sc('Yeniden açılış: kronometre çalışmaya devam eder', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await startStopwatchOn(s, 2);
-  await p.click('#sw-lap'); await p.clock.runFor(4000); await p.click('#sw-lap'); await p.clock.runFor(10000);
-  await p.reload(); await s.waitScreen('stopwatch');
-  assert.ok(await p.$eval('#screen-stopwatch', (e) => e.classList.contains('is-running')));
-  const t = await p.textContent('#sw-main');
-  assert.match(t, /^0:1\d$/, `süre sürmeli (${t})`);
-  assert.strictEqual(await lapsOf(s), 1);
-  assert.match(await p.textContent('#sw-set'), /4 × 100/);
-});
-
-// --- Gezinme ------------------------------------------------------------------------------------
-sc('Gezinme: tüm geri tuşları, seanssız ve seanslı dönüş', async ({ launch }) => {
-  const s = await launch(); const p = s.page;
-  await s.waitScreen('home');
-  await p.click('#home-swim'); await s.waitScreen('days');
-  await p.click('#days-back'); await s.waitScreen('home');
-  await p.click('#home-history'); await s.waitScreen('history');
-  await p.click('#hist-back'); await s.waitScreen('home');
-  await p.click('#home-settings'); await s.waitScreen('setup');
-  assert.strictEqual(await p.textContent('#setup-title'), 'Ayarlar');
-  await p.click('#setup-back'); await s.waitScreen('home');
-  await p.click('#home-gym', { force: true });
-  assert.strictEqual(await s.screen(), 'home');
-  await s.openToday();
-  await p.click('#prog-back'); await s.waitScreen('days');
-  assert.strictEqual(await s.session(), null, 'başlanmamış seans silinir');
-  await p.click('#days-today-btn'); await s.waitScreen('program');
-  await p.click('#btn-complete');
-  await p.click('#prog-back'); await s.waitScreen('days');
-  await p.click('#days-back'); await s.waitScreen('home');
-  assert.strictEqual(await p.textContent('#home-swim-tag'), 'DEVAM EDEN SEANS');
-  await p.click('#home-swim'); await s.waitScreen('program');
-  assert.strictEqual(await p.$$eval('.w-item.is-done', (e) => e.length), 1);
-});
-
 sc('Hafta takvimi: plansız gün, sonraki hafta, Bugün düğmesi', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.waitScreen('home'); await p.click('#home-swim'); await s.waitScreen('days');
@@ -504,7 +236,7 @@ sc('Geçmiş: gönderilmemiş kayıt uyarısı, "tabloya gidenleri sil" kuyrukta
   const s = await launch({ offline: true, storage: { 'ysk.queue': [qItem('2026-09-20')], 'ysk.history': hist } }); const p = s.page;
   await s.waitScreen('home');
   await p.click('#home-history'); await s.waitScreen('history');
-  const rows = await p.$$eval('.hist-row', (e) => e.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
+  const rows = await p.$$eval('.hist-row', (e) => e.map((x) => x.innerText.replace(/\s+/g, ' ').trim()));
   assert.strictEqual(rows.length, 3);
   assert.match(rows[0], /Tabloda 2\/2 set · 1\.500 m · 40:00/);
   assert.match(rows[1], /Zaten kayıtlıydı/); assert.match(rows[2], /Kuyrukta/);
@@ -570,29 +302,358 @@ sc('Kurulum: ilk açılış, hatalı anahtar, anahtarı unut, yeniden bağlan', 
 });
 
 // --- Düzen ---------------------------------------------------------------------------------------------
-sc('Düzen: 320, 375 ve 430 px genişlikte tüm ekranlarda yatay taşma yok', async ({ launch }) => {
+
+// --- Zamanlama modeli (ZAMANLAMA.md) ---------------------------------------------------------
+// Örnek plan (harness): 0 WU 1×200 (4:00/0:20) · 1 PS 4×50 Drill (1:05/0:15) · 2 MS 4×100 (1:30/0:20)
+//                       3 AS 2×100 Pull (1:40/0:20) · 4 CD 1×200 (4:30/—)
+const col = (h) => ['Tarih', 'Sıra', 'Blok', 'Tekrar', 'Mesafe', 'Stil', 'Tür', 'Açıklama', 'Hedef', 'Dinlen', 'Alet', 'Gerçek', 'Kulaç', 'Nabız', 'RPE', 'MSI', 'Not'].indexOf(h);
+const sec = (v) => Math.round(v * 86400 * 100) / 100;
+const isOn = (p, sel) => p.$eval(sel, (e) => e.classList.contains('is-on'));
+
+sc('Tam idman: 12 tekrar, otomatik set geçişi, son GELDİM idmanı bitirir, 3 dokunuşla kayıt', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  assert.strictEqual(await s.label(), 'İDMANA BAŞLA');
+  let total = 0;
+  const A = async (x) => { await s.adv(x); total += x + 0.25; };
+  await p.click('#btn-main'); await A(3);
+  const plan = [[1, 240, 20], [4, 65, 15], [4, 90, 20], [2, 100, 20], [1, 270, 0]];
+  for (let si = 0; si < plan.length; si++) {
+    const [n, rep, rest] = plan[si];
+    for (let r = 0; r < n; r++) {
+      assert.strictEqual(await s.label(), 'ÇIK', `set ${si} tekrar ${r + 1}`);
+      await p.click('#btn-main'); await A(rep);
+      assert.strictEqual(await s.label(), 'GELDİM');
+      await p.click('#btn-main');
+      if (si === plan.length - 1 && r === n - 1) break;
+      await A(rest);
+      if (r === n - 1) { await p.waitForTimeout(700); assert.strictEqual(await s.activeIdx(), si + 1, 'kart sonraki sete geçer'); }
+    }
+  }
+  await s.waitScreen('rpe');
+  assert.match(await p.textContent('#rpe-info'), /1\.200 m · 5 set/);
+  await p.click('#rpe-grid button[data-v="7"]'); await s.waitScreen('msi');
+  await p.click('#msi-none'); await s.waitScreen('ozet');
+  assert.strictEqual(await p.textContent('#oz-mesafe'), '1.200');
+  const notes = await p.$$eval('.oz-set', (e) => e.map((x) => x.innerText.replace(/\s+/g, ' ').trim()));
+  assert.strictEqual(notes.length, 5);
+  assert.match(notes[1], /4 × 50 FR Drill ort\. 1:05\.\d ✓ Tekrarlar: 1:05, 1:05, 1:05, 1:05$/);
+  assert.ok(!/Dinlenme/.test(notes.join()), 'plana uygun dinlenmede not önerilmez');
+  await p.click('#oz-save'); await s.waitScreen('done');
+  const eski = s.env.sheets.eski.data.slice(1);
+  assert.deepStrictEqual(eski.map((r) => r[col('Sıra')]), [1, 2, 3, 4, 5]);
+  const g = eski.map((r) => sec(r[col('Gerçek')]));
+  [240, 65, 90, 100, 270].forEach((x, i) => assert.ok(Math.abs(g[i] - x) < 0.6, `Gerçek ${i}: ${g[i]}`));
+  assert.strictEqual(eski[0][col('Not')], '', 'tek tekrarlı sette tekrar notu yok');
+  assert.match(eski[1][col('Not')], /^Tekrarlar: 1:05, 1:05, 1:05, 1:05$/);
+  const se = s.env.sheets.seans.data[1];
+  assert.ok(Math.abs(sec(se[1]) - total) < 5,  `süre ${sec(se[1])} ≈ ${total}`);
+  assert.deepStrictEqual([se[2], se[3], se[4], se[5]], [1200, 25, 7, '']);
+  const h = (await s.ls('ysk.history'))[0];
+  assert.deepStrictEqual(h.setler.map((x) => x.yapilan), [1, 4, 4, 2, 1]);
+});
+
+sc('Dinlenme sayacı: 3-2-1 kısa + 0 uzun, eksiye kırmızı; ses düğmesi kapatınca çalmaz', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await s.tap(60); // başla, 1×200 ÇIK
+  await p.click('#btn-main');       // GELDİM → set sonu dinlenmesi (Dinlen 0:20)
+  await s.adv(16);
+  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [660], 'GELDİM onay sesi');
+  for (let i = 0; i < 12; i++) await p.clock.runFor(500);
+  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [660, 880, 880, 880, 1320]);
+  await p.waitForTimeout(700);
+  const big = await p.$eval('.w-item.is-active .w-tbig', (e) => ({ t: e.textContent, c: e.className }));
+  assert.match(big.t, /^−0:0\d$/); assert.match(big.c, /\br\b/);
+  assert.strictEqual(await s.text('.w-item.is-active .w-tmode'), 'DİNLENME UZADI');
+  await p.click('#btn-sound');
+  assert.strictEqual(await s.text('#btn-sound'), 'Ses kapalı');
+  assert.strictEqual((await s.ls('ysk.prefs')).ses, false);
+  await s.tap(65); await p.click('#btn-main'); await s.adv(10);
+  for (let i = 0; i < 12; i++) await p.clock.runFor(500);
+  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [660, 880, 880, 880, 1320], 'ses kapalıyken bip yok');
+});
+
+sc('Çift dokunma koruması (2 sn) ve Geri al (5 sn)', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await p.click('#btn-main'); await p.clock.runFor(800); await p.click('#btn-main');
+  assert.deepStrictEqual(await s.events(), ['basla'], '2 sn içindeki ikinci dokunuş yok sayılır');
+  await s.adv(2); await p.click('#btn-main');
+  await s.adv(30); await p.click('#btn-main'); // GELDİM → set tamam, sonraki sete geçer
+  await p.clock.runFor(300);
+  assert.ok(await isOn(p, '#btn-undo'));
+  await p.click('#btn-undo');
+  assert.deepStrictEqual(await s.events(), ['basla', 'cik0']);
+  assert.strictEqual(await s.label(), 'GELDİM');
+  await p.waitForTimeout(800);
+  assert.strictEqual(await s.activeIdx(), 0, 'yüzülen sete döner');
+  await p.click('#btn-main'); await p.clock.runFor(300);
+  assert.ok(await isOn(p, '#btn-undo'));
+  await s.adv(6);
+  assert.ok(!(await isOn(p, '#btn-undo')), '5 sn sonra söner');
+});
+
+sc('Yüzerken setler kaydırılamaz ve ‹ çalışmaz', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await p.click('#btn-main'); await p.clock.runFor(1000);
+  const w = await s.center('#wheel');
+  await p.mouse.move(w.x, w.y);
+  for (let i = 0; i < 3; i++) { await p.mouse.wheel(0, 80); await p.waitForTimeout(300); }
+  await p.mouse.move(w.x, w.y); await p.mouse.down(); await p.mouse.move(w.x, w.y - 200, { steps: 8 }); await p.mouse.up();
+  await p.waitForTimeout(500);
+  assert.strictEqual(await s.activeIdx(), 0);
+  await p.click('#prog-back');
+  assert.match(await p.textContent('#toast'), /Yüzerken/);
+  assert.ok(await p.isHidden('#modal'));
+  assert.strictEqual(await s.screen(), 'program');
+});
+
+sc('Seti erken bitirme: dinlenirken kaydır → uyarı → ÇIK n/N; geri kaydırmak vazgeçer', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await s.tap(240); await s.tap(20);
+  await p.waitForTimeout(700);
+  await s.tap(65); await s.tap(15); await s.tap(65); await s.tap(10); // 4×50: 2 tekrar
+  await s.goTo(2);
+  assert.match(await s.text('.w-item.is-active .w-banner'), /4 × 50 FR 2\/4'te kapanacak · 2 tekrar yapılmadı/);
+  assert.strictEqual(await s.sub(), '4 × 100 FR Swim · 1. tekrar');
+  await s.goTo(1);
+  assert.strictEqual(await s.sub(), '3. tekrar başlar');
+  assert.strictEqual(await p.$$eval('.w-item.is-active .w-banner', (e) => e.length), 0);
+  await s.goTo(2);
+  await s.tap(90);
+  assert.deepStrictEqual((await s.events()).slice(-1), ['cik2']);
+  assert.match(await p.$eval('.w-item >> nth=1', (e) => e.querySelector('.w-nm').textContent), /· 2\/4$/);
+  await s.tap(3); // GELDİM
+  await s.finishToOzet();
+  const ps = await p.$eval('.oz-set >> nth=1', (e) => e.innerText.replace(/\s+/g, ' '));
+  assert.match(ps, /✓ 2\/4 tekrar yapıldı/);
+  await p.click('#oz-save'); await s.waitScreen('done');
+  const eski = s.env.sheets.eski.data.slice(1);
+  assert.strictEqual(eski.length, 3);
+  assert.match(eski[1][col('Not')], /^Tekrarlar: 1:05, 1:05 \| 2\/4 tekrar yapıldı$/);
+  assert.strictEqual(s.env.sheets.seans.data[1][2], 400, 'mesafe = yapılan tekrarlar');
+});
+
+sc('‹ paneli: devam et, takvime dön, idmanı bitir; RPE\'de İdmana dön', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await s.tap(60); await s.tap(5);
+  await p.click('#prog-back'); await s.waitModal('İdmanı bitir?');
+  assert.match(await p.textContent('#modal-body'), /1 set tam · 200 m/);
+  await s.modalClick('Devam et');
+  assert.strictEqual(await s.screen(), 'program');
+  await p.click('#prog-back'); await s.waitModal('İdmanı bitir?');
+  await s.modalClick('Takvime dön');
+  await s.waitScreen('days'); await p.waitForSelector('.banner-live');
+  await p.click('[data-act="resume"]'); await s.waitScreen('program');
+  await p.click('#prog-back'); await s.waitModal('İdmanı bitir?');
+  await s.modalClick('İdmanı bitir ve kaydet');
+  await s.waitScreen('rpe');
+  await p.click('#rpe-back'); await s.waitScreen('program');
+  assert.deepStrictEqual(await s.events(), ['basla', 'cik0', 'geldim'], 'yalnızca bitiş geri alınır');
+  assert.strictEqual(await s.label(), 'ÇIK');
+});
+
+sc('Son setin son GELDİM\'i idmanı bitirir; "İdmana dön" son tekrarı geri getirir', async ({ launch }) => {
+  const s = await launch({ rows: [prow(T23, 1, 'MS', 2, 100, 'Swim', '01:30', '00:20')] }); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await s.tap(90); await s.tap(20); await s.tap(90);
+  await p.click('#btn-main');
+  await s.waitScreen('rpe');
+  assert.ok(await p.isVisible('#rpe-undo'));
+  await p.click('#rpe-undo'); await s.waitScreen('program');
+  assert.strictEqual(await s.label(), 'GELDİM');
+  assert.deepStrictEqual((await s.events()).slice(-1), ['cik0']);
+  await s.adv(3); await p.click('#btn-main'); await s.waitScreen('rpe');
+  await s.adv(6);
+  assert.ok(await p.isHidden('#rpe-undo'), '5 sn sonra gizlenir');
+});
+
+sc('Şüpheli tekrar: işaretlenir, düzeltilir, ortalamaya yansır', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await s.tap(240); await s.tap(20);
+  await p.waitForTimeout(700);
+  for (const [r, last] of [[65, 0], [64, 0], [150, 0], [66, 1]]) { await s.tap(r); await s.tap(last ? 3 : 15); }
+  await s.finishToOzet();
+  assert.match(await s.text('.oz-sus'), /3\. tekrar 2:30 — düzelt/);
+  await p.click('.oz-sus');
+  await p.waitForSelector('#ed-sheet:not([hidden])');
+  assert.strictEqual(await p.textContent('#ed-val'), '1:05');
+  await p.click('[data-step="1"]');
+  assert.strictEqual(await p.textContent('#ed-apply'), '1:06 olarak düzelt');
+  await p.click('#ed-apply');
+  assert.ok(await p.isHidden('#ed-sheet'));
+  assert.match(await s.text('.oz-sus'), /\(düzeltildi\)/);
+  assert.match(await s.text('.oz-set >> nth=1'), /Tekrarlar: 1:05, 1:04, 1:06, 1:06/);
+  await p.click('#oz-save'); await s.waitScreen('done');
+  const g = sec(s.env.sheets.eski.data[2][col('Gerçek')]);
+  assert.ok(Math.abs(g - 65.44) < 0.3, `ortalama ${g}`);
+});
+
+sc('Dinlenme notu: sapma varsa önerilir (işaretsiz), işaretlenince nota yazılır', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await s.tap(240); await s.tap(20);
+  await p.waitForTimeout(700);
+  for (let i = 0; i < 4; i++) { await s.tap(65); await s.tap(i < 3 ? 30 : 40); }
+  await p.waitForTimeout(700);
+  await s.tap(90); await s.tap(3);
+  await s.finishToOzet();
+  const line = await p.$('.oz-set >> nth=1 >> button[data-line="rest"]');
+  assert.match(await line.textContent(), /Dinlenme: 0:30, 0:30, 0:30 \(ort\. \+15 sn\) · Set sonu 0:4\d/);
+  assert.ok(!(await line.$eval('.cb', (e) => e.classList.contains('on'))), 'varsayılan işaretsiz');
+  await line.click();
+  assert.ok(await p.$eval('.oz-set >> nth=1 >> button[data-line="rest"] .cb', (e) => e.classList.contains('on')));
+  await p.click('#oz-save'); await s.waitScreen('done');
+  assert.match(s.env.sheets.eski.data[2][col('Not')], /Tekrarlar: .* \| Dinlenme: 0:30, 0:30, 0:30 \(ort\. \+15 sn\) · Set sonu 0:4\d$/);
+});
+
+sc('Seans sonu: MSI bölge döngüsü, RPE, havuz, hazır ifade; havuz hatırlanır', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await s.tap(60); await s.tap(3);
+  await p.click('#prog-back'); await s.modalClick('İdmanı bitir ve kaydet');
+  await s.waitScreen('rpe'); await p.click('#rpe-grid button[data-v="4"]');
+  await s.waitScreen('msi');
+  assert.ok(await p.isHidden('#msi-next'));
+  for (let i = 0; i < 3; i++) await p.click('#msi-body button[data-bolge="sag omuz"]');
+  for (let i = 0; i < 6; i++) await p.click('#msi-body button[data-bolge="bel"]');
+  assert.strictEqual(await s.text('#msi-body button[data-bolge="sag omuz"] em'), '1,5');
+  assert.strictEqual(await s.text('#msi-body button[data-bolge="bel"] em'), '—', 'döngü boşa döner');
+  await p.click('#msi-next'); await s.waitScreen('ozet');
+  assert.strictEqual(await p.textContent('#oz-msi'), 'sağ omuz 1,5');
+  assert.strictEqual(await p.textContent('#oz-rpe'), '4');
+  await p.click('#oz-havuz button[data-v="50"]');
+  await p.click('#oz-chips button[data-chip="Yorgun"]');
+  await p.fill('#oz-aciklama', 'kısa not');
+  await p.click('#oz-rpe-box'); await s.waitScreen('rpe');
+  await p.click('#rpe-grid button[data-v="6"]'); await s.waitScreen('msi');
+  await p.click('#msi-next'); await s.waitScreen('ozet');
+  assert.strictEqual(await p.inputValue('#oz-aciklama'), 'kısa not');
+  await p.click('#oz-save'); await s.waitScreen('done');
+  const r = s.env.sheets.seans.data[1];
+  assert.deepStrictEqual([r[3], r[4], r[5], r[6]], [50, 6, 'sag omuz 1.5', 'Yorgun. kısa not']);
+  assert.strictEqual((await s.ls('ysk.prefs')).havuz, 50);
+});
+
+sc('Yeniden açılış: yüzerken, dinlenirken ve özet ekranında kaldığı yerden', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3); await s.tap(40);
+  await p.reload(); await s.waitScreen('program'); await p.waitForTimeout(300);
+  assert.strictEqual(await s.label(), 'GELDİM');
+  assert.match(await p.textContent('.w-item.is-active .w-tbig'), /^0:4\d$/);
+  await p.click('#btn-main'); await s.adv(5);
+  await p.waitForTimeout(700);
+  await p.reload(); await s.waitScreen('program'); await p.waitForTimeout(300);
+  assert.strictEqual(await s.label(), 'ÇIK');
+  assert.strictEqual(await s.activeIdx(), 1);
+  assert.match(await p.textContent('.w-item.is-active .w-tbig'), /^0:1\d$/);
+  await s.finishToOzet();
+  await p.fill('#oz-aciklama', 'kalsın');
+  await p.reload(); await s.waitScreen('ozet');
+  assert.strictEqual(await p.inputValue('#oz-aciklama'), 'kalsın');
+  assert.strictEqual(await p.textContent('#oz-rpe'), '7');
+});
+
+sc('Sürüm 9 seansı yeni modele taşınır (işaretler ve turlar korunur)', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => /set/.test(document.getElementById('home-swim-meta').textContent));
+  await p.evaluate(() => localStorage.setItem('ysk.session', JSON.stringify({
+    tarih: '2026-09-23', startedAt: Date.now() - 600000, endedAt: null, done: { 1: true }, results: { 1: { gercek: '03:58.0' } },
+    pos: 1, screen: 'stopwatch', form: null, sw: { running: false, segStart: null, segAcc: 0, laps: [61000], repStart: null, set: 0 },
+  })));
+  await p.reload(); await s.waitScreen('program');
+  const ses = await s.session();
+  assert.strictEqual(ses.v, 2);
+  assert.deepStrictEqual(ses.events.map((e) => e.t), ['basla']);
+  assert.strictEqual(await p.$$eval('.w-item.is-done', (e) => e.length), 1);
+  assert.match(await p.textContent('#prog-clock'), /^10:0\d$/);
+  await s.finishToOzet();
+  await p.click('#oz-save'); await s.waitScreen('done');
+  const e = s.env.sheets.eski.data.slice(1);
+  assert.strictEqual(e.length, 1);
+  assert.ok(Math.abs(sec(e[0][col('Gerçek')]) - 238) < 0.1);
+  assert.strictEqual(e[0][col('Not')], 'Turlar: 01:01.0');
+});
+
+sc('Seans sürerken başka güne geçmek onay ister', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(3);
+  await p.click('#prog-back'); await s.modalClick('Takvime dön');
+  await s.waitScreen('days');
+  await p.waitForSelector('.banner-live');
+  await p.click('.day-row[data-tarih="2026-09-24"]');
+  await p.click('#days-today-btn');
+  await s.waitModal('Devam eden seans var');
+  await s.modalClick('Vazgeç');
+  assert.strictEqual((await s.session()).tarih, T23);
+  await p.click('#days-today-btn');
+  await s.waitModal('Devam eden seans var');
+  await s.modalClick('Sil ve geç');
+  await s.waitScreen('program');
+  assert.strictEqual((await s.session()).tarih, '2026-09-24');
+  assert.strictEqual(await s.title(), '1 × 400');
+});
+
+sc('Gezinme: tüm geri tuşları, seanssız ve seanslı dönüş', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.waitScreen('home');
+  await p.click('#home-swim'); await s.waitScreen('days');
+  await p.click('#days-back'); await s.waitScreen('home');
+  await p.click('#home-history'); await s.waitScreen('history');
+  await p.click('#hist-back'); await s.waitScreen('home');
+  await p.click('#home-settings'); await s.waitScreen('setup');
+  assert.strictEqual(await p.textContent('#setup-title'), 'Ayarlar');
+  await p.click('#setup-back'); await s.waitScreen('home');
+  await p.click('#home-gym', { force: true });
+  assert.strictEqual(await s.screen(), 'home');
+  await s.openToday();
+  await p.click('#prog-back'); await s.waitScreen('days');
+  assert.strictEqual(await s.session(), null, 'başlanmamış seans silinir');
+  await p.click('#days-today-btn'); await s.waitScreen('program');
+  await s.tap(3);
+  await p.click('#prog-back'); await s.modalClick('Takvime dön'); await s.waitScreen('days');
+  await p.click('#days-back'); await s.waitScreen('home');
+  assert.strictEqual(await p.textContent('#home-swim-tag'), 'DEVAM EDEN SEANS');
+  await p.click('#home-swim'); await s.waitScreen('program');
+  assert.deepStrictEqual(await s.events(), ['basla']);
+});
+
+sc('Düzen: 320, 375 ve 430 px genişlikte tüm ekranlarda yatay taşma yok, düğmeler büyük', async ({ launch }) => {
   for (const vp of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 430, height: 932 }]) {
     const s = await launch({ viewport: vp }); const p = s.page;
     const check = async (name) => {
+      await p.waitForTimeout(250);
       const r = await p.evaluate(() => {
         const W = document.documentElement.clientWidth; const bad = [];
         for (const el of document.querySelectorAll('.screen:not([hidden]) *')) {
           const b = el.getBoundingClientRect(); if (!b.width || getComputedStyle(el).visibility === 'hidden') continue;
-          if (b.right > W + 1 && !el.closest('.w-item:not(.is-active)') && !el.closest('.wheel') && !el.closest('.wk-track')) bad.push(`${el.tagName}#${el.id}.${String(el.className).slice(0, 30)} ${Math.round(b.right)}`);
+          if (el.closest('.w-item:not(.is-active)') || el.closest('.wk-track')) continue;
+          if (b.right > W + 1 || b.left < -1) bad.push(`${el.tagName}#${el.id}.${String(el.className).slice(0, 30)} ${Math.round(b.left)}-${Math.round(b.right)}`);
         }
         return { sw: document.documentElement.scrollWidth, W, bad: bad.slice(0, 3) };
       });
       assert.ok(r.sw <= vp.width && !r.bad.length, `${vp.width}px ${name}: ${JSON.stringify(r)}`);
     };
-    await s.waitScreen('home'); await p.waitForTimeout(200); await check('ana sayfa');
-    await p.click('#home-swim'); await s.waitScreen('days'); await p.waitForTimeout(300); await check('takvim');
-    await p.click('#days-today-btn'); await s.waitScreen('program'); await p.waitForTimeout(400); await check('program');
-    await p.click('#btn-stopwatch'); await s.waitScreen('stopwatch'); await check('kronometre');
-    await p.click('#sw-close'); await p.click('#btn-session'); await p.click('#btn-complete'); await p.waitForTimeout(500);
-    await p.click('#btn-session'); await s.waitScreen('form'); await check('form');
-    await p.click('#form-back'); await p.click('#prog-back'); await p.click('#days-back');
+    await s.waitScreen('home'); await check('ana sayfa');
     await p.click('#home-history'); await s.waitScreen('history'); await check('geçmiş');
     await p.click('#hist-back'); await p.click('#home-settings'); await s.waitScreen('setup'); await check('ayarlar');
+    await p.click('#setup-back'); await p.click('#home-swim'); await s.waitScreen('days'); await check('takvim');
+    await p.click('#days-today-btn'); await s.waitScreen('program'); await check('program hazır');
+    const btn = await p.$eval('#btn-main', (e) => e.getBoundingClientRect().height);
+    assert.ok(btn >= 100, `büyük düğme ${btn}px`);
+    await s.tap(3); await p.click('#btn-main'); await s.adv(70); await check('program yüzerken');
+    await p.click('#btn-main'); await s.adv(30); await check('program dinlenme (eksi)');
+    await p.click('#prog-back'); await s.modalClick('İdmanı bitir ve kaydet'); await s.waitScreen('rpe'); await check('RPE');
+    await p.click('#rpe-grid button[data-v="7"]'); await s.waitScreen('msi'); await check('MSI');
+    await p.click('#msi-body button[data-bolge="sag omuz"]'); await p.click('#msi-next'); await s.waitScreen('ozet'); await check('özet');
     await s.close();
   }
 });

@@ -60,8 +60,7 @@ const server = http.createServer((req, res) => {
   await page.fill('#setup-url', 'https://script.google.com/macros/s/TEST/exec');
   await page.fill('#setup-token', 'wrong');
   await page.click('#setup-save');
-  await page.waitForSelector('#setup-msg:not([hidden])');
-  assert.match(await page.textContent('#setup-msg'), /Anahtar hatalı/);
+  await page.waitForFunction(() => /Anahtar hatalı/.test(document.getElementById('setup-msg').textContent));
   await page.fill('#setup-token', 'secret');
   await page.click('#setup-save');
 
@@ -127,7 +126,7 @@ const server = http.createServer((req, res) => {
     return { title: a.querySelector('.w-title').textContent, font: parseFloat(getComputedStyle(a.querySelector('.w-title')).fontSize), top: r.top, bottom: r.bottom, wTop: w.top, wBottom: w.bottom, btns, count: document.querySelectorAll('.w-item.is-done').length, tag: a.querySelector('.w-tag').textContent, dist: document.getElementById('prog-dist').textContent, docW: document.documentElement.scrollWidth };
   });
   console.log('Program:', JSON.stringify(info));
-  assert.strictEqual(info.title, '1 × 200'); assert.ok(info.font >= 40);
+  assert.match(info.title, /^1 × 200/); assert.ok(info.font >= 40);
   assert.ok(info.top >= info.wTop && info.bottom <= info.wBottom, 'aktif kart tekerleğe sığmalı');
   for (const [n, w, h] of info.btns) assert.ok(w >= 60 && h >= 60, `dokunma hedefi küçük: ${n} ${w}x${h}`);
   assert.strictEqual(info.count, 0); assert.match(info.tag, /WU · ISINMA · 1\/8/); assert.ok(info.docW <= 440);
@@ -147,7 +146,7 @@ const server = http.createServer((req, res) => {
     };
   });
   console.log('Üst/kart:', JSON.stringify(top));
-  assert.strictEqual(top.end, '36:40'); assert.strictEqual(top.dist, '0/2.400');
+  assert.strictEqual(top.end.trim(), '/36:40'); assert.strictEqual(top.dist.replace(/\s/g, ''), '0/2.400');
   assert.deepStrictEqual(top.segs, ['200', '400', '200', '400', '200', '400', '200', '400']);
   assert.strictEqual(top.foot, 'Tempo 0:45/100200 / 200 m'); // Pull: bölge yok assert.strictEqual(top.tm, '1:50+1:50');
   assert.ok(top.cardShare >= 0.5, 'aktif kart ekranın en az yarısı'); assert.ok(top.rowsBelow >= 2, 'altta en az 2 durak');
@@ -165,104 +164,87 @@ const server = http.createServer((req, res) => {
     await page.waitForTimeout(400);
     assert.strictEqual(await activeIdx(), target);
   };
-  // Başla, tamamla → sonraki sete geç
-  await page.click('#btn-session');
-  assert.strictEqual(await page.getAttribute('#btn-session', 'aria-label'), 'İdmanı Bitir');
-  await page.click('#btn-complete');
-  await page.waitForTimeout(800);
-  assert.strictEqual(await page.textContent('.w-item.is-active .w-title'), '4 × 100');
-  assert.strictEqual(await page.evaluate(() => document.querySelectorAll('.w-item.is-done').length), 1);
-  // Sürükleyerek 3 set aşağı kaydır (atalet dahil)
+  // Tek zamanlayıcı: büyük düğme İDMANA BAŞLA → ÇIK → GELDİM; süreler dokunuş zamanlarından
+  const label = () => page.textContent('#btn-main-label');
+  const tap = async (sec) => { await page.click('#btn-main'); if (sec) { await page.clock.fastForward(sec * 1000); await page.clock.runFor(250); } };
+  const activeTitle = () => page.$eval('.w-item.is-active .w-title', e => e.firstChild.textContent.trim());
+  // İdman başlamadan tekerlek serbest: sürükleyerek 3 set aşağı kaydır (atalet dahil)
   const wb = await page.$eval('#wheel', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width/2, y: r.y + r.height/2 }; });
   await page.mouse.move(wb.x, wb.y); await page.mouse.down();
   for (let i = 1; i <= 10; i++) { await page.mouse.move(wb.x, wb.y - i * 22); await page.waitForTimeout(16); }
   await page.mouse.up(); await page.waitForTimeout(900);
-  const idxAfterDrag = await page.evaluate(() => [...document.querySelectorAll('.w-item')].findIndex(e => e.classList.contains('is-active')));
+  const idxAfterDrag = await activeIdx();
   console.log('Sürükleme sonrası aktif indeks:', idxAfterDrag);
-  assert.ok(idxAfterDrag >= 3, 'sürükleme en az 2 set ilerletmeli');
+  assert.ok(idxAfterDrag >= 2, 'sürükleme en az 2 set ilerletmeli');
   // Uzun açıklama kırpılmadan sarılıyor mu (3. set)?
   await goTo(2);
-  const desc = await page.$eval('.w-item.is-active .w-desc', e => ({ sh: e.scrollHeight, ch: e.clientHeight, lines: Math.round(e.clientHeight / parseFloat(getComputedStyle(e).lineHeight || 25)) }));
+  const desc = await page.$eval('.w-item.is-active .w-desc', e => ({ sh: e.scrollHeight, ch: e.clientHeight }));
   assert.ok(desc.sh <= desc.ch + 1, 'açıklama kırpılmamalı');
   // 100 m tempo: hedef 1:30 / 200 m → 0:45, CSS 1:57'ye göre Z5 (ekipmansız Swim)
   assert.strictEqual((await page.textContent('.w-item.is-active .w-pace')).replace(/\s+/g, ' ').trim(), 'Tempo 0:45/100 · Z5');
   assert.strictEqual(await page.$eval('.w-item.is-active .w-pace b', e => getComputedStyle(e).color), 'rgb(248, 113, 113)');
-  // Su kilidi: dokunmalar yok sayılır, basılı tutunca açılır
-  await page.click('#prog-lock');
-  assert.ok(await page.isVisible('#lock-bar'));
-  const doneBefore = await page.evaluate(() => document.querySelectorAll('.w-item.is-done').length);
-  const cb = await page.$eval('#btn-complete', e => { const r = e.getBoundingClientRect(); return { x: r.x + 20, y: r.y + r.height / 2 }; });
-  const lockBox = await page.$eval('#lock-hold', e => { const r = e.getBoundingClientRect(); return { top: r.top, x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
-  await page.mouse.click(cb.x, lockBox.top - 30 > cb.y ? cb.y : lockBox.top - 4);
-  await page.mouse.click(cb.x, cb.y);
-  await page.waitForTimeout(300);
-  assert.strictEqual(await page.evaluate(() => document.querySelectorAll('.w-item.is-done').length), doneBefore, 'kilitliyken işaretlenmemeli');
-  await page.mouse.move(lockBox.x, lockBox.y); await page.mouse.down();
-  await page.clock.runFor(400); await page.mouse.up();
-  assert.ok(await page.isVisible('#lock-bar'), 'kısa basış açmamalı');
-  await page.mouse.down(); await page.clock.runFor(1100); await page.mouse.up();
-  assert.ok(!(await page.isVisible('#lock-bar')), 'basılı tutunca açılmalı');
-  // İşaret kaldır
   await goTo(0);
-  assert.strictEqual(await page.textContent('#btn-complete-text'), 'İşareti Kaldır');
-  await page.click('#btn-complete');
-  assert.strictEqual(await page.evaluate(() => document.querySelectorAll('.w-item.is-done').length), 0);
-  await page.click('#btn-complete'); // tekrar işaretle
+
+  assert.strictEqual(await label(), 'İDMANA BAŞLA');
+  await tap(5);
+  assert.strictEqual(await label(), 'ÇIK');
+  await tap(150); // 1 × 200
+  assert.strictEqual(await label(), 'GELDİM');
+  await tap(20);  // set tamam → kart 4 × 100'e geçer; set sonu dinlenmesi
   await page.waitForTimeout(900);
-
-  // Kronometre
-  await goTo(3);
-  await page.click('#btn-stopwatch');
-  await page.waitForSelector('#screen-stopwatch:not([hidden])');
-  const sw = await page.evaluate(() => { const d = document.getElementById('sw-display').getBoundingClientRect(); const t = document.getElementById('sw-time').getBoundingClientRect(); return { ratio: d.height / innerHeight, tw: t.width, th: t.height, dw: d.width, laps: document.getElementById('sw-lap').getBoundingClientRect().height }; });
-  console.log('Kronometre:', JSON.stringify(sw));
-  assert.ok(sw.ratio >= 0.6, 'gösterge ekranın %60ından büyük olmalı'); assert.ok(sw.tw <= sw.dw);
-  await page.click('#sw-lap');                 // BAŞLAT
-  await page.clock.runFor(83400); await page.click('#sw-lap');   // tur 1: 1:23.4
-  await page.clock.runFor(84600); await page.click('#sw-startstop'); // durdur → tur 2: 1:24.6
-  assert.match(await page.textContent('#sw-last'), /01:24\.[5-8]/);
-  assert.match(await page.textContent('#sw-diff'), /^−5\.[2-5]$/); // hedef 1:30'un altında
-  assert.strictEqual(await page.textContent('#sw-pace'), '1:25/100'); // Pull: bölge yok
-  // Çıkış sesi: aralık 1:50; son tekrar 84,6 sn sürdü → çıkışa 25,4 sn
-  await page.clock.runFor(22000);
-  assert.deepStrictEqual(await page.evaluate(() => window.__beeps), []);
-  for (let k = 0; k < 8; k++) await page.clock.runFor(500);
-  assert.deepStrictEqual(await page.evaluate(() => window.__beeps), [880, 880, 880, 1320]);
-  await page.click('#sw-save');
-  await page.waitForSelector('#sw-sheet:not([hidden])');
-  assert.match(await page.textContent('#sw-sheet .sheet-avg'), /2 TUR.*01:24\.[0-2]/);
-  await page.click('#sw-sheet .sheet-opt.o2');
-  await page.waitForSelector('#screen-program:not([hidden])');
+  assert.strictEqual(await activeIdx(), 1);
+  assert.strictEqual(await activeTitle(), '4 × 100');
+  assert.strictEqual(await page.evaluate(() => document.querySelectorAll('.w-item.is-done').length), 1);
+  assert.strictEqual((await page.textContent('#prog-dist')).replace(/\s/g, ''), '200/2.400');
+  // 4 × 100: tekrar süreleri 1:23.4, 1:24.6, 1:24.0, 1:24.0 (tap +0,25 sn ekler)
+  const reps = [83.15, 84.35, 83.75, 83.75];
+  for (let r = 0; r < reps.length; r++) {
+    assert.strictEqual(await label(), 'ÇIK', `tekrar ${r + 1}`);
+    await tap(reps[r]);
+    await tap(r < 3 ? 19.75 : 5);
+    if (r === 1) {
+      // Yeniden yükleme → kaldığı yerden (dinlenme) devam
+      await page.reload();
+      await page.waitForSelector('#screen-program:not([hidden]) .w-item.is-active');
+      await page.waitForTimeout(300);
+      assert.strictEqual(await activeIdx(), 1);
+      assert.strictEqual(await label(), 'ÇIK');
+      assert.strictEqual(await page.$$eval('.w-item.is-active .w-reps div.ok', e => e.length), 2);
+    }
+  }
   await page.waitForTimeout(900);
-  assert.match(await page.textContent('.w-item.is-active .w-gercek'), /01:24\.[0-2]/);
-  assert.strictEqual(await page.evaluate(() => document.querySelectorAll('.w-item.is-done').length), 2);
+  assert.strictEqual(await activeIdx(), 2, 'set tamamlanınca sıradaki sete geçer');
+  assert.strictEqual((await page.textContent('#prog-dist')).replace(/\s/g, ''), '600/2.400');
 
-  // Yeniden yükleme → kaldığı yerden devam
-  await page.reload();
-  await page.waitForSelector('#screen-program:not([hidden])');
-  assert.strictEqual(await page.evaluate(() => document.querySelectorAll('.w-item.is-done').length), 2);
-  assert.strictEqual(await page.getAttribute('#btn-session', 'aria-label'), 'İdmanı Bitir');
-
-  // Bitir → form
-  await page.clock.runFor(60 * 60 * 1000);
-  await page.click('#btn-session');
-  await page.waitForSelector('#screen-form:not([hidden])');
-  const sure = await page.inputValue('#f-sure'); console.log('Süre:', sure, 'Mesafe:', await page.inputValue('#f-mesafe'));
-  assert.match(sure, /^01:0[2-4]:\d\d$/);
-  assert.strictEqual(await page.inputValue('#f-mesafe'), '600');
-  await page.click('#f-rpe button[data-v="8"]');
-  await page.click('#f-msi button[data-bolge="sag omuz"][data-v="1"]');
-  await page.click('#f-msi button[data-bolge="bel"][data-v="0.5"]');
-  await page.click('#f-msi button[data-bolge="boyun"][data-v="2"]');
-  await page.click('#f-msi button[data-bolge="boyun"][data-v="2"]'); // kaldır
-  await page.fill('#f-aciklama', 'Ana set iyi geçti');
-  await page.click('#f-havuz button[data-v="50"]');
-  await page.click('#form-save');
+  // ‹ → İdmanı bitir → RPE (tek dokunuş) → MSI → Özet
+  await page.click('#prog-back');
+  await page.waitForSelector('#modal:not([hidden]) >> text=İdmanı bitir?');
+  await page.click('#modal-actions button:has-text("İdmanı bitir ve kaydet")');
+  await page.waitForSelector('#screen-rpe:not([hidden])');
+  assert.match(await page.textContent('#rpe-info'), /600 m/);
+  await page.click('#rpe-grid button[data-v="8"]');
+  await page.waitForSelector('#screen-msi:not([hidden])');
+  for (let i = 0; i < 2; i++) await page.click('#msi-body button[data-bolge="sag omuz"]');
+  await page.click('#msi-body button[data-bolge="bel"]');
+  for (let i = 0; i < 6; i++) await page.click('#msi-body button[data-bolge="boyun"]'); // döngü boşa döner
+  await page.click('#msi-next');
+  await page.waitForSelector('#screen-ozet:not([hidden])');
+  assert.strictEqual(await page.textContent('#oz-mesafe'), '600');
+  assert.strictEqual(await page.textContent('#oz-rpe'), '8');
+  const sure = await page.textContent('#oz-sure'); console.log('Süre:', sure);
+  const ozNotes = await page.$$eval('.oz-set', els => els.map(e => e.innerText.replace(/\s+/g, ' ').trim()));
+  console.log('Özet:', JSON.stringify(ozNotes));
+  assert.strictEqual(ozNotes.length, 2);
+  assert.match(ozNotes[1], /4 × 100.*ort\. 1:24\.0/);
+  await page.fill('#oz-aciklama', 'Ana set iyi geçti');
+  await page.click('#oz-havuz button[data-v="50"]');
+  await page.click('#oz-save');
   await page.waitForSelector('#screen-done:not([hidden])');
   console.log('Onay:', await page.textContent('#done-text'));
   const eski = env.sheets.eski.data.slice(1);
-  assert.deepStrictEqual(eski.map(r => r[1]), [1, 4]);
-  assert.match(eski[1][16], /^Turlar: 01:23\.[4-6], 01:24\.[5-8]$/);
+  assert.deepStrictEqual(eski.map(r => r[1]), [1, 2]);
+  assert.ok(Math.abs(eski[1][11] * 86400 - 84) < 0.05, `Gerçek ${eski[1][11] * 86400}`);
+  assert.match(eski[1][16], /^Tekrarlar: 1:2\d, 1:2\d, 1:2\d, 1:2\d$/);
   const seans = env.sheets.seans.data[1];
   assert.deepStrictEqual([seans[2], seans[3], seans[4], seans[5], seans[6]], [600, 50, 8, 'sag omuz 1; bel 0.5', 'Ana set iyi geçti']);
   assert.strictEqual(env.sheets.Plan.data.length, 3);
@@ -273,15 +255,22 @@ const server = http.createServer((req, res) => {
   await page.click('#done-back');
   await page.waitForFunction(() => /24 Eylül/.test(document.getElementById('days-hero').textContent) && !document.getElementById('days-today-bar').hidden);
   await page.click('#days-today-btn');
-  await page.waitForSelector('#screen-program:not([hidden])');
-  await page.click('#btn-session'); await page.click('#btn-complete');
+  await page.waitForSelector('#screen-program:not([hidden]) .w-item.is-active');
+  await tap(3); await tap(60); // başla, ÇIK
   offline = true;
-  await page.reload(); // uçak modunda yeniden açılış
-  await page.waitForSelector('#screen-program:not([hidden])');
-  assert.strictEqual(await page.textContent('.w-item .w-title'), '1 × 400');
-  await page.click('#btn-session');
-  await page.waitForSelector('#screen-form:not([hidden])');
-  await page.click('#form-save');
+  await page.reload(); // uçak modunda yeniden açılış (yüzerken)
+  await page.waitForSelector('#screen-program:not([hidden]) .w-item.is-active');
+  assert.strictEqual(await activeTitle(), '1 × 400');
+  assert.strictEqual(await label(), 'GELDİM');
+  await page.clock.fastForward(300000); await page.clock.runFor(250);
+  await page.click('#btn-main'); // son setin son GELDİM'i idmanı bitirir
+  await page.waitForSelector('#screen-rpe:not([hidden])');
+  await page.click('#rpe-grid button[data-v="5"]');
+  await page.waitForSelector('#screen-msi:not([hidden])');
+  await page.click('#msi-none');
+  await page.waitForSelector('#screen-ozet:not([hidden])');
+  assert.strictEqual(await page.$eval('#oz-havuz button[data-v="50"]', e => e.classList.contains('is-on')), true, 'havuz hatırlanır');
+  await page.click('#oz-save');
   await page.waitForSelector('#screen-done:not([hidden])');
   assert.strictEqual(await page.textContent('#done-title'), 'Kaydedilemedi');
   await page.click('#done-back');
@@ -299,11 +288,11 @@ const server = http.createServer((req, res) => {
   const hist = await page.$$eval('.hist-row', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()));
   console.log('Geçmiş:', JSON.stringify(hist));
   assert.strictEqual(hist.length, 2);
-  assert.match(hist[0], /^24 ?EYL Perşembe Tabloda 1\/1 set · 400 m · 1:0\d$/);
-  assert.match(hist[1], /^23 ?EYL Çarşamba Tabloda 2\/8 set · 600 m · 1:0\d:\d\d$/);
+  assert.match(hist[0], /^24 ?EYL Perşembe Tabloda 1\/1 set · 400 m · \d+:\d\d$/);
+  assert.match(hist[1], /^23 ?EYL Çarşamba Tabloda 2\/8 set · 600 m · \d+:\d\d$/);
   await page.click('.hist-row >> nth=1');
   await page.waitForSelector('#modal:not([hidden]) .hd');
-  assert.match(await page.textContent('#modal-body'), /Gerçek 01:24\.[0-2] · Hedef 01:30/);
+  assert.match(await page.textContent('#modal-body'), /Gerçek 01:24\.0 · Hedef 01:30/);
   await page.click('#modal-actions button:has-text("Kapat")');
   await page.click('#hist-back');
   await page.click('#home-swim');
@@ -339,16 +328,19 @@ const server = http.createServer((req, res) => {
   await page.click('#days-today-btn');
   await page.waitForSelector('#screen-program:not([hidden])');
   await page.evaluate(() => localStorage.setItem('ysk.dates', JSON.stringify({ dates: 'bozuk' })));
-  await page.click('#btn-session'); await page.click('#btn-complete'); await page.click('#btn-session');
-  await page.waitForSelector('#screen-form:not([hidden])');
-  await page.click('#form-save');
+  await tap(3); await tap(60); await page.click('#btn-main'); // tek set: GELDİM idmanı bitirir
+  await page.waitForSelector('#screen-rpe:not([hidden])');
+  await page.click('#rpe-grid button[data-v="5"]');
+  await page.click('#msi-none');
+  await page.waitForSelector('#screen-ozet:not([hidden])');
+  await page.click('#oz-save');
   await page.waitForSelector('#modal:not([hidden]) >> text=Bu seans zaten kayıtlı');
   await page.click('#modal-actions button:has-text("Seansı kapat")');
   await page.waitForSelector('#screen-days:not([hidden])');
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
   await page.click('#days-back');
   await page.waitForSelector('#screen-home:not([hidden])');
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 9');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10');
   assert.match(await page.textContent('#home-history-meta'), /^3 kayıt$/);
 
   // Toplu silme: yalnızca telefondaki kopyalar gider
@@ -371,7 +363,7 @@ const server = http.createServer((req, res) => {
   await page.fill('#pref-css', '1:50'); await page.press('#pref-css', 'Tab');
   assert.match(await page.textContent('#pref-zones .z4'), /1:48 – 1:53/);
   await page.click('#pref-ses button[data-v="0"]');
-  assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('ysk.prefs'))), { ses: false, css: 110 });
+  assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('ysk.prefs'))), { ses: false, css: 110, havuz: 50 });
   await page.click('#setup-forget');
   await page.click('#modal-actions button:has-text("Evet, unut")');
   await page.waitForFunction(() => document.getElementById('setup-title').textContent === 'Kurulum');

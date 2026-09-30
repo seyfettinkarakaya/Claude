@@ -82,6 +82,25 @@ function helpers(page) {
     text: (sel) => page.$eval(sel, (e) => e.textContent.replace(/\s+/g, ' ').trim()),
     ls: (k) => page.evaluate((key) => JSON.parse(localStorage.getItem(key)), k),
     session: () => page.evaluate(() => JSON.parse(localStorage.getItem('ysk.session'))),
+    /** Aktif kartın başlığı (stil·tür eki olmadan): "4 × 100" */
+    title: () => page.$eval('.w-item.is-active .w-title', (e) => e.firstChild.textContent.trim()),
+    /** Büyük düğmeye dokunur, sonra saati sec saniye ilerletir (2 sn korumasını aşmak için). */
+    async tap(sec = 0) { await page.click('#btn-main'); if (sec) { await page.clock.fastForward(sec * 1000); await page.clock.runFor(250); } },
+    async adv(sec) { await page.clock.fastForward(sec * 1000); await page.clock.runFor(250); },
+    label: () => page.textContent('#btn-main-label'),
+    sub: () => page.textContent('#btn-main-sub'),
+    events: () => page.evaluate(() => JSON.parse(localStorage.getItem('ysk.session')).events.map((e) => e.t + (e.set != null ? e.set : ''))),
+    /** Seans sonuna (RPE → Ağrı yok → Özet) ‹ ile erken bitirerek gider. */
+    async finishToOzet(rpe = 7) {
+      await page.click('#prog-back');
+      await h.waitModal('İdmanı bitir?');
+      await h.modalClick('İdmanı bitir ve kaydet');
+      await h.waitScreen('rpe');
+      await page.click(`#rpe-grid button[data-v="${rpe}"]`);
+      await h.waitScreen('msi');
+      await page.click('#msi-none');
+      await h.waitScreen('ozet');
+    },
     activeIdx: () => page.evaluate(() => [...document.querySelectorAll('.w-item')].findIndex((e) => e.classList.contains('is-active'))),
     center: (sel) => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }),
     async tapAt(p) { await page.mouse.click(p.x, p.y); },

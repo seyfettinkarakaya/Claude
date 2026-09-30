@@ -7,24 +7,9 @@ bekleyen işlerin tamamı birlikte güncellenir.
 
 Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılması (aşağıda).
 
-## Sıradaki — Sürüm 10: Zamanlama modeli
+## Sıradaki
 
-Şartname: `ZAMANLAMA.md` · Görseller: `tasarim/v12/idman-zamanlama-2.png`, `tasarim/v12/seans-sonu.png`.
-Görsel tasarım Sürüm 8 görünümünde kalır.
-
-- [ ] `zaman.js`: saf zaman modülü (olaylar → durum, tekrar/dinlenme/set sonu süreleri) + birim testleri.
-- [ ] İdman ekranı: tek büyük düğme (İDMANA BAŞLA → ÇIK → GELDİM …), tekrar kutucukları, büyük saat
-  (yukarı sayma / dinlenme geri sayımı, eksiye kırmızı), üstte büyük süre ve mesafe (54 px).
-- [ ] Setin son GELDİM'i seti, son setin son GELDİM'i idmanı bitirir; set sonu dinlenmesi.
-- [ ] 3-2-1 + 0 bipleri her dinlenmede; alt barda Ses düğmesi; GELDİM onay sesi; ekran yanıp sönmesi.
-- [ ] Geri al (5 sn), çift dokunma koruması (2 sn), yüzerken kaydırma ve ‹ kapalı.
-- [ ] Erken bitirme: dinlenirken kaydır + ÇIK (n/N); ‹ → "İdmanı bitir ve kaydet / Devam et".
-- [ ] Seans sonu: RPE (tek dokunuş) → MSI ("Ağrı yok" / bölge döngüsü) → Özet ve kaydet
-  (onaylı not satırları, şüpheli tekrar düzeltme, hazır açıklama ifadeleri, havuz hatırlanır).
-- [ ] Veri: Gerçek = ortalama tekrar; Not = işaretlenenler; seans Mesafe = yapılan tekrarlar.
-- [ ] Kaldır: kronometre ekranı, TUR, Kaydet paneli, Çıkışa sayacı, Seti Tamamla, Başla/Bitir, su kilidi, eski form.
-- [ ] Devam eden eski biçim seansın yeni modele geçişi.
-- [ ] Testler: zaman.js birim testleri; uçtan uca senaryolar yeni akışa göre yeniden yazılır.
+Sürüm 10 tamamlandı (bkz. Tamamlanan). Yeni talepler buraya.
 
 ## 2. Aşama — Orta vade
 
@@ -65,6 +50,19 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 
 ## Tamamlanan
 
+- [x] Sürüm 10 — zamanlama modeli (`ZAMANLAMA.md`):
+  - `zaman.js`: olay listesinden tekrar/dinlenme/set sonu süreleri; birim testleri.
+  - Tek büyük düğme İDMANA BAŞLA → ÇIK → GELDİM; tekrar kutucukları, büyük saat (eksiye kırmızı),
+    üstte 54 px süre/mesafe; son GELDİM seti, son setin son GELDİM'i idmanı bitirir.
+  - 3-2-1 + uzun bip, Ses düğmesi, GELDİM onay sesi; Geri al (5 sn), çift dokunma koruması (2 sn),
+    yüzerken kaydırma ve ‹ kapalı; seti ve idmanı erken bitirme.
+  - Seans sonu: RPE → MSI → Özet; onaylı not satırları, şüpheli tekrar düzeltme, havuz hatırlanır.
+  - Gerçek = ortalama tekrar; seans mesafesi = yapılan tekrarlar.
+  - Kaldırıldı: kronometre ekranı, su kilidi, Seti Tamamla, Başla/Bitir, eski form.
+  - Eski biçim seans yeni modele taşınır.
+  - Düzeltilen hatalar: set geçişinde aktif kartın vurgusu kayboluyordu; "İdmana dön"
+    tamamlanmış sette kalıyordu; 320 px'te set mesafesi taşıyordu.
+  - Testler: 17 zaman.js, 33 uçtan uca senaryo ve baştan sona tam akış yeni akışa göre yazıldı.
 - [x] Sürüm 9 (hata düzeltme):
   - Su kilidi artık tüm ekranı örter: kronometrede kilitliyken ekrana veya TUR'a
     dokunmak tur ekliyordu — düzeltildi.
