@@ -15,9 +15,10 @@ body{width:440px;height:956px;overflow:hidden;background:#0B0F14;color:#EDEFF2;f
  background:radial-gradient(440px 380px at 62% 48%,var(--amb,rgba(249,115,22,.12)),transparent 70%),#0B0F14}
 .n{font-family:'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums}
 .lbl{font-size:10px;font-weight:800;letter-spacing:1.5px;color:#7A8694}
-.hd{display:grid;grid-template-columns:60px 1fr auto;gap:12px;align-items:center}
-.ib{width:60px;height:60px;border-radius:16px;background:#141B23;display:grid;place-items:center;font-size:30px}
-.st b{display:block;font-size:34px;font-weight:700;line-height:1.05}.dim{color:#56616D}.y{color:#FFD23F}
+.hd{display:grid;grid-template-columns:48px 1fr auto;gap:10px;align-items:center}
+.ib{width:48px;height:64px;border-radius:14px;background:#141B23;display:grid;place-items:center;font-size:30px}
+.hd .lbl{font-size:14px;letter-spacing:1.5px}
+.st b{display:block;font-size:54px;font-weight:700;line-height:.95;white-space:nowrap}.st b small{font-size:20px;font-weight:700}.dim{color:#56616D}.y{color:#FFD23F}
 .seg{display:flex;gap:3px;height:10px;margin-top:2px}.seg i{border-radius:5px;opacity:.25}.seg i.on{opacity:1}.seg i.cur{opacity:1;box-shadow:0 0 10px var(--g)}
 .line{position:relative;flex:1;display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .rail{position:absolute;left:67px;width:6px;top:0;bottom:0;background:linear-gradient(#7C3AED 0 44px,#F97316 44px calc(100% - 76px),rgba(250,204,21,.4) calc(100% - 76px))}
@@ -51,6 +52,11 @@ body{width:440px;height:956px;overflow:hidden;background:#0B0F14;color:#EDEFF2;f
 .main b{font-size:40px;font-weight:800;line-height:1;letter-spacing:.5px}.main small{font-size:15px;font-weight:800;opacity:.75;margin-top:4px}
 .main.geldim{background:#EDEFF2}
 .beep{position:absolute;right:12px;top:10px;display:flex;gap:6px}.beep i{width:12px;height:12px;border-radius:50%;background:#2A3440}.beep i.on{background:#FFD23F;box-shadow:0 0 10px #FFD23F}
+.warn{margin-top:10px;padding:10px 12px;border-radius:14px;background:rgba(255,176,32,.14);border:1px solid rgba(255,176,32,.6);color:#FFB020;font-size:18px;font-weight:700}
+.dim2{position:absolute;inset:0;background:rgba(3,6,9,.74)}
+.sheet{position:absolute;left:0;right:0;bottom:0;border-radius:30px 30px 0 0;background:#141B23;border-top:1px solid #243040;padding:22px 16px 30px;display:flex;flex-direction:column;gap:12px}
+.sheet h3{margin:0;font-size:28px}.sheet p{margin:0;font-size:20px;color:#B4BDC7}
+.sbtn{height:96px;border-radius:26px;display:grid;place-items:center;font-size:28px;font-weight:800}
 .flash{position:absolute;inset:0;border-radius:20px;box-shadow:inset 0 0 0 4px #FFD23F}
 """
 
@@ -70,8 +76,8 @@ def seg(cur, done):
 
 
 def header(clock, dist):
-    return (f'<div class="hd"><span class="ib">‹</span><div class="st"><span class="lbl">İDMAN · GEÇEN / HEDEF</span><b class="n">{clock}<span class="dim">/</span><span class="y">24:55</span></b></div>'
-            f'<div class="st" style="text-align:right"><span class="lbl">MESAFE</span><b class="n">{dist}<span class="dim">/1.200</span></b></div></div>')
+    return (f'<div class="hd"><span class="ib">‹</span><div class="st"><span class="lbl">SÜRE</span><b class="n">{clock}<small class="y"> /24:55</small></b></div>'
+            f'<div class="st" style="text-align:right"><span class="lbl">MESAFE</span><b class="n">{dist}<small class="dim"> /1.200</small></b></div></div>')
 
 
 def row(t, c, nm, done=False):
@@ -82,18 +88,22 @@ def reps(items):
     return '<div class="reps">' + ''.join(f'<div class="{cls}"><small>{i+1}. TEKRAR</small><b class="n">{v}</b></div>' for i, (cls, v) in enumerate(items)) + '</div>'
 
 
-def page(active_t, card, dock, above, below, clock, dist, cur=2, done=2, amb='rgba(249,115,22,.12)'):
+def page(active_t, card, dock, above, below, clock, dist, cur=2, done=2, amb='rgba(249,115,22,.12)', overlay=''):
     body = f"""<div class="ph" style="--amb:{amb}">{header(clock, dist)}{seg(cur, done)}
 <div class="line"><div class="rail"></div>{above}
 <div class="act"><div class="t n">{active_t}</div><i class="dot" style="--c:{C['MS'] if cur == 2 else C['AS']}"></i>{card}</div>
-{below}</div>{dock}</div>"""
+{below}</div>{dock}{overlay}</div>"""
     return f'<!doctype html><html lang="tr"><head><meta charset="utf-8"><link rel="stylesheet" href="file://{FONTS}"><style>{CSS}</style></head><body>{body}</body></html>'
 
 
-def dock(label, sub, undo=False, geldim=False):
-    left = f'<div class="side undo">{UNDO}<span>Geri al</span></div>' if undo else f'<div class="side" style="opacity:.35">{UNDO}<span>Geri al</span></div>'
-    return (f'<div class="dock">{left}<div class="main{" geldim" if geldim else ""}"><b>{label}</b><small>{sub}</small></div>'
-            f'<div class="side">{MORE}<span>Menü</span></div></div>')
+SES_ON = ic('<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>', 28)
+SES_OFF = ic('<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M17 9l5 6M22 9l-5 6"/>', 28)
+
+
+def dock(label, sub, undo=False, geldim=False, muted=False):
+    left = f'<div class="side undo">{UNDO}<span>Geri al</span></div>' if undo else f'<div class="side" style="opacity:.3">{UNDO}<span>Geri al</span></div>'
+    snd = f'<div class="side" style="color:#FF8A8A">{SES_OFF}<span>Ses kapalı</span></div>' if muted else f'<div class="side">{SES_ON}<span>Ses açık</span></div>'
+    return (f'<div class="dock">{left}<div class="main{" geldim" if geldim else ""}"><b>{label}</b><small>{sub}</small></div>{snd}</div>')
 
 
 ABOVE = row('9:40', C['PS'], '4 × 50 FR Drill', True)
@@ -126,17 +136,34 @@ s4 = page('9:40', f"""<div class="card">{TITLE}
 {reps([('ok', '1:28'), ('ok', '1:29'), ('ok', '1:31'), ('rest', '−0:07')])}
 <div class="timer"><span class="mode r">DİNLENME UZADI</span><div class="big n r" style="font-size:124px">−0:07</div>
 <div class="sub n">Son tekrar 1:31 · <span class="r">+1 sn</span></div></div></div>""",
-          dock('ÇIK', '4. tekrar başlar'), ABOVE, BELOW, '16:15', '700', amb='rgba(255,107,107,.10)')
+          dock('ÇIK', '4. tekrar başlar', muted=True), ABOVE, BELOW, '16:15', '700', amb='rgba(255,107,107,.10)')
 
 # 5) Set bitti → sonraki set hazır, dinlenme sürüyor
 TITLE2 = '<span class="tag" style="color:#FACC15">AS · EK SET · 4/5</span><div class="ti n">2 × 100<small style="color:#FACC15">FR Pull</small></div>'
 s5 = page('18:40', f"""<div class="card" style="border-color:rgba(250,204,21,.35)">{TITLE2}
 <div class="n" style="margin-top:10px;padding:10px 12px;border-radius:14px;background:rgba(61,220,132,.10);color:#3DDC84;font-size:20px;font-weight:700">✓ 4×100 bitti · ort. 1:29.8 · 4/4</div>
-<div class="timer"><span class="mode b">SETLER ARASI DİNLENME</span><div class="big n">0:12</div>
+<div class="timer"><span class="mode b">SET SONU DİNLENMESİ</span><div class="big n">0:12</div>
 <div class="sub n">Hedef 1:40 · Şamandıra</div></div></div>""",
           dock('ÇIK', '2×100 Pull · 1. tekrar', undo=True),
           row('18:40', C['MS'], '4 × 100 FR Swim', True), row('28:30', C['CD'], '1 × 200 FR Swim'), '18:22', '800', cur=3, done=3, amb='rgba(250,204,21,.10)')
 
-for i, s in enumerate([s1, s2, s3, s4, s5], 1):
+# 6) Dinlenirken sonraki sete kaydırıldı: set ÇIK'a basınca 3/4 kapanır
+s6 = page('18:40', f"""<div class="card" style="border-color:rgba(250,204,21,.35)">{TITLE2}
+<div class="warn">⚠ 4×100 3/4'te kapanacak · 4. tekrar yapılmadı</div>
+<div class="timer"><span class="mode b">DİNLENME</span><div class="big n">0:09</div>
+<div class="sub n">Vazgeçmek için geri kaydır</div></div></div>""",
+          dock('ÇIK', '2×100 Pull · 1. tekrar', undo=True),
+          row('9:40', C['MS'], '4 × 100 FR Swim · 3/4'), row('28:30', C['CD'], '1 × 200 FR Swim'), '16:40', '700', cur=3, done=2, amb='rgba(250,204,21,.10)')
+
+# 7) Sol üstteki ‹ : idmanı erken bitir
+s7 = page('9:40', f"""<div class="card">{TITLE}
+{reps([('ok', '1:28'), ('ok', '1:29'), ('rest', '0:11'), ('', '—')])}
+<div class="timer"><span class="mode b">DİNLENME · ÇIKIŞA</span><div class="big n">0:11</div>
+<div class="sub n">Son tekrar 1:29 · <span class="g">−1 sn</span></div></div></div>""",
+          dock('ÇIK', '3. tekrar başlar', undo=False), ABOVE, BELOW, '14:09', '600',
+          overlay='<div class="dim2"></div><div class="sheet"><h3>İdmanı bitir?</h3><p>Yapılan: 2 set tam, 4×100 2/4 · 600 m · 14:09</p>'
+                  '<div class="sbtn" style="background:#FFD23F;color:#14110A">İdmanı bitir ve kaydet</div><div class="sbtn" style="background:#0B0F14;border:1px solid #243040">Devam et</div></div>')
+
+for i, s in enumerate([s1, s2, s3, s4, s5, s6, s7], 1):
     open(os.path.join(OUT, f'd{i}.html'), 'w').write(s)
 print('ok')
