@@ -68,8 +68,9 @@ const server = http.createServer((req, res) => {
   await page.waitForSelector('#screen-home:not([hidden])');
   await page.waitForFunction(() => /set/.test(document.getElementById('home-swim-meta').textContent));
   assert.strictEqual(await page.textContent('#home-date'), 'Çarşamba, 23 Eylül');
-  assert.strictEqual(await page.textContent('#home-swim-tag'), 'SIRADAKİ · BUGÜN');
-  assert.strictEqual(await page.textContent('#home-swim-meta'), '8 set · 2.400 m · 36:40');
+  assert.strictEqual(await page.textContent('#home-swim-tag'), 'Bugün · Çarşamba 23 Eylül');
+  assert.strictEqual(await page.textContent('#home-swim-meta'), '8 set · 2.400 m · 36:40 · ana set 800 m');
+  assert.strictEqual(await page.textContent('#home-open-text'), 'İdmanı aç');
   assert.strictEqual(await page.textContent('#home-history-meta'), 'Henüz kayıt yok');
   await page.click('#home-gym', { force: true });
   assert.match(await page.textContent('#toast'), /yakında/);
@@ -329,6 +330,11 @@ const server = http.createServer((req, res) => {
   await page.waitForFunction(() => !document.querySelector('.banner-warn') && document.querySelector('#days-list').textContent.trim() !== '');
   assert.ok(env.sheets.seans.data.some((r, i) => i > 0 && r[2] === 300), 'kuyruktaki kayıt gönderilmeli');
   assert.match(await page.textContent('#days-list'), /Planlanmış idman yok/);
+  await page.click('#days-back');
+  await page.waitForFunction(() => document.getElementById('home-swim-tag').textContent === 'Planlanmış idman yok');
+  assert.ok(await page.isHidden('#home-open'), 'planlı idman yoksa yalnız Takvim');
+  await page.click('#home-swim');
+  await page.waitForSelector('#screen-days:not([hidden])');
 
   // Zaten kayıtlı seans + bozuk önbellek: "Seansı kapat" ana sayfaya dönmeli
   const addRow = (sh, row) => { const i = sh.getLastRow(); sh._row(i); sh.data[i] = row; };
@@ -351,7 +357,7 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
   await page.click('#days-back');
   await page.waitForSelector('#screen-home:not([hidden])');
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10.1');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10.2');
   assert.match(await page.textContent('#home-history-meta'), /^3 kayıt$/);
 
   // Toplu silme: yalnızca telefondaki kopyalar gider

@@ -92,7 +92,7 @@ sc('İlk açılış çevrimdışı ve önbellek yok: anlaşılır uyarı', async
   s.net.offline = true;
   await p.evaluate(() => { localStorage.removeItem('ysk.dates'); localStorage.removeItem('ysk.plans'); });
   await p.reload();
-  await p.waitForFunction(() => document.getElementById('home-swim-tag').textContent === 'BAĞLANTI YOK');
+  await p.waitForFunction(() => document.getElementById('home-swim-tag').textContent === 'Bağlantı yok');
   assert.match(await p.textContent('#home-swim-meta'), /Bağlantı kurulamadı/);
   await p.click('#home-swim'); await s.waitScreen('days');
   await p.waitForSelector('.banner-err');
@@ -111,7 +111,7 @@ sc('Çevrimdışı ama önbellek var: liste ve program açılır', async ({ laun
 
 sc('Geçersiz anahtar (AUTH): ana sayfa ve takvimde yönlendirme', async ({ launch }) => {
   const s = await launch({ storage: { 'ysk.config': { apiUrl: 'https://script.google.com/macros/s/TEST/exec', token: 'yanlis' } } }); const p = s.page;
-  await p.waitForFunction(() => document.getElementById('home-swim-tag').textContent === 'BAĞLANTI YOK');
+  await p.waitForFunction(() => document.getElementById('home-swim-tag').textContent === 'Bağlantı yok');
   assert.match(await p.textContent('#home-swim-meta'), /anahtar/i);
   await p.click('#home-swim'); await s.waitScreen('days');
   await p.waitForSelector('.banner-err');
@@ -624,9 +624,39 @@ sc('Gezinme: tüm geri tuşları, seanssız ve seanslı dönüş', async ({ laun
   await s.tap(3);
   await p.click('#prog-back'); await s.modalClick('Takvime dön'); await s.waitScreen('days');
   await p.click('#days-back'); await s.waitScreen('home');
-  assert.strictEqual(await p.textContent('#home-swim-tag'), 'DEVAM EDEN SEANS');
-  await p.click('#home-swim'); await s.waitScreen('program');
+  assert.match(await p.textContent('#home-swim-tag'), /^Bugün · Çarşamba 23 Eylül DEVAM EDİYOR$/);
+  assert.strictEqual(await p.textContent('#home-open-text'), 'Seansa devam et');
+  await p.click('#home-swim'); await s.waitScreen('days'); // Takvim seansı sürdürmez, takvimi açar
+  await p.waitForSelector('.banner-live');
+  await p.click('#days-back'); await s.waitScreen('home');
+  await p.click('#home-open'); await s.waitScreen('program');
   assert.deepStrictEqual(await s.events(), ['basla']);
+});
+
+sc('Ana sayfa: Yüzme kartında ilk planlı idman; İdmanı aç doğrudan girer, Takvim takvimi açar', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => /set/.test(document.getElementById('home-swim-meta').textContent));
+  assert.strictEqual(await p.textContent('#home-swim-tag'), 'Bugün · Çarşamba 23 Eylül');
+  assert.match(await p.textContent('#home-swim-meta'), /^\d+ set · [\d.]+ m · \d+:\d\d( · ana set [\d.]+ m)?$/);
+  assert.ok(await p.$('#home-swim-metro svg.metro'), 'blok renkli hat');
+  assert.strictEqual(await p.textContent('#home-open-text'), 'İdmanı aç');
+  assert.strictEqual(await p.$$eval('.home-card .hc-hd .hc-name', (e) => e.map((x) => x.textContent).join(',')), 'Yüzme,Salon');
+  // Bölüm renkleri: Yüzme turkuaz, Salon amber
+  const colors = await p.$$eval('.home-card', (e) => e.map((x) => getComputedStyle(x, '::before').backgroundColor));
+  assert.deepStrictEqual(colors, ['rgb(45, 212, 191)', 'rgb(245, 165, 36)']);
+  await p.click('#home-open'); await s.waitScreen('program');
+  assert.match(await s.title(), /×/);
+  await p.click('#prog-back'); await s.waitScreen('days'); await p.click('#days-back'); await s.waitScreen('home');
+  await p.click('#home-swim'); await s.waitScreen('days');
+  await p.click('#days-back');
+  // Bugünün idmanı bitince yarınki gösterilir
+  await toOzet(s, 1); await p.click('#oz-save'); await s.waitScreen('done'); await p.click('#done-back'); await s.waitScreen('days');
+  await p.click('#days-back'); await s.waitScreen('home');
+  await p.waitForFunction(() => /Yarın/.test(document.getElementById('home-swim-tag').textContent));
+  assert.strictEqual(await p.textContent('#home-swim-tag'), 'Yarın · Perşembe 24 Eylül');
+  await p.click('#home-open'); await s.waitScreen('program');
+  assert.strictEqual((await s.session()).tarih, '2026-09-24');
 });
 
 sc('Seti sıfırla: SET TAMAM\'a dokununca onay; set silinir, yeniden yapılır; diğer setler korunur', async ({ launch }) => {

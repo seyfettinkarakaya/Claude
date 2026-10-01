@@ -11,18 +11,7 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Görsel güncelleme (takvim + ana sayfa birlikte, "uygula" ile):
-- [ ] Takvim sayfası: **B** — nötr koyu zemin ve kartlar (idman ekranı tonları), turkuaz yalnızca
-  seçili gün, BUGÜN etiketi ve "… idmanını aç" düğmesinde; parıltı ve degrade yok
-  (`tasarim/v13/takvim-ornekler.png`, `tasarim/v13/b.css`).
-- [ ] Ana sayfa: **C — renk kodlu kartlar** (`tasarim/v13/ana-sayfa-3-tasarim.png`, sağdaki).
-  - Bölüm renkleri: Yüzme turkuaz, Salon amber (kartın solunda renk şeridi, simge, düğmeler).
-  - Yüzme kartı: takvimdeki ilk planlı idmanın tarihi ("Bugün · Çarşamba 23 Eylül" / "Perşembe 24 Eylül"),
-    blok renkli hat, set · mesafe · süre · ana set. "Sıradaki idman" yazısı ve 01/02 numaraları yok.
-  - İki düğme: **İdmanı aç** (o idmana doğrudan girer) ve **Takvim** (takvim sayfası).
-    Devam eden seans varsa "İdmanı aç" yerine "Seansa devam et". Planlı idman yoksa yalnız Takvim.
-  - Salon kartı: amber, "Yakında".
-  - Zemin, başlık, "Yapılmış idmanlar" ve ayarlar takvimle aynı nötr tonlarda.
+Yeni talepler buraya.
 
 ## 2. Aşama — Orta vade
 
@@ -63,6 +52,10 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 
 ## Tamamlanan
 
+- [x] Sürüm 10.2 (görsel):
+  - Takvim (B): nötr koyu zemin ve kartlar; turkuaz yalnızca seçili gün, BUGÜN ve "… idmanını aç"ta.
+  - Ana sayfa (C): bölüm renkli kartlar (Yüzme turkuaz, Salon amber); Yüzme kartında ilk planlı
+    idman, **İdmanı aç** (doğrudan giriş) ve **Takvim**; devam eden seansta "Seansa devam et".
 - [x] Sürüm 10.1:
   - Büyük düğmenin yazısı düğmeye sığar; gerekirse iki satıra bölünür (İDMANA / BAŞLA).
   - Seti sıfırla: SET TAMAM'a dokununca onay; setin tekrarları silinir, set yeniden yapılır.

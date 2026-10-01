@@ -114,10 +114,13 @@ kısa bir başvuru numarası görünür, ayrıntı Apps Script **Yürütmeler** 
 
 ## Kullanım
 
-**Ana sayfa.** İki büyük düğme: **Yüzme** (sıradaki idmanın kısa bilgisiyle; hafta
-takvimini açar, devam eden seans varsa seansa döner) ve **Salon** (şimdilik pasif,
-"Yakında"). Altta **Yapılmış idmanlar**, üstte ⚙︎ Ayarlar. Devam eden bir seans varsa
-uygulama doğrudan seansa açılır.
+**Ana sayfa.** Her bölüm kendi renginde bir kart: **Yüzme** turkuaz, **Salon** amber
+(şimdilik "Yakında"). Yüzme kartında takvimdeki ilk planlı idmanın tarihi (*Bugün · Çarşamba
+23 Eylül*), günün blok renkli hattı ve set · mesafe · süre · ana set; altında iki düğme:
+**İdmanı aç** o idmana doğrudan girer, **Takvim** hafta takvimini açar. Devam eden seans varsa
+düğme **Seansa devam et** olur; planlı idman yoksa yalnız Takvim görünür. Altta **Yapılmış
+idmanlar**, üstte ⚙︎ Ayarlar. Devam eden bir seans varsa uygulama doğrudan seansa açılır.
+Takvim ve ana sayfa idman ekranıyla aynı nötr koyu tonlardadır; turkuaz yalnızca vurgudur.
 
 **Gün seçimi (hafta takvimi).** Üstte haftanın 7 günü; idman olan günlerde nokta var,
 bugün çerçeveli. Şeridi sağa/sola kaydırınca önceki/sonraki haftaya geçilir; başka

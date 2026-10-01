@@ -1,11 +1,11 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=10.1';
-import { Wheel } from './wheel.js?v=10.1';
-import * as zaman from './zaman.js?v=10.1';
+import * as data from './data.js?v=10.2';
+import { Wheel } from './wheel.js?v=10.2';
+import * as zaman from './zaman.js?v=10.2';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '10.1';
+export const APP_VERSION = '10.2';
 
 const $ = (id) => document.getElementById(id);
 
@@ -49,6 +49,7 @@ const state = {
   weekStart: null,  // gösterilen haftanın pazartesisi
   suppressDayClick: false,
   opening: false,   // program sunucudan yükleniyor (çift dokunmaya karşı)
+  homeNext: null,   // ana sayfadaki "İdmanı aç" düğmesinin açacağı gün
 };
 
 // ---------------------------------------------------------------------------
@@ -562,7 +563,7 @@ function metroSvg(sets) {
     const w = (W * Math.max(1, s.mesafe || 0)) / tot;
     const c = blokRenk(s.blok);
     segs.push(`<line x1="${(x + 2).toFixed(1)}" y1="14" x2="${(x + w - 2).toFixed(1)}" y2="14" stroke="${c}" stroke-width="6" stroke-linecap="round"/>`);
-    dots.push(`<circle cx="${(x + w / 2).toFixed(1)}" cy="14" r="6.5" fill="#061317" stroke="${c}" stroke-width="3.5"/>`);
+    dots.push(`<circle cx="${(x + w / 2).toFixed(1)}" cy="14" r="6.5" fill="#141B23" stroke="${c}" stroke-width="3.5"/>`);
     x += w;
   }
   return `<svg class="metro" viewBox="0 0 ${W} 28" preserveAspectRatio="none" aria-hidden="true">${segs.join('')}${dots.join('')}</svg>`;
@@ -879,32 +880,55 @@ function renderHome() {
   const today = todayKey();
   $('home-date').textContent = `${GUNLER[now.getDay()]}, ${now.getDate()} ${AYLAR[now.getMonth()]}`;
 
-  let tag = '';
+  // Yüzme kartı: ilk planlı idman (ya da devam eden seans) ve iki düğme: İdmanı aç · Takvim.
+  let when = '';
   let meta = '';
+  let sets = null;
+  let open = '';
+  state.homeNext = null;
   const s = state.session;
+  const whenOf = (k) => {
+    const dt = parseKey(k);
+    const date = `${GUNLER[dt.getDay()]} ${dt.getDate()} ${AYLAR[dt.getMonth()]}`;
+    if (k === today) return `Bugün <span>· ${date}</span>`;
+    if (k === addDays(today, 1)) return `Yarın <span>· ${date}</span>`;
+    return `${GUNLER[dt.getDay()]} <span>· ${dt.getDate()} ${AYLAR[dt.getMonth()]}</span>`;
+  };
+  const metaOf = (d, list) => {
+    const hs = hedefSureOf(d);
+    const ms = list ? list.filter((x) => String(x.blok).trim().toUpperCase() === 'MS').reduce((acc, x) => acc + (x.mesafe || 0), 0) : 0;
+    return `${d.setSayisi} set · ${fmtNum(d.toplamMesafe)} m${hs ? ` · ${fmtDur(hs)}` : ''}${ms ? ` · ana set ${fmtNum(ms)} m` : ''}`;
+  };
   if (s) {
-    tag = 'DEVAM EDEN SEANS';
-    meta = `${fmtDateTR(s.tarih)}${sessionStarted(s) ? ' · başladı' : ''}`;
+    const plan = state.plan || data.getCachedPlan(s.tarih);
+    when = `${whenOf(s.tarih)} <em>DEVAM EDİYOR</em>`;
+    if (plan) {
+      sets = plan.setler.map((x) => ({ blok: x.blok, mesafe: setDist(x) }));
+      meta = `${plan.setler.length} set · ${fmtNum(sets.reduce((a, x) => a + x.mesafe, 0))} m${sessionStarted(s) ? ' · başladı' : ''}`;
+    }
+    open = 'Seansa devam et';
   } else if (!state.dates && state.datesInfo.loading) {
     meta = 'Yükleniyor…';
   } else if (!state.dates && state.datesInfo.error) {
-    tag = 'BAĞLANTI YOK';
+    when = 'Bağlantı yok';
     meta = state.datesInfo.error.message;
   } else {
     const next = visibleDates().filter((d) => d.tarih >= today).sort((a, b) => (a.tarih < b.tarih ? -1 : 1))[0];
     if (next) {
-      const dt = parseKey(next.tarih);
-      const when = next.tarih === today ? 'BUGÜN' : `${dt.getDate()} ${AYLAR[dt.getMonth()]} ${GUNLER[dt.getDay()]}`.toLocaleUpperCase('tr');
-      const hs = hedefSureOf(next);
-      tag = `SIRADAKİ · ${when}`;
-      meta = `${next.setSayisi} set · ${fmtNum(next.toplamMesafe)} m${hs ? ` · ${fmtDur(hs)}` : ''}`;
+      sets = previewSets(next);
+      when = whenOf(next.tarih);
+      meta = metaOf(next, sets);
+      open = 'İdmanı aç';
+      state.homeNext = next.tarih;
     } else {
-      tag = 'PLAN YOK';
-      meta = 'Planlanmış idman yok';
+      when = 'Planlanmış idman yok';
     }
   }
-  $('home-swim-tag').textContent = tag;
+  $('home-swim-tag').innerHTML = when;
+  $('home-swim-metro').innerHTML = sets ? metroSvg(sets) : '';
   $('home-swim-meta').textContent = meta;
+  $('home-open').hidden = !open;
+  $('home-open-text').textContent = open || 'İdmanı aç';
 
   const n = data.getHistory().length;
   const q = data.getQueue().length;
@@ -2162,7 +2186,11 @@ function wire() {
   });
 
   $('home-settings').addEventListener('click', () => showSetup(true));
-  $('home-swim').addEventListener('click', () => (state.session ? resumeSession() : showDays()));
+  $('home-swim').addEventListener('click', () => showDays());
+  $('home-open').addEventListener('click', () => {
+    if (state.session) resumeSession();
+    else if (state.homeNext) openDate(state.homeNext);
+  });
   $('home-gym').addEventListener('click', () => toast('Salon bölümü yakında.'));
   $('home-history').addEventListener('click', showHistory);
   $('hist-back').addEventListener('click', () => showHome());

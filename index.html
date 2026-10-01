@@ -18,9 +18,9 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="fonts/fonts.css?v=10.1">
-  <link rel="stylesheet" href="style.css?v=10.1">
-  <script type="module" src="app.js?v=10.1"></script>
+  <link rel="stylesheet" href="fonts/fonts.css?v=10.2">
+  <link rel="stylesheet" href="style.css?v=10.2">
+  <script type="module" src="app.js?v=10.2"></script>
 </head>
 <body>
 
@@ -74,22 +74,21 @@
     <div class="scroll pad">
       <p class="home-date" id="home-date"></p>
       <h2 class="home-title">Bugün ne<br>çalışıyoruz?</h2>
-      <button class="home-card swim" id="home-swim">
-        <span class="hc-top">
-          <span class="hc-ic"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="16.5" cy="6" r="1.8"/><path d="M5 11l4-3 3 2.5 3-3"/><path d="M3 15c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1"/><path d="M3 19c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1"/></svg></span>
-          <span class="hc-go"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-        </span>
-        <svg class="hc-waves" viewBox="0 0 300 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 30 q37 -30 75 0 t75 0 t75 0 t75 0" stroke="#2DD4BF"/><path d="M0 62 q37 -30 75 0 t75 0 t75 0 t75 0" stroke="#38BDF8"/><path d="M0 94 q37 -30 75 0 t75 0 t75 0 t75 0" stroke="#34D399"/></svg>
-        <b class="hc-name">Yüzme</b>
-        <small class="hc-tag" id="home-swim-tag"></small>
-        <span class="hc-meta" id="home-swim-meta"></span>
-      </button>
+      <div class="home-card swim">
+        <div class="hc-hd"><span class="hc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="16.5" cy="6" r="1.8"/><path d="M5 11l4-3 3 2.5 3-3"/><path d="M3 15c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1"/><path d="M3 19c1.5 0 1.5 1 3 1s1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1"/></svg></span><b class="hc-name">Yüzme</b></div>
+        <div class="hc-next">
+          <div class="hc-when" id="home-swim-tag"></div>
+          <div id="home-swim-metro"></div>
+          <div class="hc-meta" id="home-swim-meta"></div>
+        </div>
+        <div class="hc-btns">
+          <button class="hc-open" id="home-open" hidden><svg width="20" height="20" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg><span id="home-open-text">İdmanı aç</span></button>
+          <button class="hc-cal" id="home-swim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Takvim</button>
+        </div>
+      </div>
       <button class="home-card gym" id="home-gym" aria-disabled="true">
-        <span class="hc-top">
-          <span class="hc-ic"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span>
-          <span class="hc-soon">YAKINDA</span>
-        </span>
-        <b class="hc-name">Salon</b>
+        <span class="hc-hd"><span class="hc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span><b class="hc-name">Salon</b><span class="hc-soon">YAKINDA</span></span>
+        <span class="hc-desc">Kuvvet ve mobilite programları burada olacak.</span>
       </button>
       <button class="home-row" id="home-history">
         <span><b>Yapılmış idmanlar</b><small id="home-history-meta"></small></span>
