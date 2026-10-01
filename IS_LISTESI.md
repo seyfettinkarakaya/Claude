@@ -15,9 +15,9 @@ Sürüm 10.1 (bekliyor, "uygula" ile):
 - [ ] Büyük düğmede "İDMANA BAŞLA" yazısı düğmeye sığmıyor: yazı boyu düğme genişliğine göre küçülsün.
 - [ ] Seti sıfırla: tamamlanan / eksik bir sette (düğme "SET TAMAM" iken) düğmeye dokununca
   "Bu seti sıfırla?" sorulur; onaylanırsa o setin tüm tekrarları silinir, set yeniden yapılabilir.
-- [ ] İdmanı sıfırla: ‹ panelinde "İdmanı sıfırla (baştan)" seçeneği; onayla tüm kayıtlar silinir,
-  idman İDMANA BAŞLA durumuna döner (program aynı kalır).
-- [ ] Kayıttan sonra (Kaydedildi → geri) bir sonraki idmana değil, takvimde bugüne dönülsün.
+- [ ] RPE ekranındaki ‹ idman ekranına değil takvime, bugün seçili olarak döner (seans sürer;
+  takvimdeki "devam" seansı RPE'den açar). Son adımı geri almak için 5 sn'lik "İdmana dön" kalır.
+- [ ] Kaydedildi → geri de bir sonraki idmana değil, takvimde bugüne döner.
 
 ## 2. Aşama — Orta vade
 
