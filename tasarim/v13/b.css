@@ -1,0 +1,16 @@
+/* B: Nötr zemin, turkuaz yalnızca seçili gün ve düğmede */
+.days { --d-card:#12181F; --d-line:#1E2731; --d-muted:#7A8694; background:#0B0F14; }
+.days-brand { background:none; color:#EDEFF2; }
+.days-top .icon-btn { color:#EDEFF2; }
+.wd { background:#12181F; border-color:#1E2731; }
+.wd small { color:#7A8694; }
+.wd.has i { background:#7A8694; }
+.wd.today { border-color:#7A8694; }
+.wd.on { background:#2DD4BF; }
+.hero { border-color:#2A3440; background:#141B23; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+.hero-time, .hero-date span { color:#9AA5B1; }
+.hero-stats div { background:#0B0F14; }
+.dr-meta { color:#9AA5B1; }
+.wk-today { border-color:#7A8694; color:#EDEFF2; }
+.days-cta { background:#2DD4BF; box-shadow:none; }
+.days .bottom-bar { background:linear-gradient(transparent, #0B0F14 30%); }

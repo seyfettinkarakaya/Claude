@@ -1,0 +1,17 @@
+/* C: Gri-mavi gece; vurgu beyaz, renk yalnızca blok renklerinden */
+.days { --t-blue:#EDEFF2; --t-teal:#EDEFF2; --t-green:#EDEFF2; --d-card:#141A22; --d-line:#222B36; --d-muted:#8592A1; background:radial-gradient(520px 420px at 85% -5%, rgba(120,140,170,.14), transparent 70%), #0C1118; }
+.days-brand { background:none; color:#EDEFF2; }
+.days-top .icon-btn { color:#EDEFF2; }
+.wd { background:#141A22; border-color:#222B36; }
+.wd small { color:#8592A1; }
+.wd.has i { background:#FB923C; }
+.wd.on { background:#EDEFF2; color:#0C1118; }
+.wd.on small { color:#4A5563; }
+.wd.on.has i { background:#F97316; }
+.hero { border-color:rgba(251,146,60,.55); background:linear-gradient(160deg, rgba(251,146,60,.12), transparent 60%), #151B23; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+.hero-pill { background:#FB923C; color:#1A0E04; }
+.hero-time, .hero-date span { color:#C3CCD6; }
+.hero-stats div { background:#0C1118; }
+.dr-meta { color:#A3AEBB; }
+.days-cta { background:#EDEFF2; color:#0C1118; box-shadow:0 12px 34px rgba(0,0,0,.4); }
+.days .bottom-bar { background:linear-gradient(transparent, #0C1118 30%); }
