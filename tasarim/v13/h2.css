@@ -1,0 +1,9 @@
+/* 2: Nötr kart, dalgalar idmanın blok renkleri (ısınma → ana set → soğuma) */
+.home-card.swim { border:1px solid #2A3440; background:#141B23; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+.hc-ic { background:#1C242E; color:#EDEFF2; }
+.hc-go { background:#EDEFF2; color:#0B0F14; }
+.hc-waves { opacity:.32; }
+.home-card.swim .hc-tag { color:#C3CCD6; }
+.hc-waves path:nth-child(1) { stroke:#3B82F6; }
+.hc-waves path:nth-child(2) { stroke:#F97316; }
+.hc-waves path:nth-child(3) { stroke:#FACC15; }

@@ -11,7 +11,12 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Yeni talepler buraya.
+Görsel güncelleme (ana sayfa seçimi bekleniyor; ikisi birlikte uygulanacak):
+- [ ] Takvim sayfası: **B** — nötr koyu zemin ve kartlar (idman ekranı tonları), turkuaz yalnızca
+  seçili gün, BUGÜN etiketi ve "… idmanını aç" düğmesinde; parıltı ve degrade yok
+  (`tasarim/v13/takvim-ornekler.png`, `tasarim/v13/b.css`).
+- [ ] Ana sayfa: 1 / 2 / 3'ten biri (`tasarim/v13/ana-sayfa-ornekler.png`). Takvimle aynı nötr zemin;
+  başlıklar beyaz; "Yapılmış idmanlar" ve ayarlar da aynı tonlara geçer.
 
 ## 2. Aşama — Orta vade
 

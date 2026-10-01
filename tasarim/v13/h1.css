@@ -1,0 +1,7 @@
+/* 1: Nötr kart, turkuaz yalnız simge ve ok düğmesinde */
+.home-card.swim { border:1px solid #2A3440; background:#141B23; box-shadow:0 20px 50px rgba(0,0,0,.35); }
+.hc-ic { background:rgba(45,212,191,.14); color:#2DD4BF; }
+.hc-go { background:#2DD4BF; color:#032024; }
+.hc-waves { opacity:.18; }
+.hc-waves path { stroke:#9AA5B1; }
+.home-card.swim .hc-tag { color:#2DD4BF; }
