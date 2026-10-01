@@ -11,12 +11,18 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Görsel güncelleme (ana sayfa seçimi bekleniyor; ikisi birlikte uygulanacak):
+Görsel güncelleme (takvim + ana sayfa birlikte, "uygula" ile):
 - [ ] Takvim sayfası: **B** — nötr koyu zemin ve kartlar (idman ekranı tonları), turkuaz yalnızca
   seçili gün, BUGÜN etiketi ve "… idmanını aç" düğmesinde; parıltı ve degrade yok
   (`tasarim/v13/takvim-ornekler.png`, `tasarim/v13/b.css`).
-- [ ] Ana sayfa: 1 / 2 / 3'ten biri (`tasarim/v13/ana-sayfa-ornekler.png`). Takvimle aynı nötr zemin;
-  başlıklar beyaz; "Yapılmış idmanlar" ve ayarlar da aynı tonlara geçer.
+- [ ] Ana sayfa: **C — renk kodlu kartlar** (`tasarim/v13/ana-sayfa-3-tasarim.png`, sağdaki).
+  - Bölüm renkleri: Yüzme turkuaz, Salon amber (kartın solunda renk şeridi, simge, düğmeler).
+  - Yüzme kartı: takvimdeki ilk planlı idmanın tarihi ("Bugün · Çarşamba 23 Eylül" / "Perşembe 24 Eylül"),
+    blok renkli hat, set · mesafe · süre · ana set. "Sıradaki idman" yazısı ve 01/02 numaraları yok.
+  - İki düğme: **İdmanı aç** (o idmana doğrudan girer) ve **Takvim** (takvim sayfası).
+    Devam eden seans varsa "İdmanı aç" yerine "Seansa devam et". Planlı idman yoksa yalnız Takvim.
+  - Salon kartı: amber, "Yakında".
+  - Zemin, başlık, "Yapılmış idmanlar" ve ayarlar takvimle aynı nötr tonlarda.
 
 ## 2. Aşama — Orta vade
 
