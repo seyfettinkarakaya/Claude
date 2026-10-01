@@ -156,6 +156,18 @@ test('nextUnstarted sarar; hepsi başlandıysa -1', () => {
   assert.equal(Z.nextUnstarted(st2, 0), -1);
 });
 
+test('seti sıfırla: o setin ÇIK/GELDİM çiftleri silinir, diğerleri ve damgalar korunur', () => {
+  const ev = E(['basla', 0], ['cik', 1, 0], ['geldim', 60], ['cik', 80, 1], ['geldim', 180], ['cik', 200, 0], ['geldim', 260]);
+  const out = Z.withoutSet(ev, 0);
+  assert.deepEqual(out.map((e) => e.t + (e.set ?? '')), ['basla', 'cik1', 'geldim']);
+  assert.equal(out[2].ts, 180 * S);
+  const st = Z.replay(out, SETS);
+  assert.equal(Z.setStatus(st, 0, 4), 'bekliyor');
+  assert.equal(Z.doneReps(st, 1), 1);
+  assert.deepEqual(Z.mainAction(st, SETS, 0), { kind: 'cik', set: 0, rep: 1, closes: { set: 1, done: 1, tekrar: 2 } });
+  assert.deepEqual(Z.withoutSet(ev, 2), ev, 'başlanmamış set: değişiklik yok');
+});
+
 test('ortanca', () => {
   assert.equal(Z.median([3, 1, 2]), 2);
   assert.equal(Z.median([4, 1, 2, 3]), 2.5);

@@ -165,3 +165,23 @@ export function beepMark(remSec) {
   if (remSec > 3 || remSec <= -1.5) return null;
   return remSec > 0 ? Math.ceil(remSec) : 0;
 }
+
+/**
+ * Bir setin tüm tekrarlarını siler (seti sıfırla): o setin ÇIK olayları ve her birini
+ * izleyen GELDİM kaldırılır. Diğer setlerin olayları ve zaman damgaları değişmez.
+ */
+export function withoutSet(events, i) {
+  const out = [];
+  let skip = false;
+  for (const e of events) {
+    if (e.t === 'cik') {
+      skip = e.set === i;
+      if (skip) continue;
+    } else if (e.t === 'geldim' && skip) {
+      skip = false;
+      continue;
+    }
+    out.push(e);
+  }
+  return out;
+}

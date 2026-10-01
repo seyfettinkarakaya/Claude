@@ -951,7 +951,9 @@ button {
 .dock { grid-template-columns: 76px minmax(0, 1fr) 76px; }
 .dock-side { height: 124px; font-size: 12px; }
 .dock-main { height: 124px; flex-direction: column; gap: 4px; border-radius: 28px; }
-.dock-main b { font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: 0.5px; }
+.dock-main { padding: 0 12px; }
+.dock-main b.is-wrap { white-space: normal; line-height: 0.95; text-align: center; }
+.dock-main b { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; font-size: 40px; font-weight: 800; line-height: 1; letter-spacing: 0.5px; }
 .dock-main small { font-size: 14px; font-weight: 800; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .dock-main.is-geldim { background: #EDEFF2; box-shadow: none; }
 .dock-main.is-idle { background: #16202B; color: var(--muted); box-shadow: none; }

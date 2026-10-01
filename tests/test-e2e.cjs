@@ -166,7 +166,12 @@ const server = http.createServer((req, res) => {
   };
   // Tek zamanlayıcı: büyük düğme İDMANA BAŞLA → ÇIK → GELDİM; süreler dokunuş zamanlarından
   const label = () => page.textContent('#btn-main-label');
-  const tap = async (sec) => { await page.click('#btn-main'); if (sec) { await page.clock.fastForward(sec * 1000); await page.clock.runFor(250); } };
+  const adv = async (sec) => { // sahte saat fastForward'u ara sıra uygulamıyor: ilerleyene dek tekrar
+    const want = sec * 1000; const t0 = await page.evaluate(() => Date.now());
+    for (let k = 0; k < 5; k++) { const done = (await page.evaluate(() => Date.now())) - t0; if (done >= want - 20) break; await page.clock.fastForward(want - done); }
+    await page.clock.runFor(250);
+  };
+  const tap = async (sec) => { await page.$eval('#btn-main', b => b.click()); if (sec) await adv(sec); };
   const activeTitle = () => page.$eval('.w-item.is-active .w-title', e => e.firstChild.textContent.trim());
   // İdman başlamadan tekerlek serbest: sürükleyerek 3 set aşağı kaydır (atalet dahil)
   const wb = await page.$eval('#wheel', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width/2, y: r.y + r.height/2 }; });
@@ -252,8 +257,14 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(env.sheets.arsiv.data.length, 9);
 
   // Çevrimdışı: kuyruk
+  // Kayıttan sonra sıradaki idmana değil, takvimde bugüne dönülür
   await page.click('#done-back');
-  await page.waitForFunction(() => /24 Eylül/.test(document.getElementById('days-hero').textContent) && !document.getElementById('days-today-bar').hidden);
+  await page.waitForSelector('#screen-days:not([hidden])');
+  await page.waitForFunction(() => /23 Eylül/.test(document.getElementById('days-hero').textContent));
+  assert.match(await heroText(), /Bu gün için plan yok/);
+  assert.ok(await page.isHidden('#days-today-bar'));
+  await page.click('.day-row[data-tarih="2026-09-24"]');
+  await page.waitForFunction(() => !document.getElementById('days-today-bar').hidden);
   await page.click('#days-today-btn');
   await page.waitForSelector('#screen-program:not([hidden]) .w-item.is-active');
   await tap(3); await tap(60); // başla, ÇIK
@@ -262,7 +273,7 @@ const server = http.createServer((req, res) => {
   await page.waitForSelector('#screen-program:not([hidden]) .w-item.is-active');
   assert.strictEqual(await activeTitle(), '1 × 400');
   assert.strictEqual(await label(), 'GELDİM');
-  await page.clock.fastForward(300000); await page.clock.runFor(250);
+  await adv(300);
   await page.click('#btn-main'); // son setin son GELDİM'i idmanı bitirir
   await page.waitForSelector('#screen-rpe:not([hidden])');
   await page.click('#rpe-grid button[data-v="5"]');
@@ -340,7 +351,7 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
   await page.click('#days-back');
   await page.waitForSelector('#screen-home:not([hidden])');
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10.1');
   assert.match(await page.textContent('#home-history-meta'), /^3 kayıt$/);
 
   // Toplu silme: yalnızca telefondaki kopyalar gider

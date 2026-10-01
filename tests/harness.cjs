@@ -85,8 +85,22 @@ function helpers(page) {
     /** Aktif kartın başlığı (stil·tür eki olmadan): "4 × 100" */
     title: () => page.$eval('.w-item.is-active .w-title', (e) => e.firstChild.textContent.trim()),
     /** Büyük düğmeye dokunur, sonra saati sec saniye ilerletir (2 sn korumasını aşmak için). */
-    async tap(sec = 0) { await page.click('#btn-main'); if (sec) { await page.clock.fastForward(sec * 1000); await page.clock.runFor(250); } },
-    async adv(sec) { await page.clock.fastForward(sec * 1000); await page.clock.runFor(250); },
+    // Büyük düğmeye basış sayfa içinde eşzamanlı yapılır: Playwright'ın fare tıklaması sahte saatle
+    // birlikte ara sıra saat ileri alındıktan sonra işleniyor ve olayın zaman damgası kayıyordu.
+    async press() { await page.$eval('#btn-main', (b) => b.click()); },
+    async tap(sec = 0) { await h.press(); if (sec) await h.adv(sec); },
+    // Playwright'ın sahte saati fastForward'u ara sıra uygulamıyor (sayfa saati ilerlemiyor):
+    // sayfanın gördüğü zaman istenen kadar ilerleyene dek tekrar edilir.
+    async adv(sec) {
+      const want = sec * 1000;
+      const t0 = await page.evaluate(() => Date.now());
+      for (let k = 0; k < 5; k++) {
+        const done = (await page.evaluate(() => Date.now())) - t0;
+        if (done >= want - 20) break;
+        await page.clock.fastForward(want - done);
+      }
+      await page.clock.runFor(250);
+    },
     label: () => page.textContent('#btn-main-label'),
     sub: () => page.textContent('#btn-main-sub'),
     events: () => page.evaluate(() => JSON.parse(localStorage.getItem('ysk.session')).events.map((e) => e.t + (e.set != null ? e.set : ''))),

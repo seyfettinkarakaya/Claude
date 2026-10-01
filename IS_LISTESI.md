@@ -11,11 +11,7 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Sürüm 10.1 (bekliyor, "uygula" ile):
-- [ ] Büyük düğmede "İDMANA BAŞLA" yazısı düğmeye sığmıyor: yazı boyu düğme genişliğine göre küçülsün.
-- [ ] Seti sıfırla: tamamlanan / eksik bir sette (düğme "SET TAMAM" iken) düğmeye dokununca
-  "Bu seti sıfırla?" sorulur; onaylanırsa o setin tüm tekrarları silinir, set yeniden yapılabilir.
-- [ ] Kaydedildi → geri de bir sonraki idmana değil, takvimde bugüne döner.
+Yeni talepler buraya.
 
 ## 2. Aşama — Orta vade
 
@@ -56,6 +52,11 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 
 ## Tamamlanan
 
+- [x] Sürüm 10.1:
+  - Büyük düğmenin yazısı düğmeye sığar; gerekirse iki satıra bölünür (İDMANA / BAŞLA).
+  - Seti sıfırla: SET TAMAM'a dokununca onay; setin tekrarları silinir, set yeniden yapılır.
+  - Kayıttan sonra takvimde bugüne dönülür (sıradaki idman seçilmez).
+  - Testler: sahte saatin ara sıra ilerlememesinden kaynaklanan kararsızlık giderildi.
 - [x] Sürüm 10 — zamanlama modeli (`ZAMANLAMA.md`):
   - `zaman.js`: olay listesinden tekrar/dinlenme/set sonu süreleri; birim testleri.
   - Tek büyük düğme İDMANA BAŞLA → ÇIK → GELDİM; tekrar kutucukları, büyük saat (eksiye kırmızı),

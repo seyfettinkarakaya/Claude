@@ -158,6 +158,9 @@ Lock; desteklenmiyorsa sessizce devam eder). Kartın altında hedefin **100 m te
 - **Seti erken bitirmek:** dinlenirken başka sete kaydırın; kart hangi setin kaç tekrarla
   kapanacağını yazar, ÇIK'a basınca önceki set n/N olarak kapanır. Geri kaydırmak vazgeçer.
 - **İdmanı erken bitirmek:** ‹ → *İdmanı bitir ve kaydet* / *Devam et* / *Takvime dön (idman sürer)*.
+- **Seti sıfırla:** tamamlanan sette düğme *SET TAMAM* olur; dokununca onay sorulur, onaylanırsa
+  o setin tekrarları silinir ve set yeniden yapılabilir (diğer setler etkilenmez).
+- Kayıttan sonra *Kaydedildi* ekranından geri dönünce takvim bugün seçili açılır.
 
 **Tempo ve CSS bölgeleri.** Ayarlar'da CSS (kritik yüzme hızı, 100 m için `dd:ss`,
 varsayılan 1:57) girilir. Bölgeler 100 m temposunun CSS'ten farkına göredir:

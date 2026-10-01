@@ -1,11 +1,11 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=10';
-import { Wheel } from './wheel.js?v=10';
-import * as zaman from './zaman.js?v=10';
+import * as data from './data.js?v=10.1';
+import { Wheel } from './wheel.js?v=10.1';
+import * as zaman from './zaman.js?v=10.1';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '10';
+export const APP_VERSION = '10.1';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1370,6 +1370,25 @@ function fitText(el, max = 54, min = 30) {
   }
 }
 
+/** Büyük düğmenin yazısı düğmeye sığacak kadar küçülür (İDMANA BAŞLA dar ekranda taşıyordu). */
+function fitMainLabel() {
+  const el = $('btn-main-label');
+  if (!el) return;
+  delete el.dataset.fit;
+  if (!el.clientWidth) return; // ekran gizli: görününce yeniden denenir
+  const max = innerWidth <= 380 ? 34 : 40;
+  el.classList.remove('is-wrap');
+  fitText(el, max, 30);
+  // Tek satırda büyük kalamıyorsa iki satıra bölünür (İDMANA / BAŞLA).
+  if (el.scrollWidth > el.clientWidth + 1 && el.textContent.includes(' ')) {
+    el.classList.add('is-wrap');
+    fitText(el, max, 16);
+  } else if (el.scrollWidth > el.clientWidth + 1) {
+    fitText(el, 30, 16);
+  }
+  el.dataset.fit = '1';
+}
+
 function fitHeader() {
   document.querySelectorAll('#screen-program .prog-stat b.fit').forEach((el) => fitText(el));
 }
@@ -1453,7 +1472,11 @@ function updateControls() {
     const set = state.plan.setler[a.set];
     sub = st.cur === a.set || st.phase === 'ready' ? `${a.rep}. tekrar başlar` : `${setTitle(set)} ${set.tur || ''} · ${a.rep}. tekrar`.replace(/\s+·/, ' ·');
   } else { label = 'SET TAMAM'; sub = 'Kaydırıp başka sete geç'; }
-  $('btn-main-label').textContent = label;
+  const lab = $('btn-main-label');
+  if (lab.textContent !== label || !lab.dataset.fit) {
+    lab.textContent = label;
+    fitMainLabel();
+  }
   $('btn-main-sub').textContent = sub;
   btn.classList.toggle('is-geldim', a.kind === 'geldim');
   btn.classList.toggle('is-idle', a.kind === 'yok');
@@ -1475,6 +1498,7 @@ function stopTicker() {
 function tick() {
   const s = state.session;
   if (!s || !state.plan || state.screen !== 'program') return;
+  if (!$('btn-main-label').dataset.fit) fitMainLabel();
   const now = Date.now();
   const st = zst();
   const clock = $('prog-clock');
@@ -1565,7 +1589,7 @@ function onMainButton() {
   audio.unlock();
   const a = zaman.mainAction(st, state.plan.setler, state.wheel.index);
   if (a.kind === 'yok') {
-    toast('Bu set tamamlandı. Başka bir sete kaydırın.');
+    if (a.set != null) askResetSet(a.set);
     return;
   }
   if (a.kind === 'basla') pushEvent({ t: 'basla', ts: now });
@@ -1588,6 +1612,28 @@ function onMainButton() {
     }
   }
   afterEvent();
+}
+
+/** Tamamlanan seti sıfırlar: o setin ÇIK/GELDİM olayları silinir, set yeniden yapılabilir. */
+async function askResetSet(i) {
+  const set = state.plan.setler[i];
+  const st = zst();
+  const choice = await modal({
+    title: 'Bu seti sıfırla?',
+    body: `<p>${esc(setTitle(set))} · ${zaman.doneReps(st, i)}/${tekrarOf(set)} tekrar. Tekrar süreleri silinir, set yeniden yapılabilir.</p>`,
+    actions: [
+      { label: 'Seti sıfırla', value: 'sifirla', cls: 'btn-primary' },
+      { label: 'Vazgeç', value: '' },
+    ],
+  });
+  if (choice !== 'sifirla' || !state.session || zst().phase === 'swim') return;
+  state.session.events = zaman.withoutSet(ev(), i);
+  state.zst = null;
+  persist();
+  afterEvent();
+  state.wheel.scrollTo(i, false);
+  updateProgram();
+  toast('Set sıfırlandı');
 }
 
 function afterEvent() {
@@ -2149,7 +2195,14 @@ function wire() {
   $('ed-sheet-body').addEventListener('click', onEditClick);
   $('ed-dim').addEventListener('click', closeEdit);
 
-  $('done-back').addEventListener('click', () => showDays());
+  $('done-back').addEventListener('click', () => {
+    // Kayıttan sonra sıradaki idmana değil, takvimde bugüne dönülür.
+    const today = todayKey();
+    state.selDate = today;
+    state.weekStart = mondayOf(today);
+    state.selKeep = true;
+    showDays();
+  });
   // iOS: ses bağlamı yalnızca bir dokunuşla açılabilir.
   document.addEventListener('pointerdown', () => { if (prefs().ses) audio.unlock(); }, { capture: true, passive: true });
   $('app-version').textContent = `Sürüm ${APP_VERSION}`;
@@ -2157,7 +2210,7 @@ function wire() {
   if (document.fonts && document.fonts.ready) {
     document.fonts.ready.then(() => {
       if (state.wheel) state.wheel.layout();
-      if (state.screen === 'program') fitHeader();
+      if (state.screen === 'program') { fitHeader(); fitMainLabel(); }
     });
   }
 
