@@ -30,7 +30,7 @@ Sürüm 10.5 (bekliyor, "uygula" ile):
 > sporRef'in her birine kendi `@OnlyCurrentDoc` Apps Script'i (3 adres + anahtar); betikler yalnızca kendi
 > dosyasını görür.
 
-- [ ] **Yüzme idmanını idman anında değiştir / ekle / sil** (kararlar verildi): karta dokun →
+- [ ] **Yüzme idmanını idman anında değiştir / ekle / sil** (kararlar verildi; eski F.8 bu maddeye katıldı): karta dokun →
   ayrıntı panelinde Düzenle / Sonrasına set ekle / Sil; dinlenirken "+1 tekrar"; yüzerken kapalı;
   eklenen ve değişen setler tabloya planla farkı notuyla yazılır (Code.gs değişir).
   - Karar: planla fark Not sütununa yazılır ("Plan: 4×100 → 6×100", "idmanda eklendi").
@@ -44,6 +44,7 @@ Sürüm 10.5 (bekliyor, "uygula" ile):
 - [ ] **sporRef'ten referans verileri** (öneri, karar bekliyor): CSS (tarih aralığı + alet + havuz), 7 bölge
   (SP3–REC, CSS'e göre sn/100 m) ve HR bölgeleri, max nabız, faz bilgisi, RPE/MSI açıklamaları, kısaltmalar.
   Şu an CSS Ayarlar'dan elle (varsayılan 1:57), bölgeler uygulamada sabit Z1–Z5 — sporRef ile uyumsuz.
+  3'lü yapı kararıyla sporRef kendi betiğinden okunur (salt okuma).
 
 - [ ] **Salon modülü** (öneri, karar bekliyor): SalonTakip tablosu (`idman` sayfası) ile çalışan salon idmanı.
   Ayrıntı: sohbetteki öneri; kararlar: plan kaynağı (Plan sayfası / son idmanı tekrarla), ayrı Apps Script,
@@ -54,7 +55,6 @@ Sürüm 10.5 (bekliyor, "uygula" ile):
 - [ ] **F.3** Set başına kulaç sayısı / nabız girişi (isteğe bağlı alanlar).
 - [ ] İdman sırasında ağrı (MSI) kaydı — menü kaldırıldığı için Sürüm 10'da yok; yeri sonra konuşulacak.
 - [ ] **F.7** Service worker: uygulama dosyaları önbellekte, internet yokken de açılır.
-- [ ] **F.8** Uygulama içinde plan düzeltme (tekrar, mesafe, hedef) ve tabloya yazma.
 
 ### Görsel
 
