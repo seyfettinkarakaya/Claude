@@ -26,6 +26,10 @@ Sürüm 10.5 (bekliyor, "uygula" ile):
 
 ### İşlev
 
+- [ ] **Salon modülü** (öneri, karar bekliyor): SalonTakip tablosu (`idman` sayfası) ile çalışan salon idmanı.
+  Ayrıntı: sohbetteki öneri; kararlar: plan kaynağı (Plan sayfası / son idmanı tekrarla), ayrı Apps Script,
+  set ayrıntısının saklanması.
+
 - [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
 - [ ] **F.3** Set başına kulaç sayısı / nabız girişi (isteğe bağlı alanlar).
