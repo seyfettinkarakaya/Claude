@@ -1165,3 +1165,10 @@ button {
 .w-plus { align-self: flex-start; margin-top: 8px; min-height: 44px; padding: 6px 14px; border-radius: 14px; border: 1.5px solid rgba(56, 189, 248, 0.6); background: transparent; color: #7DD3FC; font-size: 17px; font-weight: 800; }
 .toast:has(.toast-act) { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
 .toast-act { flex: none; min-height: 44px; padding: 6px 14px; border-radius: 12px; border: 0; background: #001018; color: #F6D35E; font-size: 18px; font-weight: 800; }
+
+/* --- sürüm 10.5: metin boyu alana uyar --------------------------------------- */
+/* Hazır/sıradaki kartta açıklama başlık ile kutular arasındaki sabit alanı doldurur;
+   yazı boyunu fitCardText belirler. Alt sınırda da sığmazsa son satır "…" ile biter. */
+.w-item.m-ready .w-desc, .w-item.m-next .w-desc { flex: 1 1 0; min-height: 0; overflow: hidden; }
+.is-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--clamp, 3); overflow: hidden; }
+.hero-date, .dr-meta, .hc-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

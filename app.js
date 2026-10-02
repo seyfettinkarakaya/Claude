@@ -806,6 +806,7 @@ function renderDays() {
     $('days-cta-text').textContent = s && s.tarih === sel ? 'Seansa devam et'
       : (sel === today ? 'Bugünün idmanını aç' : `${selDt.getDate()} ${AYLAR[selDt.getMonth()]} idmanını aç`);
   }
+  fitListLines();
 }
 
 function selectDay(k, keepWeek = true) {
@@ -1018,6 +1019,7 @@ function renderHome() {
   const n = data.getHistory().length;
   const q = data.getQueue().length;
   $('home-history-meta').textContent = (n ? `${n} kayıt` : 'Henüz kayıt yok') + (q ? ` · ${q} gönderilmeyi bekliyor` : '');
+  fitListLines();
 }
 
 // ---------------------------------------------------------------------------
@@ -1477,7 +1479,7 @@ function openProgram() {
 
   if (!state.wheel) {
     state.wheel = new Wheel($('wheel'), {
-      onLayout: () => fitAllCards(),
+      onLayout: () => { fitAllCards(); refitSoon(); },
       onChange: (i) => {
         if (!state.session || !state.plan) return;
         const prev = state.session.pos;
@@ -1499,42 +1501,111 @@ function openProgram() {
     return node;
   });
   state.wheel.setItems(nodes, state.session.pos || 0);
+  refitSoon();
   updateAmbient(state.wheel.index);
   updateProgram();
   startTicker();
 }
 
-/** Uzun açıklama kartı taşırırsa açıklama yazısı kademeli küçülür; kesilmez. */
+// ---------------------------------------------------------------------------
+// Metin boyu alana uyar (sürüm 10.5): alan sabit, yazı alanı dolduracak en büyük boyda.
+// Kısa metin büyür (üst sınır), uzun metin küçülür (alt sınır); alt sınırda da sığmazsa
+// son satır "…" ile biter (tamamı ayrıntı panelinde).
+// ---------------------------------------------------------------------------
+
+/** el'in yazı boyunu [min, max] içinde, over() yanlış kalan en büyük değere ayarlar. Sığdıysa true. */
+function fillText(el, min, max, over = () => el.scrollHeight > el.clientHeight + 1) {
+  el.classList.remove('is-clamp');
+  let lo = min;
+  let hi = max;
+  el.style.fontSize = `${min}px`;
+  if (over()) return false;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    el.style.fontSize = `${mid}px`;
+    if (over()) hi = mid - 1; else lo = mid;
+  }
+  el.style.fontSize = `${lo}px`;
+  return true;
+}
+
+/** Alt sınırda da sığmayan metin: alana sığan satır sayısında "…" ile biter. */
+function clampText(el) {
+  const lh = parseFloat(getComputedStyle(el).lineHeight) || parseFloat(getComputedStyle(el).fontSize) * 1.3;
+  el.style.setProperty('--clamp', String(Math.max(1, Math.floor((el.clientHeight + 1) / lh))));
+  el.classList.add('is-clamp');
+}
+
+/** Tek satırlık metin: genişliğe sığana dek küçülür; min'de de sığmazsa CSS "…" ile keser. */
+function fitLine(el, max, min) {
+  if (!el || !el.clientWidth) return;
+  fitText(el, max, min);
+}
+
+// Kart açıklamasının sınırları (px): [alt, üst] kademeye göre (fit-0…fit-3).
+const DESC_FIT = {
+  ready: [[19, 34], [17, 30], [15, 26], [14, 22]],
+  next: [[16, 24], [15, 22], [14, 20], [13, 18]],
+};
+
 /**
- * Kart içeriği kartın yüksekliğine sığmazsa (kısa ekranlar): önce açıklama küçülür, sonra
- * kart kademeli sıkılaşır (fit-1…fit-3: başlık, stil · tür ve kutular küçülür). Böylece en
- * alttaki tempo · mesafe satırı kesilmez.
+ * Hazır ve sıradaki set kartında açıklama, başlık ile kutular arasındaki sabit alanı doldurur.
+ * Kısa ekranda alan yetmezse kart kademeli sıkılaşır (fit-1…fit-3: başlık, stil · tür ve kutular
+ * küçülür); en sıkı kademede de sığmazsa açıklama "…" ile biter. Canlı kartta bilgi ve açıklama
+ * satırları kesilmek yerine küçülür.
  */
 function fitCardText(node) {
   const card = node.querySelector('.w-card');
   if (!card || !card.clientHeight) return;
+  const mode = node.dataset.mode;
+  node.querySelectorAll('.w-info, .w-idesc').forEach((el) => fitLine(el, 17, 12));
   const desc = node.querySelector('.w-desc');
   const over = () => card.scrollHeight > card.clientHeight + 1;
-  const shrinkDesc = (min) => {
-    if (!desc) return;
-    desc.style.fontSize = '';
-    let size = parseFloat(getComputedStyle(desc).fontSize);
-    while (over() && size > min) {
-      size -= 1;
-      desc.style.fontSize = `${size}px`;
-    }
-  };
+  const levels = DESC_FIT[mode] || DESC_FIT.ready;
   node.classList.remove('fit-1', 'fit-2', 'fit-3');
-  shrinkDesc(19);
-  for (const [cls, min] of [['fit-1', 17], ['fit-2', 15], ['fit-3', 14]]) {
-    if (!over()) break;
-    node.classList.add(cls);
-    shrinkDesc(min);
+  for (let lvl = 0; lvl < levels.length; lvl++) {
+    if (lvl) node.classList.add(`fit-${lvl}`);
+    const [min, max] = levels[lvl];
+    const fits = desc && desc.textContent.trim() ? fillText(desc, min, max) : true;
+    if (fits && !over()) return;
+    if (lvl === levels.length - 1 && desc && desc.textContent.trim() && !fits) clampText(desc);
+  }
+}
+
+/** Ayrıntı paneli: açıklama panele sığan en büyük boyda; alt sınırda panel kayar (kesilmez). */
+function fitDetail() {
+  const box = $('detail-body');
+  const desc = box.querySelector('.dt-desc');
+  if (!desc || box.hidden || !box.clientHeight) return;
+  fillText(desc, 18, 34, () => box.scrollHeight > box.clientHeight + 1);
+}
+
+/** Mola ekranındaki "Sıradaki": ekrana sığan en büyük boyda. */
+function fitMolaNext() {
+  const el = $('mola-next');
+  const root = $('mola');
+  if (el.hidden || root.hidden || !root.clientHeight) return;
+  fillText(el, 14, 22, () => root.scrollHeight > root.clientHeight + 1);
+}
+
+/** Ana sayfa ve takvim: tek satırlık başlık/bilgi satırları kesilmek yerine küçülür. */
+function fitListLines() {
+  if (state.screen === 'home') fitLine($('home-swim-meta'), 22, 15);
+  if (state.screen === 'days') {
+    document.querySelectorAll('#screen-days .hero-date').forEach((el) => fitLine(el, 32, 22));
+    document.querySelectorAll('#screen-days .dr-meta').forEach((el) => fitLine(el, 20, 14));
   }
 }
 
 function fitAllCards() {
   if (state.wheel) state.wheel.items.forEach(fitCardText);
+}
+
+/** Düzen bir sonraki karede oturur (ekran açılışı, yazı tipi): kartlar o zaman yeniden sığdırılır. */
+let refitFrame = 0;
+function refitSoon() {
+  cancelAnimationFrame(refitFrame);
+  refitFrame = requestAnimationFrame(() => { refitFrame = requestAnimationFrame(fitAllCards); });
 }
 
 /** Başlıktaki değer kutuya sığmazsa yazıyı küçültür. */
@@ -1897,8 +1968,10 @@ function updateMola(st, now) {
     ? `Sıradaki: <b>${esc(setTitle(set))} · ${done + 1}. tekrar</b>${set.hedef || set.dinlen ? `<br>${[set.hedef ? `Hedef ${esc(short(set.hedef))}` : '', set.dinlen ? `Dinlen ${esc(short(set.dinlen))}` : ''].filter(Boolean).join(' · ')}` : ''}`
     : '';
   const nx = $('mola-next');
+  const changed = nx.innerHTML !== html || nx.hidden !== !html;
   if (nx.innerHTML !== html) nx.innerHTML = html;
   nx.hidden = !html;
+  if (changed) fitMolaNext();
 }
 
 /** Karta dokununca setin tüm bilgisi büyük yazıyla; dokununca kapanır, zamanlamayı etkilemez. */
@@ -1925,6 +1998,7 @@ function openDetail(i) {
     <p class="dt-hint">Boşluğa dokun: kapat · süre işlemeye devam eder</p>`;
   box.dataset.i = String(i);
   box.hidden = false;
+  fitDetail();
 }
 
 /** Ayrıntı panelinin altındaki Düzenle · Sonrasına ekle · Sil (yüzerken sönük). */
@@ -2738,8 +2812,15 @@ function wire() {
     document.fonts.ready.then(() => {
       if (state.wheel) state.wheel.layout();
       if (state.screen === 'program') { fitHeader(); fitMainLabel(); }
+      fitListLines();
     });
   }
+  // Ekran dönünce / boyut değişince tek satırlar ve paneller yeniden sığdırılır.
+  let refitTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(refitTimer);
+    refitTimer = setTimeout(() => { fitListLines(); if (!$('detail').hidden) fitDetail(); fitMolaNext(); }, 120);
+  });
 
   // Beklenmeyen bir hata sessiz kalmasın ve ekranı kilitlemesin.
   const report = (msg) => {

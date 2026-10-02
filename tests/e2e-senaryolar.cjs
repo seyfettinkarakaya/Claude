@@ -860,6 +860,43 @@ sc('Ayrıntı paneli: karta dokununca (yüzerken de) açılır, dokununca kapan�
   assert.strictEqual(await s.label(), 'DUR');
 });
 
+sc('Metin boyu alana uyar: kısa açıklama büyür, uzun açıklama küçülür ya da "…" ile biter; alan sabit, taşma yok (320–430 px)', async ({ launch }) => {
+  const LONG = Array.from({ length: 48 }, (_, k) => ['kol', 'çekişi', 'uzun', 'tut', 'dönüşte', 'beş', 'dolfin', 'nefes'][k % 8]).join(' ');
+  const rows = [
+    prow(T23, 1, 'WU', 1, 200, 'Swim', '04:00', '00:20'),
+    prow(T23, 2, 'MS', 4, 100, 'Swim', '01:30', '00:20'),
+  ];
+  rows[0][7] = 'Rahat yüz';
+  rows[1][7] = LONG;
+  for (const [w, h] of [[320, 640], [375, 812], [430, 932]]) {
+    const s = await launch({ rows, viewport: { width: w, height: h } }); const p = s.page;
+    await s.openToday();
+    await p.waitForTimeout(300);
+    const m = () => p.$eval('.w-item.is-active', (n) => {
+      const card = n.querySelector('.w-card'); const d = n.querySelector('.w-desc');
+      const cr = card.getBoundingClientRect(); const dr = d.getBoundingClientRect();
+      return { fs: parseFloat(getComputedStyle(d).fontSize), clamp: d.classList.contains('is-clamp'), dh: Math.round(dr.height),
+        over: card.scrollHeight > card.clientHeight + 1, inside: dr.top >= cr.top - 1 && dr.bottom <= cr.bottom + 1,
+        dOver: !d.classList.contains('is-clamp') && d.scrollHeight > d.clientHeight + 1, ch: Math.round(cr.height) };
+    });
+    const a = await m();
+    await s.goTo(1);
+    const b = await m();
+    assert.ok(a.fs >= 24, `${w}px kısa metin büyür (eski sabit boy 22–25): ${a.fs}`);
+    assert.ok(b.fs >= 13 && b.fs < a.fs, `${w}px uzun metin küçülür: ${b.fs}`);
+    for (const x of [a, b]) {
+      assert.ok(!x.over && x.inside && !x.dOver, `${w}px taşma yok ${JSON.stringify(x)}`);
+    }
+    assert.strictEqual(a.ch, b.ch, 'kart yüksekliği aynı');
+    if (w === 320) assert.ok(b.clamp || b.fs <= 16, `dar ekranda uzun metin sıkışır: ${JSON.stringify(b)}`);
+    // Ayrıntı panelinde tamamı (kesilmez)
+    await p.click('.w-item.is-active .w-card'); await p.waitForSelector('#detail:not([hidden])');
+    assert.ok(!(await p.$eval('.dt-desc', (d) => d.classList.contains('is-clamp'))));
+    assert.match(await s.text('.dt-desc'), /nefes$/);
+    await s.close();
+  }
+});
+
 // --- İdman anında düzenleme (duzen.js) ------------------------------------------------------
 const openDet = async (s) => { await s.page.click('.w-item.is-active .w-card'); await s.page.waitForSelector('#detail:not([hidden])'); };
 const dact = async (s, act) => { await openDet(s); await s.page.click(`#detail [data-dact="${act}"]`); };
