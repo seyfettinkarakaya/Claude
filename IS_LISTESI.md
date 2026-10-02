@@ -26,6 +26,12 @@ Sürüm 10.5 (bekliyor, "uygula" ile):
 
 ### İşlev
 
+- [ ] **Salon idman planlama** (konuşulacak): hedef kaslara göre katsayı hesaplayıp hareket listesinden
+  (H, hkEtki) hareket önermek; planlama sayfası.
+- [ ] **sporRef'ten referans verileri** (öneri, karar bekliyor): CSS (tarih aralığı + alet + havuz), 7 bölge
+  (SP3–REC, CSS'e göre sn/100 m) ve HR bölgeleri, max nabız, faz bilgisi, RPE/MSI açıklamaları, kısaltmalar.
+  Şu an CSS Ayarlar'dan elle (varsayılan 1:57), bölgeler uygulamada sabit Z1–Z5 — sporRef ile uyumsuz.
+
 - [ ] **Salon modülü** (öneri, karar bekliyor): SalonTakip tablosu (`idman` sayfası) ile çalışan salon idmanı.
   Ayrıntı: sohbetteki öneri; kararlar: plan kaynağı (Plan sayfası / son idmanı tekrarla), ayrı Apps Script,
   set ayrıntısının saklanması.
