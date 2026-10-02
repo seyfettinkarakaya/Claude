@@ -11,7 +11,18 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Yeni talepler buraya.
+Sürüm 10.4 (öneri, onay bekliyor):
+- [ ] Çok tekrarlı setler (5–20+): yüzerken/dinlenirken kartta tekrar kutuları yerine tek satırlık
+  ilerleme şeridi (her tekrar bir çentik: yapılan yeşil, şimdiki sarı, kalan gri) + "Tekrar 7/12"
+  + son 3 tekrarın süresi ve ortalama. 4 ve altı tekrarda bugünkü kutular kalır. Set bitince
+  (özet kartı) ve seans sonunda tüm süreler sarılarak tam görünür.
+- [ ] Set içeriği yüzerken/dinlenirken de görünsün: başlığın altında kısa bilgi satırı
+  (Alet · Hedef · Dinlen) ve açıklama (1–2 satır, küçük).
+- [ ] Set sonu dinlenmesinde sıradaki setin kartı içeriği öne alır: stil · tür, açıklama, alet,
+  hedef/dinlen tam görünür; dinlenme sayacı küçülerek kartın altına iner. (Set ÇIK'a basmadan
+  başlamaz; sayaç yalnızca dinlenmeyi ölçer.)
+- [ ] Karta dokununca ayrıntı paneli: her an (yüzerken de) setin tüm bilgisi büyük yazıyla;
+  dokununca kapanır, zamanlamayı etkilemez.
 
 ## 2. Aşama — Orta vade
 
