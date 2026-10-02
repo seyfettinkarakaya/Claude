@@ -28,6 +28,9 @@ Sürüm 10.4 (öneri, onay bekliyor):
   bip çalmaz. Mola süresi idman süresinden ve dinlenme ölçümünden düşülür (dinlenme notu
   bozulmaz). Yüzerken mola verilemez (önce GELDİM). Uygulama kapanıp açılsa da mola sürer.
   Özette "Mola: 4:30" satırı (işaretlenirse açıklamaya yazılır).
+- [ ] Tek basışla başlangıç: İDMANA BAŞLA kalkar; ilk ÇIK hem idman saatini hem 1. tekrarı başlatır
+  (son setin son GELDİM'i zaten idmanı bitiriyor).
+  Görseller: `tasarim/v14/oneriler-1.png`, `tasarim/v14/oneriler-2.png`.
 
 ## 2. Aşama — Orta vade
 
