@@ -79,9 +79,11 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
   - Salon idman ekranı (taslak `tasarim/v18/salon-idman.png`): düğme **BAŞLA / BİTTİ**; set tekrarı ± ile
     düzeltilir; dinlenme sayacı; hareket sonunda Nabız (±, geçen değerle hazır) · RPE · MSI · Not girişi.
     Hareket süresi ilk set başından son set sonuna. Süreli hareketlerde BAŞLA → geri sayım, kendiliğinden biter.
-  - Öneri (karar bekliyor): yüzmedeki A düzeni salonda da — karta dokun → panel: Düzenle (set, tekrar,
+  - Karar (onaylandı): yüzmedeki A düzeni salonda da — karta dokun → panel: Düzenle (set, tekrar,
     ağırlık, dinlen) · **Değiştir** (aynı kas grubundan puanlı liste; makine doluysa) · Sonrasına ekle
     (puanlı hareket listesi) · Sil (başlanmamış); dinlenirken **"+1 set"** kısayolu.
+    Başlamış harekette set sayısı yapılanın altına inemez. Plan telefonda olduğu için "planla fark" notu yok;
+    `idman` sayfasına gerçekte yapılan (değiştirilen hareket kendi adıyla) yazılır.
 
 - [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
