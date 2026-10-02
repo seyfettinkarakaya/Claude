@@ -42,11 +42,11 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
 - [ ] **Salon idman planlama** (taslak `tasarim/v16/salon-planlama.png`): hedef kaslara göre katsayı hesaplayıp
   hareket listesinden (H, hkEtki) hareket önermek.
   - Puan = Σ (kas öncelik ağırlığı × hareketin o kasa etkisi `hkEtki`) × yüzme aktarım katsayısı.
-    Seçilen kaslar 1; son 4 haftada hedefin altında kalan kaslar açık kadar otomatik ağırlık alır.
+    Öncelik ağırlıklarına sen karar verirsin (otomatik öncelik yok).
   - Yüzme katsayısı: `H` sayfasındaki **Swim Transfer Coefficient** sütunu.
   - Seçim **kas grubu** düzeyinde; alt kas ve kinetik zincir hareket satırında bilgi olarak.
-  - Hedef yüzdeleri tek tablodan (`rH` HEDEF %) okunur, uygulamada değiştirilebilir.
-    Değişiklik tabloya da yazılır (salon betiği hedef sütununa yazar).
+  - Karar: hedef tablodan **alınmaz**. Her planlamada `idman` sayfasından hesaplanan kas grubu dağılımı
+    (son 4 hafta ve tüm zaman ortalaması) gösterilir; neye ağırlık vereceğine sen karar verirsin.
   - Varsayılan set/tekrar/ağırlık = son yapılan. İlerleme: son seferde RPE ≤ 8 ve MSI ≤ 0,5 → "+1 tekrar"
     veya "+2,5 kg" önerisi; RPE ≥ 9,5 veya MSI ≥ 1,5 → aynı değer + ⚠.
   - Son iki idmanda MSI ≥ 1,5 olan hareket ⚠ ile işaretlenir, puanı düşer, gizlenmez.
@@ -73,8 +73,9 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
     - Vücut ağırlığı tam olarak **"Vücut"** yazılır (formül BW katsayısını buna göre uygular); esnemede 0.
     - Hareket adı `H` ve `hkEtki` sayfalarındaki adla birebir aynı (yoksa v2'de "##veri yok##").
     - Uygulama yalnızca katalogdaki hareketleri önerir; katalogda olmayan hareket uyarıyla eklenir.
-  - Hedef % yazımı için `rH`'deki HEDEF sütununun tam yeri uygulamadan önce teyit edilecek (özet tablo
-    yanında elle girilen sütun).
+  - Karar: **Nabız, RPE, MSI her hareket için elle** girilir (hareket sonunda giriş adımı).
+  - Karar: **hareket süresi** (ilk set başı → son set sonu, mm:ss) `idman` sayfasının **K sütununa** yazılır
+    (v2 formülü A–J okuduğu için K güvenli).
 
 - [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
