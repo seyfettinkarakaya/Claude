@@ -26,6 +26,10 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
 
 ### İşlev
 
+> **Sürüm 11 (büyük sürüm) — "uygula" verildi (02.10.2026).** Sıra: 1) altyapı (3 dosya/betik, kurulum,
+> sporRef) 2) yüzme (anında düzenleme, metin boyu, CSS/bölge) 3) salon idman + tabloya yazma
+> 4) salon planlama + video 5) uçtan uca test → tek seferde yayın. Ara adımlar yalnızca geliştirme dalında.
+
 > **Karar (02.10.2026):** Tek ve büyük bir sürüm çıkılacak. Dosya yapısı 3'lü: YuzmeProgram, SalonTakip ve
 > sporRef'in her birine kendi `@OnlyCurrentDoc` Apps Script'i (3 adres + anahtar); betikler yalnızca kendi
 > dosyasını görür.
@@ -88,7 +92,7 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
 - [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
 - [ ] **F.3** Set başına kulaç sayısı / nabız girişi (isteğe bağlı alanlar).
-- [ ] İdman sırasında ağrı (MSI) kaydı — menü kaldırıldığı için Sürüm 10'da yok; yeri sonra konuşulacak.
+- [x] İdman sırasında ağrı (MSI) kaydı — karar: yüzmede seans sonu yeterli (salonda hareket başına).
 - [ ] **F.7** Service worker: uygulama dosyaları önbellekte, internet yokken de açılır.
 
 ### Görsel
