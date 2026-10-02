@@ -1,11 +1,11 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=10.2';
-import { Wheel } from './wheel.js?v=10.2';
-import * as zaman from './zaman.js?v=10.2';
+import * as data from './data.js?v=10.3';
+import { Wheel } from './wheel.js?v=10.3';
+import * as zaman from './zaman.js?v=10.3';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '10.2';
+export const APP_VERSION = '10.3';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1284,7 +1284,11 @@ function renderItem(node, s, i, cum) {
   if (status === 'tamam') tag = `✓ TAMAMLANDI · ${tag}`;
   else if (status === 'eksik') tag = `${d}/${T} · ERKEN BİTTİ · ${tag}`;
 
-  const title = `<div class="w-title">${esc(`${T} × ${s.mesafe}`)}${styleTur ? `<small>${esc(styleTur)}</small>` : ''}</div>`;
+  // Hazır kartta başlık büyük: stil · tür Sürüm 9'daki gibi kendi satırında. Küçük başlıklı
+  // kartlarda (yüzerken, dinlenirken, özet) başlığın yanında durur.
+  const title = mode === 'ready'
+    ? `<div class="w-title">${esc(`${T} × ${s.mesafe}`)}</div>${styleTur ? `<div class="w-sub">${esc(styleTur)}</div>` : ''}`
+    : `<div class="w-title">${esc(`${T} × ${s.mesafe}`)}${styleTur ? `<small>${esc(styleTur)}</small>` : ''}</div>`;
   const timer = '<div class="w-timer"><span class="w-tmode"></span><b class="w-tbig n"></b><span class="w-tsub n"></span></div>';
   let body;
   if (mode === 'live') {
@@ -1368,15 +1372,31 @@ function openProgram() {
 }
 
 /** Uzun açıklama kartı taşırırsa açıklama yazısı kademeli küçülür; kesilmez. */
+/**
+ * Kart içeriği kartın yüksekliğine sığmazsa (kısa ekranlar): önce açıklama küçülür, sonra
+ * kart kademeli sıkılaşır (fit-1…fit-3: başlık, stil · tür ve kutular küçülür). Böylece en
+ * alttaki tempo · mesafe satırı kesilmez.
+ */
 function fitCardText(node) {
   const card = node.querySelector('.w-card');
+  if (!card || !card.clientHeight) return;
   const desc = node.querySelector('.w-desc');
-  if (!card || !desc || !card.clientHeight) return;
-  desc.style.fontSize = '';
-  let size = parseFloat(getComputedStyle(desc).fontSize);
-  while (card.scrollHeight > card.clientHeight + 1 && size > 15) {
-    size -= 1;
-    desc.style.fontSize = `${size}px`;
+  const over = () => card.scrollHeight > card.clientHeight + 1;
+  const shrinkDesc = (min) => {
+    if (!desc) return;
+    desc.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(desc).fontSize);
+    while (over() && size > min) {
+      size -= 1;
+      desc.style.fontSize = `${size}px`;
+    }
+  };
+  node.classList.remove('fit-1', 'fit-2', 'fit-3');
+  shrinkDesc(19);
+  for (const [cls, min] of [['fit-1', 17], ['fit-2', 15], ['fit-3', 14]]) {
+    if (!over()) break;
+    node.classList.add(cls);
+    shrinkDesc(min);
   }
 }
 

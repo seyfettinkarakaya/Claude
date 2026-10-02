@@ -688,6 +688,35 @@ sc('Seti sıfırla: SET TAMAM\'a dokununca onay; set silinir, yeniden yapılır;
   assert.match(notes[1], /1\/4 tekrar yapıldı/);
 });
 
+sc('Set kartı: stil · tür hazır kartta başlığın altında, boşluksuz; kartın alt satırı kesilmez (320–430 px)', async ({ launch }) => {
+  const rows = [
+    prow(T23, 1, 'WU', 1, 200, 'Swim', '04:45', '00:30'),
+    prow(T23, 2, 'PS', 4, 50, 'Kick', '01:20', '00:15', 'Finn'),
+    prow(T23, 3, 'MS', 1, 800, 'Swim', '18:40', '01:00'),
+  ];
+  rows[1][7] = 'Sağ/Sol rotasyon, omuz-çene hattı';
+  for (const vp of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
+    const s = await launch({ rows, viewport: vp }); const p = s.page;
+    await s.openToday();
+    await s.goTo(1);
+    const m = await p.$eval('.w-item.is-active', (it) => {
+      const r = (sel) => it.querySelector(sel).getBoundingClientRect();
+      const card = r('.w-card'); const t = r('.w-title'); const sub = r('.w-sub'); const foot = r('.w-foot');
+      return { sub: it.querySelector('.w-sub').textContent, small: !!it.querySelector('.w-title small'),
+        gap: Math.round(sub.top - t.bottom), footOut: Math.round(foot.bottom - card.bottom), subLeft: Math.round(sub.left - t.left) };
+    });
+    const tag = `${vp.width}px ${JSON.stringify(m)}`;
+    assert.strictEqual(m.sub, 'FR · Kick', tag);
+    assert.ok(!m.small, `hazır kartta stil · tür başlığın içinde olmamalı: ${tag}`);
+    assert.ok(m.gap >= -2 && m.gap <= 12, `başlık ile stil · tür arasında boşluk olmamalı: ${tag}`);
+    assert.ok(m.footOut <= 1, `kartın alt satırı (tempo · mesafe) kesilmemeli: ${tag}`);
+    // Yüzerken: stil · tür başlığın yanında
+    await s.tap(3); await s.tap(5);
+    assert.strictEqual(await p.textContent('.w-item.is-active .w-title small'), 'FR · Kick', vp.width + 'px yüzerken');
+    await s.close();
+  }
+});
+
 sc('Düzen: 320, 375 ve 430 px genişlikte tüm ekranlarda yatay taşma yok, düğmeler büyük', async ({ launch }) => {
   for (const vp of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 430, height: 932 }]) {
     const s = await launch({ viewport: vp }); const p = s.page;

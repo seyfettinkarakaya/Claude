@@ -357,7 +357,7 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
   await page.click('#days-back');
   await page.waitForSelector('#screen-home:not([hidden])');
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10.2');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10.3');
   assert.match(await page.textContent('#home-history-meta'), /^3 kayıt$/);
 
   // Toplu silme: yalnızca telefondaki kopyalar gider

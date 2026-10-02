@@ -11,11 +11,7 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Sürüm 10.3 (bekliyor, "uygula" ile):
-- [ ] Hata (Sürüm 10'da oluştu): idman başlamadan set kartında stil · tür ("FR · Kick") başlığın
-  yanına sığmayınca boşluklu bir alt satıra düşüyor; kart uzuyor, en alttaki tempo/mesafe satırı
-  kesiliyor. Çözüm: hazır kartta Sürüm 9'daki gibi başlığın hemen altında kendi satırında;
-  yüzerken/dinlenirken/özet kartlarında başlığın yanında kalır. 320–430 px'te kart taşması testi.
+Yeni talepler buraya.
 
 ## 2. Aşama — Orta vade
 
@@ -56,6 +52,11 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 
 ## Tamamlanan
 
+- [x] Sürüm 10.3 (hata düzeltme):
+  - Hazır set kartında stil · tür ("FR · Kick") yine başlığın hemen altında, boşluksuz (Sürüm 10'da
+    başlığın yanına sığmayınca boşluklu alt satıra düşüyor, kart uzuyordu).
+  - Kısa ekranlarda kart sığmazsa kademeli küçülür; en alttaki tempo · mesafe satırı kesilmez.
+  - Test: 320, 375, 390, 430 px'te başlık–stil boşluğu ve kart taşması.
 - [x] Sürüm 10.2 (görsel):
   - Takvim (B): nötr koyu zemin ve kartlar; turkuaz yalnızca seçili gün, BUGÜN ve "… idmanını aç"ta.
   - Ana sayfa (C): bölüm renkli kartlar (Yüzme turkuaz, Salon amber); Yüzme kartında ilk planlı

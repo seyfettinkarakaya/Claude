@@ -1022,3 +1022,23 @@ button {
 .ed-step { display: flex; align-items: center; gap: 8px; }
 .ed-step button { width: 64px; height: 72px; border-radius: 18px; border: 1px solid #243040; background: var(--bg); font-size: 22px; font-weight: 800; }
 .ed-step b { flex: 1; text-align: center; font-size: 72px; font-weight: 700; line-height: 1; color: var(--accent); }
+
+/* Kısa ekranda hazır kart sığmazsa kademeli sıkılaşır (app.js fitCardText). */
+.w-item.m-ready.fit-1 .w-title { font-size: 60px; }
+.w-item.m-ready.fit-1 .w-sub { font-size: 28px; }
+.w-item.m-ready.fit-1 .w-desc { margin-top: 6px; }
+.w-item.m-ready.fit-1 .w-tiles { padding-top: 8px; gap: 8px; }
+.w-item.m-ready.fit-1 .w-tile b { font-size: 46px; }
+.w-item.m-ready.fit-1 .w-foot { margin-top: 6px; }
+.w-item.m-ready.fit-2 .w-title { font-size: 52px; margin-top: 4px; }
+.w-item.m-ready.fit-2 .w-sub { font-size: 24px; margin-top: 0; }
+.w-item.m-ready.fit-2 .w-tile { padding: 4px 10px 5px; }
+.w-item.m-ready.fit-2 .w-tile b { font-size: 38px; }
+.w-item.m-ready.fit-2 .w-foot { font-size: 17px; }
+.w-item.m-ready.fit-2 .w-foot b { font-size: 21px; }
+
+.w-item.m-ready.fit-3 .w-title { font-size: 46px; }
+.w-item.m-ready.fit-3 .w-tag { font-size: 11px; }
+.w-item.m-ready.fit-3 .w-tile small { font-size: 10px; letter-spacing: 1px; }
+.w-item.m-ready.fit-3 .w-tile b { font-size: 32px; }
+.w-item.m-ready.fit-3 .w-foot { gap: 0; }
