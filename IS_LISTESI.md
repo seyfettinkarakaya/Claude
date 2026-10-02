@@ -23,6 +23,11 @@ Sürüm 10.4 (öneri, onay bekliyor):
   başlamaz; sayaç yalnızca dinlenmeyi ölçer.)
 - [ ] Karta dokununca ayrıntı paneli: her an (yüzerken de) setin tüm bilgisi büyük yazıyla;
   dokununca kapanır, zamanlamayı etkilemez.
+- [ ] Mola (duraklat): dinlenirken ‹ paneline "Mola ver" seçeneği. Mola ekranı tüm ekranı kaplar:
+  "MOLA" + geçen mola süresi + büyük "DEVAM ET". Molada idman saati ve dinlenme sayacı durur,
+  bip çalmaz. Mola süresi idman süresinden ve dinlenme ölçümünden düşülür (dinlenme notu
+  bozulmaz). Yüzerken mola verilemez (önce GELDİM). Uygulama kapanıp açılsa da mola sürer.
+  Özette "Mola: 4:30" satırı (işaretlenirse açıklamaya yazılır).
 
 ## 2. Aşama — Orta vade
 
