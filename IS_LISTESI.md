@@ -11,7 +11,7 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Sürüm 10.5 (bekliyor, "uygula" ile):
+Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
 - [ ] Değişken uzunluktaki metinlerde yazı boyu alana uyar; alan boyutu değişmez.
   - Alan sabit kalır (kartta başlık ile kutular arasındaki boş yer gibi). Yazı, alanı dolduracak en
     büyük boyda gösterilir: kısa metin büyür (üst sınır), uzun metin küçülür (alt sınır, okunurluk için).
@@ -41,14 +41,15 @@ Sürüm 10.5 (bekliyor, "uygula" ile):
     Dinlenirken kartta **"+1 tekrar"** kısayolu (bildirim + Geri al). Görsel: `tasarim/v17/duzenle.png`.
 - [ ] **Salon idman planlama** (konuşulacak; taslak `tasarim/v16/salon-planlama.png`): hedef kaslara göre katsayı hesaplayıp hareket listesinden
   (H, hkEtki) hareket önermek; planlama sayfası.
-- [ ] **sporRef'ten referans verileri** (öneri, karar bekliyor): CSS (tarih aralığı + alet + havuz), 7 bölge
+- [ ] **sporRef'ten referans verileri** (onaylandı): CSS (tarih aralığı + alet + havuz), 7 bölge
   (SP3–REC, CSS'e göre sn/100 m) ve HR bölgeleri, max nabız, faz bilgisi, RPE/MSI açıklamaları, kısaltmalar.
   Şu an CSS Ayarlar'dan elle (varsayılan 1:57), bölgeler uygulamada sabit Z1–Z5 — sporRef ile uyumsuz.
   3'lü yapı kararıyla sporRef kendi betiğinden okunur (salt okuma).
 
-- [ ] **Salon modülü** (öneri, karar bekliyor): SalonTakip tablosu (`idman` sayfası) ile çalışan salon idmanı.
-  Ayrıntı: sohbetteki öneri; kararlar: plan kaynağı (Plan sayfası / son idmanı tekrarla), ayrı Apps Script,
-  set ayrıntısının saklanması.
+- [ ] **Salon modülü**: SalonTakip tablosu (`idman` sayfası) ile çalışan salon idmanı.
+  - Karar: başlangıçta iki seçenek — **son idmanı göster ve tekrarlamayı sor** ya da **yeni idman planla**
+    (planlama ekranı). Kendi `@OnlyCurrentDoc` betiği (3'lü yapı).
+  - Açık: set ayrıntısının (11-9-9) saklanacağı yer; `v2` sayfasının nasıl üretildiği.
 
 - [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
