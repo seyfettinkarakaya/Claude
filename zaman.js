@@ -6,6 +6,10 @@
 //   { t: 'cik', ts, set }         set indeksindeki bir sonraki tekrar başlar
 //   { t: 'geldim', ts }           yüzülen tekrar biter, dinlenme başlar
 //   { t: 'bitir', ts, auto }      idman biter (auto: son setin son GELDİM'i)
+//   { t: 'mola', ts }             mola başlar (yalnızca dinlenirken)
+//   { t: 'devam', ts }            mola biter
+// Mola süresi idman süresinden ve dinlenme ölçümünden düşülür.
+// Ekranda düğme YÜZ (cik) / DUR (geldim) yazar; ilk YÜZ basla + cik olaylarını birlikte ekler.
 // Durum ve tüm süreler bu listeden yeniden hesaplanır; "Geri al" son olayı
 // siler. Süre hiçbir yerde biriktirilmez.
 
@@ -13,9 +17,25 @@
 export function replay(events, sets) {
   const n = sets.length;
   const per = sets.map(() => ({ reps: [], rests: [], sonu: null }));
-  const st = { phase: 'idle', basla: null, bitir: null, cur: null, per, last: null, lastGeldim: null };
+  const st = { phase: 'idle', basla: null, bitir: null, cur: null, per, last: null, lastGeldim: null, mola: null, molaMs: 0, molaN: 0, restMola: 0 };
+  const closeMola = (ts) => {
+    if (st.mola == null) return;
+    const dur = Math.max(0, ts - st.mola);
+    st.molaMs += dur;
+    if (st.lastGeldim) st.restMola += dur;
+    st.mola = null;
+  };
   for (const e of events) {
     st.last = e;
+    if (e.t === 'mola') {
+      if (st.phase === 'rest' && st.mola == null) { st.mola = e.ts; st.molaN += 1; }
+      continue;
+    }
+    if (e.t === 'devam') {
+      closeMola(e.ts);
+      continue;
+    }
+    closeMola(e.ts); // kapanmamış mola (bozuk liste) bir sonraki olayla kapanır
     if (e.t === 'basla') {
       st.basla = e.ts;
       st.phase = 'ready';
@@ -23,7 +43,7 @@ export function replay(events, sets) {
       const i = e.set;
       if (!(i >= 0 && i < n)) continue;
       if (st.lastGeldim) {
-        const gap = e.ts - st.lastGeldim.ts;
+        const gap = e.ts - st.lastGeldim.ts - st.restMola;
         if (st.lastGeldim.set === i) per[i].rests.push(gap);
         else per[st.lastGeldim.set].sonu = gap;
       }
@@ -31,6 +51,7 @@ export function replay(events, sets) {
       st.cur = i;
       st.phase = 'swim';
       st.lastGeldim = null;
+      st.restMola = 0;
     } else if (e.t === 'geldim') {
       if (st.cur == null) continue;
       const reps = per[st.cur].reps;
@@ -38,6 +59,7 @@ export function replay(events, sets) {
       if (!r || r.geldim != null) continue;
       r.geldim = e.ts;
       st.lastGeldim = { set: st.cur, ts: e.ts };
+      st.restMola = 0;
       st.phase = 'rest';
     } else if (e.t === 'bitir') {
       st.bitir = e.ts;
@@ -93,8 +115,10 @@ export function afterGeldim(st, sets) {
  * n/N kapanacak (erken bitirilecek) set bilgisi { set, done, tekrar }.
  */
 export function mainAction(st, sets, pos) {
-  if (st.phase === 'idle') return { kind: 'basla' };
   if (st.phase === 'done') return { kind: 'yok' };
+  if (st.mola != null) return { kind: 'mola' };
+  // Tek basışla başlangıç: ilk YÜZ idman saatini ve 1. tekrarı birlikte başlatır.
+  if (st.phase === 'idle') return { kind: 'cik', set: pos, rep: 1, closes: null, start: true };
   if (st.phase === 'swim') return { kind: 'geldim', set: st.cur, rep: st.per[st.cur].reps.length };
   const tekrar = Number(sets[pos].tekrar) || 1;
   const d = doneReps(st, pos);
@@ -113,10 +137,23 @@ export function doneDistance(st, sets) {
   return sets.reduce((a, s, i) => a + doneReps(st, i) * (Number(s.mesafe) || 0), 0);
 }
 
-/** İdman süresi (ms): bitmişse bitir − basla, sürüyorsa now − basla. */
+/** Toplam mola (ms); süren mola şimdiye kadar sayılır. */
+export function molaMs(st, now) {
+  return st.molaMs + (st.mola != null ? Math.max(0, now - st.mola) : 0);
+}
+
+/** İdman süresi (ms): bitmişse bitir − basla, sürüyorsa now − basla; molalar düşülür. */
 export function idmanMs(st, now) {
   if (st.basla == null) return 0;
-  return (st.bitir != null ? st.bitir : now) - st.basla;
+  const end = st.bitir != null ? st.bitir : now;
+  return end - st.basla - molaMs(st, end);
+}
+
+/** Süren dinlenmenin geçen süresi (ms), molalar hariç; molada donar. */
+export function restElapsed(st, now) {
+  if (!st.lastGeldim) return 0;
+  const end = st.mola != null ? st.mola : now;
+  return end - st.lastGeldim.ts - st.restMola;
 }
 
 export function median(xs) {

@@ -23,11 +23,44 @@ const test = (name, fn) => { try { fn(); n++; } catch (e) { console.error('BAŞA
 /** Olay üreteci: t0'dan itibaren saniye cinsinden. */
 const E = (...list) => list.map(([t, sec, set]) => ({ t, ts: sec * S, ...(set != null ? { set } : {}) }));
 
-test('boş liste: başlamadı; büyük düğme İDMANA BAŞLA', () => {
+test('boş liste: başlamadı; ilk YÜZ idmanı ve 1. tekrarı birlikte başlatır', () => {
   const st = Z.replay([], SETS);
   assert.equal(st.phase, 'idle');
-  assert.deepEqual(Z.mainAction(st, SETS, 0), { kind: 'basla' });
+  assert.deepEqual(Z.mainAction(st, SETS, 0), { kind: 'cik', set: 0, rep: 1, closes: null, start: true });
   assert.equal(Z.idmanMs(st, 99 * S), 0);
+  const st2 = Z.replay(E(['basla', 10], ['cik', 10, 0]), SETS);
+  assert.equal(st2.phase, 'swim');
+  assert.equal(Z.idmanMs(st2, 70 * S), 60 * S);
+});
+
+test('mola: yalnızca dinlenirken; idman süresinden ve dinlenme ölçümünden düşülür', () => {
+  const base = [['basla', 0], ['cik', 0, 0], ['geldim', 60]];
+  // Yüzerken mola yok sayılır
+  let st = Z.replay(E(['basla', 0], ['cik', 0, 0], ['mola', 30]), SETS);
+  assert.equal(st.mola, null);
+  // Dinlenirken: 10 sn dinlen, 240 sn mola, 5 sn daha dinlen, çık
+  st = Z.replay(E(...base, ['mola', 70]), SETS);
+  assert.equal(st.mola, 70 * S);
+  assert.deepEqual(Z.mainAction(st, SETS, 0), { kind: 'mola' });
+  assert.equal(Z.restElapsed(st, 200 * S), 10 * S, 'molada dinlenme sayacı donar');
+  assert.equal(Z.idmanMs(st, 200 * S), 70 * S, 'molada idman saati donar');
+  st = Z.replay(E(...base, ['mola', 70], ['devam', 310]), SETS);
+  assert.equal(st.mola, null);
+  assert.equal(Z.restElapsed(st, 315 * S), 15 * S);
+  assert.equal(Z.molaMs(st, 999 * S), 240 * S);
+  st = Z.replay(E(...base, ['mola', 70], ['devam', 310], ['cik', 315, 0], ['geldim', 375], ['bitir', 375]), SETS);
+  assert.deepEqual(st.per[0].rests, [15 * S], 'dinlenme mola hariç');
+  assert.equal(Z.idmanMs(st, 0), 135 * S, '375 − 240 mola');
+  assert.equal(st.molaN, 1);
+});
+
+test('mola set sonu dinlenmesinden de düşülür; kapanmamış mola sonraki olayla kapanır', () => {
+  const full = [['basla', 0], ['cik', 0, 0], ['geldim', 10], ['cik', 20, 0], ['geldim', 30], ['cik', 40, 0], ['geldim', 50], ['cik', 60, 0], ['geldim', 70]];
+  const st = Z.replay(E(...full, ['mola', 80], ['devam', 380], ['cik', 400, 1]), SETS);
+  assert.equal(st.per[0].sonu, 30 * S);
+  const st2 = Z.replay(E(...full, ['mola', 80], ['cik', 400, 1]), SETS);
+  assert.equal(st2.mola, null);
+  assert.equal(st2.molaMs, 320 * S);
 });
 
 test('kabul 1: 4×50 sekiz dokunuşla; 4 tekrar, 3 set içi dinlenme, set sonu dinlenmesi', () => {

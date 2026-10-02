@@ -95,7 +95,11 @@ function helpers(page) {
       const want = sec * 1000;
       const t0 = await page.evaluate(() => Date.now());
       for (let k = 0; k < 5; k++) {
-        const done = (await page.evaluate(() => Date.now())) - t0;
+        let done = (await page.evaluate(() => Date.now())) - t0;
+        if (done < want - 20 && k > 0) { // önceki ileri alma geç uygulanmış olabilir: biraz bekle, yeniden ölç
+          await page.waitForTimeout(40);
+          done = (await page.evaluate(() => Date.now())) - t0;
+        }
         if (done >= want - 20) break;
         await page.clock.fastForward(want - done);
       }

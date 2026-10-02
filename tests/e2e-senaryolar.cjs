@@ -9,7 +9,6 @@ const stripDetay = (r) => (r.ok ? { ...r, data: r.data.map(({ detay, ...d }) => 
 /** Bugünün programını açar, idmana başlar, ilk setten reps tekrar yüzer, seans sonu → özet. */
 async function toOzet(s, reps = 1) {
   await s.openToday();
-  await s.tap(3);
   for (let i = 0; i < reps; i++) { await s.tap(60); await s.tap(i < reps - 1 ? 20 : 3); }
   await s.finishToOzet();
 }
@@ -313,20 +312,20 @@ const col = (h) => ['Tarih', 'Sıra', 'Blok', 'Tekrar', 'Mesafe', 'Stil', 'Tür'
 const sec = (v) => Math.round(v * 86400 * 100) / 100;
 const isOn = (p, sel) => p.$eval(sel, (e) => e.classList.contains('is-on'));
 
-sc('Tam idman: 12 tekrar, otomatik set geçişi, son GELDİM idmanı bitirir, 3 dokunuşla kayıt', async ({ launch }) => {
+sc('Tam idman: 12 tekrar, otomatik set geçişi, son DUR idmanı bitirir, 3 dokunuşla kayıt', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  assert.strictEqual(await s.label(), 'İDMANA BAŞLA');
+  assert.strictEqual(await s.label(), 'YÜZ');
+  assert.strictEqual(await s.sub(), 'İdman ve 1. tekrar başlar');
   let total = 0;
   const A = async (x) => { await s.adv(x); total += x + 0.25; };
-  await s.press(); await A(3);
   const plan = [[1, 240, 20], [4, 65, 15], [4, 90, 20], [2, 100, 20], [1, 270, 0]];
   for (let si = 0; si < plan.length; si++) {
     const [n, rep, rest] = plan[si];
     for (let r = 0; r < n; r++) {
-      assert.strictEqual(await s.label(), 'ÇIK', `set ${si} tekrar ${r + 1} ${JSON.stringify(await s.events())} modal:${await p.isVisible('#modal')}`);
+      assert.strictEqual(await s.label(), 'YÜZ', `set ${si} tekrar ${r + 1} ${JSON.stringify(await s.events())} modal:${await p.isVisible('#modal')}`);
       await s.press(); await A(rep);
-      assert.strictEqual(await s.label(), 'GELDİM');
+      assert.strictEqual(await s.label(), 'DUR');
       await s.press();
       if (si === plan.length - 1 && r === n - 1) break;
       await A(rest);
@@ -359,10 +358,10 @@ sc('Tam idman: 12 tekrar, otomatik set geçişi, son GELDİM idmanı bitirir, 3 
 sc('Dinlenme sayacı: 3-2-1 kısa + 0 uzun, eksiye kırmızı; ses düğmesi kapatınca çalmaz', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(60); // başla, 1×200 ÇIK
-  await s.press();       // GELDİM → set sonu dinlenmesi (Dinlen 0:20)
+  await s.tap(60); // ilk YÜZ: idman + 1×200 başlar
+  await s.press();       // DUR → set sonu dinlenmesi (Dinlen 0:20)
   await s.adv(16);
-  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [660], 'GELDİM onay sesi');
+  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [660], 'DUR onay sesi');
   for (let i = 0; i < 12; i++) await p.clock.runFor(500);
   assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [660, 880, 880, 880, 1320]);
   await p.waitForTimeout(700);
@@ -381,14 +380,13 @@ sc('Çift dokunma koruması (2 sn) ve Geri al (5 sn)', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
   await s.press(); await p.clock.runFor(800); await s.press();
-  assert.deepStrictEqual(await s.events(), ['basla'], '2 sn içindeki ikinci dokunuş yok sayılır');
-  await s.adv(2); await s.press();
-  await s.adv(30); await s.press(); // GELDİM → set tamam, sonraki sete geçer
+  assert.deepStrictEqual(await s.events(), ['basla', 'cik0'], '2 sn içindeki ikinci dokunuş yok sayılır');
+  await s.adv(30); await s.press(); // DUR → set tamam, sonraki sete geçer
   await p.clock.runFor(300);
   assert.ok(await isOn(p, '#btn-undo'));
   await p.click('#btn-undo');
   assert.deepStrictEqual(await s.events(), ['basla', 'cik0']);
-  assert.strictEqual(await s.label(), 'GELDİM');
+  assert.strictEqual(await s.label(), 'DUR');
   await p.waitForTimeout(800);
   assert.strictEqual(await s.activeIdx(), 0, 'yüzülen sete döner');
   await s.press(); await p.clock.runFor(300);
@@ -400,7 +398,7 @@ sc('Çift dokunma koruması (2 sn) ve Geri al (5 sn)', async ({ launch }) => {
 sc('Yüzerken setler kaydırılamaz ve ‹ çalışmaz', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.press(); await p.clock.runFor(1000);
+  await s.press(); await p.clock.runFor(1000);
   const w = await s.center('#wheel');
   await p.mouse.move(w.x, w.y);
   for (let i = 0; i < 3; i++) { await p.mouse.wheel(0, 80); await p.waitForTimeout(300); }
@@ -413,10 +411,10 @@ sc('Yüzerken setler kaydırılamaz ve ‹ çalışmaz', async ({ launch }) => {
   assert.strictEqual(await s.screen(), 'program');
 });
 
-sc('Seti erken bitirme: dinlenirken kaydır → uyarı → ÇIK n/N; geri kaydırmak vazgeçer', async ({ launch }) => {
+sc('Seti erken bitirme: dinlenirken kaydır → uyarı → YÜZ n/N; geri kaydırmak vazgeçer', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(240); await s.tap(20);
+  await s.tap(240); await s.tap(20);
   await p.waitForTimeout(700);
   await s.tap(65); await s.tap(15); await s.tap(65); await s.tap(10); // 4×50: 2 tekrar
   await s.goTo(2);
@@ -429,7 +427,7 @@ sc('Seti erken bitirme: dinlenirken kaydır → uyarı → ÇIK n/N; geri kaydı
   await s.tap(90);
   assert.deepStrictEqual((await s.events()).slice(-1), ['cik2']);
   assert.match(await p.$eval('.w-item >> nth=1', (e) => e.querySelector('.w-nm').textContent), /· 2\/4$/);
-  await s.tap(3); // GELDİM
+  await s.tap(3); // DUR
   await s.finishToOzet();
   const ps = await p.$eval('.oz-set >> nth=1', (e) => e.innerText.replace(/\s+/g, ' '));
   assert.match(ps, /✓ 2\/4 tekrar yapıldı/);
@@ -443,7 +441,7 @@ sc('Seti erken bitirme: dinlenirken kaydır → uyarı → ÇIK n/N; geri kaydı
 sc('‹ paneli: devam et, takvime dön, idmanı bitir; RPE\'de İdmana dön', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(60); await s.tap(5);
+  await s.tap(60); await s.tap(5);
   await p.click('#prog-back'); await s.waitModal('İdmanı bitir?');
   assert.match(await p.textContent('#modal-body'), /1 set tam · 200 m/);
   await s.modalClick('Devam et');
@@ -457,18 +455,18 @@ sc('‹ paneli: devam et, takvime dön, idmanı bitir; RPE\'de İdmana dön', as
   await s.waitScreen('rpe');
   await p.click('#rpe-back'); await s.waitScreen('program');
   assert.deepStrictEqual(await s.events(), ['basla', 'cik0', 'geldim'], 'yalnızca bitiş geri alınır');
-  assert.strictEqual(await s.label(), 'ÇIK');
+  assert.strictEqual(await s.label(), 'YÜZ');
 });
 
-sc('Son setin son GELDİM\'i idmanı bitirir; "İdmana dön" son tekrarı geri getirir', async ({ launch }) => {
+sc('Son setin son DUR\'u idmanı bitirir; "İdmana dön" son tekrarı geri getirir', async ({ launch }) => {
   const s = await launch({ rows: [prow(T23, 1, 'MS', 2, 100, 'Swim', '01:30', '00:20')] }); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(90); await s.tap(20); await s.tap(90);
+  await s.tap(90); await s.tap(20); await s.tap(90);
   await s.press();
   await s.waitScreen('rpe');
   assert.ok(await p.isVisible('#rpe-undo'));
   await p.click('#rpe-undo'); await s.waitScreen('program');
-  assert.strictEqual(await s.label(), 'GELDİM');
+  assert.strictEqual(await s.label(), 'DUR');
   assert.deepStrictEqual((await s.events()).slice(-1), ['cik0']);
   await s.adv(3); await s.press(); await s.waitScreen('rpe');
   await s.adv(6);
@@ -478,7 +476,7 @@ sc('Son setin son GELDİM\'i idmanı bitirir; "İdmana dön" son tekrarı geri g
 sc('Şüpheli tekrar: işaretlenir, düzeltilir, ortalamaya yansır', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(240); await s.tap(20);
+  await s.tap(240); await s.tap(20);
   await p.waitForTimeout(700);
   for (const [r, last] of [[65, 0], [64, 0], [150, 0], [66, 1]]) { await s.tap(r); await s.tap(last ? 3 : 15); }
   await s.finishToOzet();
@@ -500,7 +498,7 @@ sc('Şüpheli tekrar: işaretlenir, düzeltilir, ortalamaya yansır', async ({ l
 sc('Dinlenme notu: sapma varsa önerilir (işaretsiz), işaretlenince nota yazılır', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(240); await s.tap(20);
+  await s.tap(240); await s.tap(20);
   await p.waitForTimeout(700);
   for (let i = 0; i < 4; i++) { await s.tap(65); await s.tap(i < 3 ? 30 : 40); }
   await p.waitForTimeout(700);
@@ -518,7 +516,7 @@ sc('Dinlenme notu: sapma varsa önerilir (işaretsiz), işaretlenince nota yazı
 sc('Seans sonu: MSI bölge döngüsü, RPE, havuz, hazır ifade; havuz hatırlanır', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(60); await s.tap(3);
+  await s.tap(60); await s.tap(3);
   await p.click('#prog-back'); await s.modalClick('İdmanı bitir ve kaydet');
   await s.waitScreen('rpe'); await p.click('#rpe-grid button[data-v="4"]');
   await s.waitScreen('msi');
@@ -546,14 +544,14 @@ sc('Seans sonu: MSI bölge döngüsü, RPE, havuz, hazır ifade; havuz hatırlan
 sc('Yeniden açılış: yüzerken, dinlenirken ve özet ekranında kaldığı yerden', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(40);
+  await s.tap(40);
   await p.reload(); await s.waitScreen('program'); await p.waitForTimeout(300);
-  assert.strictEqual(await s.label(), 'GELDİM');
+  assert.strictEqual(await s.label(), 'DUR');
   assert.match(await p.textContent('.w-item.is-active .w-tbig'), /^0:4\d$/);
   await s.press(); await s.adv(5);
   await p.waitForTimeout(700);
   await p.reload(); await s.waitScreen('program'); await p.waitForTimeout(300);
-  assert.strictEqual(await s.label(), 'ÇIK');
+  assert.strictEqual(await s.label(), 'YÜZ');
   assert.strictEqual(await s.activeIdx(), 1);
   assert.match(await p.textContent('.w-item.is-active .w-tbig'), /^0:1\d$/);
   await s.finishToOzet();
@@ -588,7 +586,7 @@ sc('Sürüm 9 seansı yeni modele taşınır (işaretler ve turlar korunur)', as
 sc('Seans sürerken başka güne geçmek onay ister', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3);
+  await s.tap(60); await s.tap(3);
   await p.click('#prog-back'); await s.modalClick('Takvime dön');
   await s.waitScreen('days');
   await p.waitForSelector('.banner-live');
@@ -621,7 +619,7 @@ sc('Gezinme: tüm geri tuşları, seanssız ve seanslı dönüş', async ({ laun
   await p.click('#prog-back'); await s.waitScreen('days');
   assert.strictEqual(await s.session(), null, 'başlanmamış seans silinir');
   await p.click('#days-today-btn'); await s.waitScreen('program');
-  await s.tap(3);
+  await s.tap(60); await s.tap(3);
   await p.click('#prog-back'); await s.modalClick('Takvime dön'); await s.waitScreen('days');
   await p.click('#days-back'); await s.waitScreen('home');
   assert.match(await p.textContent('#home-swim-tag'), /^Bugün · Çarşamba 23 Eylül DEVAM EDİYOR$/);
@@ -630,7 +628,7 @@ sc('Gezinme: tüm geri tuşları, seanssız ve seanslı dönüş', async ({ laun
   await p.waitForSelector('.banner-live');
   await p.click('#days-back'); await s.waitScreen('home');
   await p.click('#home-open'); await s.waitScreen('program');
-  assert.deepStrictEqual(await s.events(), ['basla']);
+  assert.deepStrictEqual(await s.events(), ['basla', 'cik0', 'geldim']);
 });
 
 sc('Ana sayfa: Yüzme kartında ilk planlı idman; İdmanı aç doğrudan girer, Takvim takvimi açar', async ({ launch }) => {
@@ -662,7 +660,7 @@ sc('Ana sayfa: Yüzme kartında ilk planlı idman; İdmanı aç doğrudan girer,
 sc('Seti sıfırla: SET TAMAM\'a dokununca onay; set silinir, yeniden yapılır; diğer setler korunur', async ({ launch }) => {
   const s = await launch(); const p = s.page;
   await s.openToday();
-  await s.tap(3); await s.tap(240); await s.tap(20);          // 1×200 tamam → 4×50'ye geçer
+  await s.tap(240); await s.tap(20);          // 1×200 tamam → 4×50'ye geçer
   await p.waitForTimeout(700);
   await s.tap(65); await s.tap(15);                            // 4×50: 1 tekrar
   await s.goTo(0);
@@ -676,7 +674,7 @@ sc('Seti sıfırla: SET TAMAM\'a dokununca onay; set silinir, yeniden yapılır;
   await s.modalClick('Seti sıfırla');
   assert.deepStrictEqual(await s.events(), ['basla', 'cik1', 'geldim'], '1. setin olayları silinir, 2. set kalır');
   assert.strictEqual(await s.activeIdx(), 0);
-  assert.strictEqual(await s.label(), 'ÇIK');
+  assert.strictEqual(await s.label(), 'YÜZ');
   assert.ok(!(await p.$eval('.w-item >> nth=0', (e) => e.classList.contains('is-done'))));
   assert.strictEqual((await p.textContent('#prog-dist')).replace(/\s/g, '').split('/')[0], '50');
   await s.tap(230); await s.tap(5);                            // seti yeniden yap
@@ -711,10 +709,152 @@ sc('Set kartı: stil · tür hazır kartta başlığın altında, boşluksuz; ka
     assert.ok(m.gap >= -2 && m.gap <= 12, `başlık ile stil · tür arasında boşluk olmamalı: ${tag}`);
     assert.ok(m.footOut <= 1, `kartın alt satırı (tempo · mesafe) kesilmemeli: ${tag}`);
     // Yüzerken: stil · tür başlığın yanında
-    await s.tap(3); await s.tap(5);
+    await s.tap(5);
     assert.strictEqual(await p.textContent('.w-item.is-active .w-title small'), 'FR · Kick', vp.width + 'px yüzerken');
     await s.close();
   }
+});
+
+// --- Sürüm 10.4 -----------------------------------------------------------------------------------
+const fitsCard = (p) => p.$eval('.w-item.is-active', (it) => {
+  const card = it.querySelector('.w-card').getBoundingClientRect();
+  const kids = [...it.querySelectorAll('.w-card > *')].filter((e) => e.getBoundingClientRect().height);
+  const bottom = Math.max(...kids.map((e) => e.getBoundingClientRect().bottom));
+  return Math.round(bottom - card.bottom);
+});
+
+sc('Çok tekrar (12×100): şerit, Tekrar 7/12, son 3 süre; set bilgisi görünür; kart taşmaz (375/430)', async ({ launch }) => {
+  const rows = [prow(T23, 1, 'MS', 12, 100, 'Swim', '01:30', '00:20', 'Paletsiz'), prow(T23, 2, 'CD', 1, 200, 'Swim', '04:00', '')];
+  rows[0][7] = 'Son 25 hızlı, dönüşte 5 dolfin';
+  for (const vp of [{ width: 375, height: 667 }, { width: 430, height: 932 }]) {
+    const s = await launch({ rows, viewport: vp }); const p = s.page;
+    await s.openToday();
+    for (let r = 0; r < 6; r++) { await s.tap(88 + r); await s.tap(20); }
+    await s.tap(30); // 7. tekrar yüzülüyor
+    const m = await p.$eval('.w-item.is-active', (it) => ({
+      n: it.querySelectorAll('.w-strip i').length, ok: it.querySelectorAll('.w-strip i.ok').length, now: it.querySelectorAll('.w-strip i.now').length,
+      boxes: it.querySelectorAll('.w-reps').length, rep: it.querySelector('.w-rep b').textContent, last: it.querySelector('.w-last3').textContent,
+      info: it.querySelector('.w-info').textContent, desc: it.querySelector('.w-idesc').textContent,
+    }));
+    const tag = `${vp.width}px ${JSON.stringify(m)}`;
+    assert.deepStrictEqual([m.n, m.ok, m.now, m.boxes], [12, 6, 1, 0], tag);
+    assert.strictEqual(m.rep, 'Tekrar 7/12', tag);
+    assert.strictEqual(m.last, 'Son: 1:31 · 1:32 · 1:33', tag);
+    assert.strictEqual(m.info, 'Hedef 1:30 · Dinlen 0:20 · Alet Paletsiz', tag);
+    assert.strictEqual(m.desc, 'Son 25 hızlı, dönüşte 5 dolfin', tag);
+    assert.ok((await fitsCard(p)) <= 1, `yüzerken kart taşmamalı: ${tag} ${await fitsCard(p)}`);
+    await s.press(); await s.adv(5); // dinlenme
+    assert.strictEqual(await s.text('.w-item.is-active .w-rep b'), '7/12 bitti');
+    assert.strictEqual(await p.$$eval('.w-item.is-active .w-strip i.rs', (e) => e.length), 1);
+    assert.ok((await fitsCard(p)) <= 1, `dinlenirken kart taşmamalı: ${vp.width}px`);
+    await s.close();
+  }
+});
+
+sc('Set sonu dinlenmesi: sıradaki setin içeriği öne, sayaç küçük şerit; kart taşmaz', async ({ launch }) => {
+  const rows = [prow(T23, 1, 'WU', 1, 200, 'Swim', '04:00', '01:00'), prow(T23, 2, 'AS', 6, 50, 'Kick', '01:20', '00:15', 'Finn'), prow(T23, 3, 'CD', 1, 200, 'Swim', '04:00', '')];
+  rows[1][7] = 'Sağ/Sol rotasyon, omuz-çene hattı. Son 2 tekrar hızlı.';
+  for (const vp of [{ width: 375, height: 667 }, { width: 430, height: 932 }]) {
+    const s = await launch({ rows, viewport: vp }); const p = s.page;
+    await s.openToday();
+    await s.tap(240); await s.tap(12); // 1×200 bitti → set sonu dinlenmesi
+    await p.waitForTimeout(800);
+    assert.strictEqual(await s.activeIdx(), 1);
+    const m = await p.$eval('.w-item.is-active', (it) => ({
+      mode: it.dataset.mode, sub: it.querySelector('.w-sub').textContent, desc: it.querySelector('.w-desc').textContent,
+      tiles: it.querySelectorAll('.w-tile').length, alet: it.querySelector('.w-foot').textContent.includes('Finn'),
+      mini: !!it.querySelector('.w-timer.is-mini'), big: it.querySelector('.w-timer.is-mini .w-tbig').textContent,
+      banner: it.querySelector('.w-banner').textContent,
+    }));
+    const tag = `${vp.width}px ${JSON.stringify(m)}`;
+    assert.strictEqual(m.mode, 'next', tag);
+    assert.strictEqual(m.sub, 'FR · Kick', tag);
+    assert.match(m.desc, /^Sağ\/Sol rotasyon/, tag);
+    assert.ok(m.mini, tag);
+    const vis = await p.$eval('.w-item.is-active', (it) => (it.querySelector('.w-tiles').offsetParent ? it.querySelector('.w-foot').textContent : it.querySelector('.w-ninfo').textContent).replace(/\s+/g, ' '));
+    assert.match(vis, /Finn/, `alet görünmeli: ${tag} ${vis}`);
+    if (vp.width === 430) assert.strictEqual(m.tiles, 2);
+    assert.match(m.big, /^0:4\d$/, tag);
+    assert.match(m.banner, /1 × 200 FR bitti/, tag);
+    assert.ok((await fitsCard(p)) <= 1, `kart taşmamalı: ${tag} ${await fitsCard(p)}`);
+    assert.strictEqual(await s.label(), 'YÜZ');
+    assert.strictEqual(await s.sub(), '6 × 50 FR Kick · 1. tekrar');
+    await s.close();
+  }
+});
+
+sc('Ayrıntı paneli: karta dokununca (yüzerken de) açılır, dokununca kapanır; zamanlama etkilenmez', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(30);
+  const before = await s.events();
+  await p.click('.w-item.is-active .w-card');
+  await p.waitForSelector('#detail:not([hidden])');
+  assert.match(await s.text('#detail'), /1 × 200[\s\S]*FR · Swim[\s\S]*Açıklama 1[\s\S]*HEDEF[\s\S]*4:00[\s\S]*DİNLEN[\s\S]*0:20/);
+  await p.click('#detail');
+  assert.ok(await p.isHidden('#detail'));
+  assert.deepStrictEqual(await s.events(), before);
+  assert.strictEqual(await s.label(), 'DUR');
+});
+
+sc('Mola: dinlenirken sol düğme Mola olur; saat, sayaç ve bipler durur; DEVAM ET; süreler moladan arınır', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.tap(240); await s.press(); // 1×200, DUR → set sonu dinlenmesi (Dinlen 0:20)
+  await p.clock.runFor(300);
+  assert.strictEqual(await s.text('#btn-undo'), 'Geri al');
+  await s.adv(6);
+  assert.strictEqual(await s.text('#btn-undo'), 'Mola');
+  const clock0 = await p.textContent('#prog-clock');
+  await p.click('#btn-undo');
+  await p.waitForSelector('#mola:not([hidden])');
+  await s.adv(240);
+  for (let i = 0; i < 6; i++) await p.clock.runFor(500);
+  assert.strictEqual(await p.textContent('#mola-time'), '4:03');
+  assert.strictEqual(await p.textContent('#prog-clock'), clock0, 'idman saati durur');
+  assert.strictEqual(await p.textContent('#mola-idman'), clock0);
+  assert.deepStrictEqual(await p.evaluate(() => window.__beeps), [660], 'molada bip yok');
+  assert.match(await s.text('#mola-next'), /Sıradaki: 4 × 50 FR · 1\. tekrar/);
+  await p.reload(); await s.waitScreen('program');
+  await p.waitForSelector('#mola:not([hidden])', { timeout: 3000 });
+  await p.click('#mola-devam');
+  assert.ok(await p.isHidden('#mola'));
+  assert.deepStrictEqual((await s.events()).slice(-2), ['mola', 'devam']);
+  await s.adv(10); for (let i = 0; i < 12; i++) await p.clock.runFor(500);
+  const bp = await p.evaluate(() => window.__beeps);
+  assert.deepStrictEqual(bp, [880, 880, 880, 1320], 'dinlenme moladan sonra kaldığı yerden sayar (yeniden yüklemede bip kaydı sıfırlanır) ' + JSON.stringify(bp));
+  await s.tap(65); await s.tap(3);
+  // ‹ panelinden de mola verilir
+  await p.click('#prog-back'); await s.waitModal('İdmanı bitir?');
+  await s.modalClick('Mola ver');
+  await p.waitForSelector('#mola:not([hidden])');
+  await s.adv(60); await p.click('#mola-devam');
+  await s.finishToOzet();
+  const sure = await p.textContent('#oz-sure');
+  assert.ok(/^0?5:[23]\d$/.test(sure), `süre moladan arınık olmalı (~5:30, molasız ~10:30): ${sure}`);
+  const chip = await p.$('#oz-chips button[data-chip^="Mola"]');
+  assert.match(await chip.textContent(), /^Mola 2× · 5:[01]\d$/);
+  await chip.click();
+  await p.click('#oz-save'); await s.waitScreen('done');
+  assert.match(s.env.sheets.seans.data[1][6], /^Mola 2× · 5:[01]\d$/);
+  const sonu = await s.ls('ysk.history');
+  assert.ok(sonu.length === 1);
+});
+
+sc('Tek basışla başlangıç: ilk YÜZ idmanı başlatır; geri al ikisini birden siler', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  assert.strictEqual(await s.label(), 'YÜZ');
+  await s.press(); await p.clock.runFor(300);
+  assert.deepStrictEqual(await s.events(), ['basla', 'cik0']);
+  assert.strictEqual(await s.label(), 'DUR');
+  await p.click('#btn-undo');
+  assert.deepStrictEqual(await s.events(), []);
+  assert.strictEqual(await s.label(), 'YÜZ');
+  assert.strictEqual(await p.textContent('#prog-clock'), '0:00');
+  // Son tekrar alt yazısı
+  await s.adv(3); await s.press(); await s.adv(5);
+  assert.strictEqual(await s.sub(), 'Son tekrar · set biter');
 });
 
 sc('Düzen: 320, 375 ve 430 px genişlikte tüm ekranlarda yatay taşma yok, düğmeler büyük', async ({ launch }) => {
@@ -744,8 +884,8 @@ sc('Düzen: 320, 375 ve 430 px genişlikte tüm ekranlarda yatay taşma yok, dü
       const b = e.getBoundingClientRect(); const o = e.parentElement.getBoundingClientRect();
       return { t: e.textContent, sw: e.scrollWidth, cw: e.clientWidth, in: b.left >= o.left && b.right <= o.right, fs: parseFloat(getComputedStyle(e).fontSize) };
     });
-    assert.ok(fit.t === 'İDMANA BAŞLA' && fit.sw <= fit.cw + 1 && fit.in && fit.fs >= 18, `${vp.width}px düğme yazısı sığmalı: ${JSON.stringify(fit)}`);
-    await s.tap(3); await s.press(); await s.adv(70); await check('program yüzerken');
+    assert.ok(fit.t === 'YÜZ' && fit.sw <= fit.cw + 1 && fit.in && fit.fs >= 18, `${vp.width}px düğme yazısı sığmalı: ${JSON.stringify(fit)}`);
+    await s.press(); await s.adv(70); await check('program yüzerken');
     await s.press(); await s.adv(30); await check('program dinlenme (eksi)');
     await p.click('#prog-back'); await s.modalClick('İdmanı bitir ve kaydet'); await s.waitScreen('rpe'); await check('RPE');
     await p.click('#rpe-grid button[data-v="7"]'); await s.waitScreen('msi'); await check('MSI');

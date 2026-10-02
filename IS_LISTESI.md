@@ -11,28 +11,7 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Sürüm 10.4 (öneri, onay bekliyor):
-- [ ] Çok tekrarlı setler (5–20+): yüzerken/dinlenirken kartta tekrar kutuları yerine tek satırlık
-  ilerleme şeridi (her tekrar bir çentik: yapılan yeşil, şimdiki sarı, kalan gri) + "Tekrar 7/12"
-  + son 3 tekrarın süresi ve ortalama. 4 ve altı tekrarda bugünkü kutular kalır. Set bitince
-  (özet kartı) ve seans sonunda tüm süreler sarılarak tam görünür.
-- [ ] Set içeriği yüzerken/dinlenirken de görünsün: başlığın altında kısa bilgi satırı
-  (Alet · Hedef · Dinlen) ve açıklama (1–2 satır, küçük).
-- [ ] Set sonu dinlenmesinde sıradaki setin kartı içeriği öne alır: stil · tür, açıklama, alet,
-  hedef/dinlen tam görünür; dinlenme sayacı küçülerek kartın altına iner. (Set ÇIK'a basmadan
-  başlamaz; sayaç yalnızca dinlenmeyi ölçer.)
-- [ ] Karta dokununca ayrıntı paneli: her an (yüzerken de) setin tüm bilgisi büyük yazıyla;
-  dokununca kapanır, zamanlamayı etkilemez.
-- [ ] Mola (duraklat): dinlenirken ‹ paneline "Mola ver" seçeneği. Mola ekranı tüm ekranı kaplar:
-  "MOLA" + geçen mola süresi + büyük "DEVAM ET". Molada idman saati ve dinlenme sayacı durur,
-  bip çalmaz. Mola süresi idman süresinden ve dinlenme ölçümünden düşülür (dinlenme notu
-  bozulmaz). Yüzerken mola verilemez (önce GELDİM). Uygulama kapanıp açılsa da mola sürer.
-  Özette "Mola: 4:30" satırı (işaretlenirse açıklamaya yazılır).
-- [ ] Büyük düğme kelimeleri: ÇIK → **YÜZ**, GELDİM → **DUR** (alt yazı bağlamı verir: "7. tekrar",
-  "son tekrar · set biter"). Uygulama içindeki tüm metinler ve README buna göre.
-- [ ] Tek basışla başlangıç: İDMANA BAŞLA kalkar; ilk YÜZ hem idman saatini hem 1. tekrarı başlatır
-  (son setin son DUR'u idmanı bitirir).
-  Görseller: `tasarim/v14/oneriler-1.png`, `tasarim/v14/oneriler-2.png`.
+Yeni talepler buraya.
 
 ## 2. Aşama — Orta vade
 
@@ -73,6 +52,16 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 
 ## Tamamlanan
 
+- [x] Sürüm 10.4:
+  - Düğme **YÜZ / DUR**; ilk YÜZ idmanı ve 1. tekrarı birlikte başlatır (ayrı "İDMANA BAŞLA" yok).
+  - 5+ tekrarlı setlerde şerit, "Tekrar 7/12", ortalama ve son 3 süre (12–20 tekrar sığar).
+  - Yüzerken/dinlenirken set bilgisi (Hedef · Dinlen · Alet, açıklama); set sonu dinlenmesinde
+    sıradaki setin içeriği öne, sayaç kartın altında ince şerit.
+  - Karta dokununca ayrıntı paneli.
+  - Mola: sol alt düğme (dinlenirken) veya ‹ → Mola ver; saat, sayaç, bipler durur; DEVAM ET;
+    mola süresi idman ve dinlenme ölçümünden düşülür; özette "Mola" hazır ifadesi.
+  - Kısa ekranlarda sıradaki set kartı kademeli sıkılaşır; yüzerken başlık–stil boşluğu giderildi.
+  - Görseller: `tasarim/v14/oneriler-1.png`, `tasarim/v14/oneriler-2.png`.
 - [x] Sürüm 10.3 (hata düzeltme):
   - Hazır set kartında stil · tür ("FR · Kick") yine başlığın hemen altında, boşluksuz (Sürüm 10'da
     başlığın yanına sığmayınca boşluklu alt satıra düşüyor, kart uzuyordu).

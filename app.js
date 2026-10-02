@@ -1,11 +1,11 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=10.3';
-import { Wheel } from './wheel.js?v=10.3';
-import * as zaman from './zaman.js?v=10.3';
+import * as data from './data.js?v=10.4';
+import { Wheel } from './wheel.js?v=10.4';
+import * as zaman from './zaman.js?v=10.4';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '10.3';
+export const APP_VERSION = '10.4';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1180,9 +1180,9 @@ function resumeSession() {
 // ---------------------------------------------------------------------------
 // İdman ekranı (ZAMANLAMA.md)
 //
-// Tek büyük düğme: İDMANA BAŞLA → ÇIK → GELDİM → ÇIK … Her dokunuş yalnızca
+// Tek büyük düğme: YÜZ → DUR → YÜZ … (ilk YÜZ idmanı da başlatır). Her dokunuş yalnızca
 // bir olay (zaman damgası) ekler; durum ve süreler zaman.js ile olay
-// listesinden hesaplanır. Setin son GELDİM'i seti, son setin son GELDİM'i
+// listesinden hesaplanır. Setin son DUR'u seti, son setin son DUR'u
 // idmanı bitirir. Geri al son olayı siler.
 // ---------------------------------------------------------------------------
 
@@ -1263,6 +1263,41 @@ function repBoxes(i, withLive) {
   return `<div class="w-reps${boxes.length > 6 ? ' is-many' : ''}">${boxes.join('')}</div>`;
 }
 
+/** 5+ tekrarlı setler için tek satır şerit: her tekrar bir çentik; altında sayaç, ortalama ve son 3 süre. */
+function repStrip(i) {
+  const s = state.plan.setler[i];
+  const st = zst();
+  const reps = st.per[i].reps;
+  const n = tekrarOf(s);
+  const notches = [];
+  for (let r = 0; r < Math.max(n, reps.length); r++) {
+    const rep = reps[r];
+    let cls = '';
+    if (rep && rep.geldim != null) cls = 'ok';
+    else if (rep) cls = 'now';
+    else if (st.phase === 'rest' && st.cur === i && r === reps.length) cls = 'rs';
+    notches.push(`<i class="${cls}"></i>`);
+  }
+  const times = zaman.repTimes(st, i);
+  const swimming = st.phase === 'swim' && st.cur === i;
+  const label = swimming ? `Tekrar ${reps.length}/${n}` : `${times.length}/${n} bitti`;
+  const avg = times.length ? `ort. ${fmtAvg(zaman.effectiveTimes(times).avgMs)}` : '';
+  const last3 = times.slice(-3).map((t) => `<em>${fmtShort(t)}</em>`).join(' · ');
+  return `<div class="w-strip">${notches.join('')}</div>
+    <div class="w-rep"><b>${label}</b><span>${avg}</span></div>
+    <div class="w-last3">${last3 ? `Son: ${last3}` : ''}</div>`;
+}
+
+/** Yüzerken/dinlenirken başlığın altındaki kısa bilgi: Hedef · Dinlen · Alet ve açıklamanın ilk satırı. */
+function setInfo(s) {
+  const short = (v) => String(v).replace(/^0(\d:)/, '$1');
+  const parts = [];
+  if (s.hedef) parts.push(`Hedef <b>${esc(short(s.hedef))}</b>`);
+  if (s.dinlen) parts.push(`Dinlen <b>${esc(short(s.dinlen))}</b>`);
+  if (s.alet) parts.push(`Alet <b>${esc(s.alet)}</b>`);
+  return `${parts.length ? `<div class="w-info">${parts.join(' · ')}</div>` : ''}${s.aciklama ? `<div class="w-idesc">${esc(s.aciklama)}</div>` : ''}`;
+}
+
 function renderItem(node, s, i, cum) {
   const st = zst();
   const status = statusOf(i);
@@ -1286,13 +1321,17 @@ function renderItem(node, s, i, cum) {
 
   // Hazır kartta başlık büyük: stil · tür Sürüm 9'daki gibi kendi satırında. Küçük başlıklı
   // kartlarda (yüzerken, dinlenirken, özet) başlığın yanında durur.
-  const title = mode === 'ready'
+  const title = mode === 'ready' || mode === 'next'
     ? `<div class="w-title">${esc(`${T} × ${s.mesafe}`)}</div>${styleTur ? `<div class="w-sub">${esc(styleTur)}</div>` : ''}`
     : `<div class="w-title">${esc(`${T} × ${s.mesafe}`)}${styleTur ? `<small>${esc(styleTur)}</small>` : ''}</div>`;
   const timer = '<div class="w-timer"><span class="w-tmode"></span><b class="w-tbig n"></b><span class="w-tsub n"></span></div>';
   let body;
+  const foot = `<div class="w-foot">
+        ${s.alet ? `<span><span class="w-alet">Alet</span> <b>${esc(s.alet)}</b></span>` : ''}
+        <span class="w-last">${s.hedef && pacePer100(parseSec(s.hedef), s.mesafe) ? `<span class="w-pace"><span class="w-alet">Tempo</span> ${paceHtml(parseSec(s.hedef), s)}</span>` : '<span></span>'}<span class="w-dist">${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span></span>
+      </div>`;
   if (mode === 'live') {
-    body = `${title}${repBoxes(i, true)}${timer}`;
+    body = `${title}${setInfo(s)}${T > 4 ? repStrip(i) : repBoxes(i, true)}${timer}`;
   } else if (mode === 'next') {
     const cs = state.plan.setler[st.cur];
     const cd = zaman.doneReps(st, st.cur);
@@ -1300,7 +1339,13 @@ function renderItem(node, s, i, cum) {
     const banner = cd >= ct || legacyDone(st.cur)
       ? `<div class="w-banner ok">✓ ${esc(setTitle(cs))} bitti · ort. ${fmtAvg(zaman.effectiveTimes(zaman.repTimes(st, st.cur)).avgMs)} · ${cd}/${ct}</div>`
       : `<div class="w-banner warn">⚠ ${esc(setTitle(cs))} ${cd}/${ct}'te kapanacak · ${ct - cd} tekrar yapılmadı</div>`;
-    body = `${title}${banner}${timer}`;
+    // Set sonu dinlenmesi: sıradaki setin içeriği öne alınır, sayaç küçülüp alta iner.
+    body = `${title}${banner}
+      ${s.aciklama ? `<div class="w-desc">${esc(s.aciklama)}</div>` : ''}
+      ${tiles ? `<div class="w-tiles">${tiles}</div>` : ''}
+      ${foot}
+      <div class="w-ninfo">${setInfo({ ...s, aciklama: '' }).replace(/<\/?div[^>]*>/g, '')}${s.hedef && pacePer100(parseSec(s.hedef), s.mesafe) ? ` · Tempo ${paceHtml(parseSec(s.hedef), s)}` : ''}</div>
+      ${timer.replace('class="w-timer"', 'class="w-timer is-mini"')}`;
   } else if (mode === 'sum') {
     const times = zaman.repTimes(st, i);
     const avg = times.length ? fmtAvg(zaman.effectiveTimes(times).avgMs) : '';
@@ -1311,10 +1356,7 @@ function renderItem(node, s, i, cum) {
     body = `${title}
       ${s.aciklama ? `<div class="w-desc">${esc(s.aciklama)}</div>` : '<div class="w-desc"></div>'}
       ${tiles ? `<div class="w-tiles">${tiles}</div>` : ''}
-      <div class="w-foot">
-        ${s.alet ? `<span><span class="w-alet">Alet</span> <b>${esc(s.alet)}</b></span>` : ''}
-        <span class="w-last">${s.hedef && pacePer100(parseSec(s.hedef), s.mesafe) ? `<span class="w-pace"><span class="w-alet">Tempo</span> ${paceHtml(parseSec(s.hedef), s)}</span>` : '<span></span>'}<span class="w-dist">${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span></span>
-      </div>`;
+      ${foot}`;
   }
 
   node.classList.toggle('is-done', isDone);
@@ -1414,7 +1456,7 @@ function fitText(el, max = 54, min = 30) {
   }
 }
 
-/** Büyük düğmenin yazısı düğmeye sığacak kadar küçülür (İDMANA BAŞLA dar ekranda taşıyordu). */
+/** Büyük düğmenin yazısı düğmeye sığacak kadar küçülür (uzun yazılar dar ekranda taşıyordu). */
 function fitMainLabel() {
   const el = $('btn-main-label');
   if (!el) return;
@@ -1509,13 +1551,18 @@ function updateControls() {
   const btn = $('btn-main');
   let label = '';
   let sub = '';
-  if (a.kind === 'basla') { label = 'İDMANA BAŞLA'; sub = 'İdman saati başlar'; }
-  else if (a.kind === 'geldim') { label = 'GELDİM'; sub = `${a.rep}. tekrar biter, dinlenme başlar`; }
-  else if (a.kind === 'cik') {
-    label = 'ÇIK';
+  if (a.kind === 'geldim') {
+    label = 'DUR';
+    const T = tekrarOf(state.plan.setler[a.set]);
+    if (a.rep < T) sub = `${a.rep}. tekrar biter`;
+    else sub = a.set === state.plan.setler.length - 1 || nextOpenSet(a.set) < 0 ? 'Son tekrar · idman biter' : 'Son tekrar · set biter';
+  } else if (a.kind === 'cik') {
+    label = 'YÜZ';
     const set = state.plan.setler[a.set];
-    sub = st.cur === a.set || st.phase === 'ready' ? `${a.rep}. tekrar başlar` : `${setTitle(set)} ${set.tur || ''} · ${a.rep}. tekrar`.replace(/\s+·/, ' ·');
-  } else { label = 'SET TAMAM'; sub = 'Kaydırıp başka sete geç'; }
+    if (a.start) sub = 'İdman ve 1. tekrar başlar';
+    else sub = st.cur === a.set || st.phase === 'ready' ? `${a.rep}. tekrar başlar` : `${setTitle(set)} ${set.tur || ''} · ${a.rep}. tekrar`.replace(/\s+·/, ' ·');
+  } else if (a.kind === 'mola') { label = 'MOLA'; sub = 'Devam etmek için DEVAM ET'; }
+  else { label = 'SET TAMAM'; sub = 'Kaydırıp başka sete geç'; }
   const lab = $('btn-main-label');
   if (lab.textContent !== label || !lab.dataset.fit) {
     lab.textContent = label;
@@ -1554,9 +1601,11 @@ function tick() {
   }
   clock.classList.toggle('is-idle', st.basla == null);
 
-  // Geri al: son olaydan sonra 5 sn.
+  // Sol düğme: son basıştan sonra 5 sn "Geri al"; sonra dinlenirken "Mola".
   const last = st.last;
-  $('btn-undo').classList.toggle('is-on', Boolean(last && st.phase !== 'done' && now - last.ts < UNDO_MS));
+  const undoable = Boolean(last && ACTIONS.includes(last.t) && st.phase !== 'done' && st.mola == null && now - last.ts < UNDO_MS);
+  setLeftSlot(undoable ? 'undo' : (st.phase === 'rest' && st.mola == null ? 'mola' : ''));
+  updateMola(st, now);
 
   if (!state.wheel) return;
   const pos = state.wheel.index;
@@ -1579,7 +1628,7 @@ function tick() {
     const reps = st.per[i].reps;
     const lastRep = reps[reps.length - 1];
     const dinlen = parseSec(s0.dinlen);
-    const el = (now - lastRep.geldim) / 1000;
+    const el = zaman.restElapsed(st, now) / 1000;
     const rem = dinlen - el;
     const lastT = (lastRep.geldim - lastRep.cik) / 1000;
     const hedef = parseSec(s0.hedef);
@@ -1590,14 +1639,14 @@ function tick() {
         setTimer(box, setOver ? 'SET SONU DİNLENMESİ' : 'DİNLENME', 'b', fmtDur(Math.floor(el)), '', sub);
       } else {
         const big = rem >= 0 ? fmtDur(Math.ceil(rem)) : `−${fmtDur(Math.floor(-rem) || 0)}`;
-        const mode = rem < 0 ? 'DİNLENME UZADI' : (setOver ? 'SET SONU DİNLENMESİ' : 'DİNLENME · ÇIKIŞA');
+        const mode = rem < 0 ? 'DİNLENME UZADI' : (setOver ? 'SET SONU DİNLENMESİ' : 'DİNLENME');
         setTimer(box, mode, rem < 0 ? 'r' : 'b', big, rem < 0 ? 'r' : (rem <= 3 ? 'y' : ''), sub);
       }
       box.classList.toggle('is-flash', Boolean(dinlen) && rem > 0 && rem <= 3);
       const rb = node.querySelector('.w-reps .rest b');
       if (rb) rb.textContent = dinlen ? (rem >= 0 ? fmtDur(Math.ceil(rem)) : `−${fmtDur(Math.floor(-rem))}`) : fmtDur(Math.floor(el));
     }
-    if (dinlen) checkBeep(lastRep.geldim, rem);
+    if (dinlen && st.mola == null) checkBeep(lastRep.geldim, rem);
   } else if (box) {
     box.hidden = true;
   }
@@ -1632,12 +1681,15 @@ function onMainButton() {
   if (st.last && now - st.last.ts < GUARD_MS) return; // çift dokunma
   audio.unlock();
   const a = zaman.mainAction(st, state.plan.setler, state.wheel.index);
+  if (a.kind === 'mola') return;
   if (a.kind === 'yok') {
     if (a.set != null) askResetSet(a.set);
     return;
   }
-  if (a.kind === 'basla') pushEvent({ t: 'basla', ts: now });
-  else if (a.kind === 'cik') pushEvent({ t: 'cik', ts: now, set: a.set });
+  if (a.kind === 'cik') {
+    if (a.start) pushEvent({ t: 'basla', ts: now }); // ilk YÜZ idmanı da başlatır
+    pushEvent({ t: 'cik', ts: now, set: a.set });
+  }
   else if (a.kind === 'geldim') {
     pushEvent({ t: 'geldim', ts: now });
     if (prefs().ses) audio.ok();
@@ -1658,7 +1710,7 @@ function onMainButton() {
   afterEvent();
 }
 
-/** Tamamlanan seti sıfırlar: o setin ÇIK/GELDİM olayları silinir, set yeniden yapılabilir. */
+/** Tamamlanan seti sıfırlar: o setin YÜZ/DUR olayları silinir, set yeniden yapılabilir. */
 async function askResetSet(i) {
   const set = state.plan.setler[i];
   const st = zst();
@@ -1687,14 +1739,117 @@ function afterEvent() {
 
 function onUndo() {
   const st = zst();
-  if (!st.last || st.phase === 'done') return;
-  ev().pop();
+  if (!st.last || st.phase === 'done' || st.mola != null || !ACTIONS.includes(st.last.t)) return;
+  const e = ev();
+  const popped = e.pop();
+  // İlk YÜZ basla + cik birlikte eklenir; geri alınca ikisi de silinir.
+  const prev = e[e.length - 1];
+  if (popped.t === 'cik' && prev && prev.t === 'basla' && prev.ts === popped.ts) e.pop();
   state.zst = null;
   persist();
   const st2 = zst();
   afterEvent();
   if (st2.phase === 'swim' && state.wheel.index !== st2.cur) state.wheel.scrollTo(st2.cur);
   toast('Son dokunuş geri alındı', 1500);
+}
+
+const ACTIONS = ['basla', 'cik', 'geldim'];
+const ICON_UNDO = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>';
+const ICON_MOLA = '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>';
+
+/** Sol alt düğme: 'undo' (Geri al, 5 sn), 'mola' (dinlenirken) ya da '' (sönük). */
+function setLeftSlot(act) {
+  const b = $('btn-undo');
+  if (b.dataset.act === act) return;
+  b.dataset.act = act;
+  b.innerHTML = act === 'mola' ? `${ICON_MOLA}<span>Mola</span>` : `${ICON_UNDO}<span>Geri al</span>`;
+  b.setAttribute('aria-label', act === 'mola' ? 'Mola ver' : 'Son dokunuşu geri al');
+  b.classList.toggle('is-on', act === 'undo');
+  b.classList.toggle('is-mola', act === 'mola');
+}
+
+function onLeftSlot() {
+  const act = $('btn-undo').dataset.act;
+  if (act === 'undo') onUndo();
+  else if (act === 'mola') startMola();
+}
+
+/** Mola: yalnızca dinlenirken. İdman saati, dinlenme sayacı ve bipler durur. */
+function startMola() {
+  const st = zst();
+  if (st.phase !== 'rest' || st.mola != null) {
+    if (st.phase === 'swim') toast('Yüzerken mola verilemez. Önce DUR.');
+    return;
+  }
+  pushEvent({ t: 'mola' });
+  afterEvent();
+}
+
+function endMola() {
+  if (zst().mola == null) return;
+  pushEvent({ t: 'devam' });
+  afterEvent();
+}
+
+function updateMola(st, now) {
+  const box = $('mola');
+  const on = st.mola != null;
+  if (box.hidden === on) box.hidden = !on;
+  if (!on) return;
+  $('mola-time').textContent = fmtDur(Math.floor((now - st.mola) / 1000));
+  $('mola-idman').textContent = fmtClock(zaman.idmanMs(st, now));
+  const i = state.wheel ? state.wheel.index : st.cur;
+  const set = state.plan.setler[i];
+  const done = zaman.doneReps(st, i);
+  const short = (v) => String(v).replace(/^0(\d:)/, '$1');
+  const html = done < tekrarOf(set)
+    ? `Sıradaki: <b>${esc(setTitle(set))} · ${done + 1}. tekrar</b>${set.hedef || set.dinlen ? `<br>${[set.hedef ? `Hedef ${esc(short(set.hedef))}` : '', set.dinlen ? `Dinlen ${esc(short(set.dinlen))}` : ''].filter(Boolean).join(' · ')}` : ''}`
+    : '';
+  const nx = $('mola-next');
+  if (nx.innerHTML !== html) nx.innerHTML = html;
+  nx.hidden = !html;
+}
+
+/** Karta dokununca setin tüm bilgisi büyük yazıyla; dokununca kapanır, zamanlamayı etkilemez. */
+function openDetail(i) {
+  const s = state.plan.setler[i];
+  const b = blokOf(s);
+  const c = cumulative(state.plan.setler)[i];
+  const blok = String(s.blok || '').trim().toUpperCase();
+  const short = (v) => String(v).replace(/^0(\d:)/, '$1');
+  const styleTur = [s.stil, s.tur].filter(Boolean).join(' · ');
+  const pace = s.hedef && pacePer100(parseSec(s.hedef), s.mesafe) ? `<p class="dt-row">Tempo ${paceHtml(parseSec(s.hedef), s)}</p>` : '';
+  const box = $('detail');
+  box.style.setProperty('--c', b.renk);
+  $('detail-body').innerHTML = `
+    <div class="dt-tag">${esc(blok)}${b.ad ? ` · ${esc(b.ad.toLocaleUpperCase('tr'))}` : ''} · ${i + 1}/${state.plan.setler.length}</div>
+    <div class="dt-title">${esc(`${tekrarOf(s)} × ${s.mesafe}`)}</div>
+    ${styleTur ? `<div class="dt-sub">${esc(styleTur)}</div>` : ''}
+    ${s.aciklama ? `<p class="dt-desc">${esc(s.aciklama)}</p>` : ''}
+    <div class="dt-tiles">${s.hedef ? `<div><small>HEDEF</small><b>${esc(short(s.hedef))}</b></div>` : ''}${s.dinlen ? `<div><small>DİNLEN</small><b>${esc(short(s.dinlen))}</b></div>` : ''}</div>
+    ${pace}
+    ${s.alet ? `<p class="dt-row">Alet <b>${esc(s.alet)}</b></p>` : ''}
+    <p class="dt-row">${fmtNum(setDist(s))} m${c.time ? ` · yığımlı hedef ${fmtDur(c.time)}` : ''}</p>
+    <p class="dt-hint">Kapatmak için dokun · süre işlemeye devam eder</p>`;
+  box.hidden = false;
+}
+
+function closeDetail() {
+  $('detail').hidden = true;
+}
+
+// Sürükleme (yüzerken kilitli tekerlekte de) paneli açmasın: yalnızca yerinde dokunuş.
+let wheelDown = null;
+function onWheelDown(e) { wheelDown = { x: e.clientX, y: e.clientY }; }
+
+function onWheelClick(e) {
+  const d = wheelDown;
+  wheelDown = null;
+  if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) return;
+  const card = e.target.closest && e.target.closest('.w-item.is-active .w-card');
+  if (!card || !state.wheel || zst().mola != null) return;
+  const i = state.wheel.items.indexOf(card.closest('.w-item'));
+  if (i >= 0) openDetail(i);
 }
 
 function onSoundButton() {
@@ -1708,7 +1863,7 @@ async function onProgramBack() {
   const s = state.session;
   const st = zst();
   if (st.phase === 'swim') {
-    toast('Yüzerken kullanılamaz. Önce GELDİM.');
+    toast('Yüzerken kullanılamaz. Önce DUR.');
     return;
   }
   if (!hasProgress(s)) {
@@ -1725,13 +1880,17 @@ async function onProgramBack() {
     title: 'İdmanı bitir?',
     body: `<p>Yapılan: ${full} set tam${partial.length ? `, ${esc(partial.join(', '))}` : ''} · ${fmtNum(sessionDistance())} m · ${fmtClock(zaman.idmanMs(st, Date.now()))}</p>`,
     actions: [
+      ...(st.phase === 'rest' && st.mola == null ? [{ label: '⏸ Mola ver', value: 'mola', cls: 'btn-mola' }] : []),
       { label: 'İdmanı bitir ve kaydet', value: 'bitir', cls: 'btn-primary' },
       { label: 'Devam et', value: '' },
       { label: 'Takvime dön (idman sürer)', value: 'cik', cls: 'btn-ghost' },
     ],
   });
-  if (choice === 'bitir') {
+  if (choice === 'mola') {
+    startMola();
+  } else if (choice === 'bitir') {
     if (st.phase === 'idle') pushEvent({ t: 'basla' });
+    if (zst().mola != null) pushEvent({ t: 'devam' });
     pushEvent({ t: 'bitir', auto: false });
     openRpe();
   } else if (choice === 'cik') {
@@ -1741,7 +1900,7 @@ async function onProgramBack() {
 
 // --- Ses ---------------------------------------------------------------------
 //
-// Dinlenmede çıkışa 3-2-1 kısa, 0'da uzun bip; GELDİM'de kısa onay. iOS sesi
+// Dinlenmede çıkışa 3-2-1 kısa, 0'da uzun bip; DUR'da kısa onay. iOS sesi
 // yalnızca bir dokunuştan sonra açar (audio.unlock).
 
 const audio = {
@@ -1824,7 +1983,7 @@ function openRpe() {
   if (!$('rpe-undo').hidden) state.rpeTimer = setTimeout(() => { $('rpe-undo').hidden = true; }, UNDO_MS - (Date.now() - b));
 }
 
-/** Bitişi geri alır: otomatik bitişte son GELDİM de geri alınır (tekrar sürüyor olur). */
+/** Bitişi geri alır: otomatik bitişte son DUR da geri alınır (tekrar sürüyor olur). */
 function backToWorkout() {
   const e = ev();
   const last = e[e.length - 1];
@@ -1951,7 +2110,9 @@ function renderOzet() {
     blocks.push(`<div class="oz-set"><div class="oz-st"><b>${esc(title)}</b><span class="n">ort. ${eff.avgMs ? fmtAvg(eff.avgMs) : '—'}</span></div>${ls}${susHtml}</div>`);
   });
   $('oz-notes').innerHTML = blocks.length ? blocks.join('') : '<p class="muted">Süresi ölçülen set yok.</p>';
-  $('oz-chips').innerHTML = HAZIR_IFADE.map((c) => `<button class="oz-chip${f.chips.includes(c) ? ' on' : ''}" data-chip="${esc(c)}">${esc(c)}</button>`).join('');
+  const zs = zst();
+  const mola = zs.molaN ? [`Mola ${zs.molaN > 1 ? `${zs.molaN}× · ` : ''}${fmtShort(zaman.molaMs(zs, zs.bitir || Date.now()))}`] : [];
+  $('oz-chips').innerHTML = [...HAZIR_IFADE, ...mola].map((c) => `<button class="oz-chip${f.chips.includes(c) ? ' on' : ''}" data-chip="${esc(c)}">${esc(c)}</button>`).join('');
   if (document.activeElement !== $('oz-aciklama')) $('oz-aciklama').value = f.aciklama;
   $('oz-msg').hidden = true;
 }
@@ -2228,7 +2389,11 @@ function wire() {
 
   $('prog-back').addEventListener('click', onProgramBack);
   $('btn-main').addEventListener('click', onMainButton);
-  $('btn-undo').addEventListener('click', onUndo);
+  $('btn-undo').addEventListener('click', onLeftSlot);
+  $('mola-devam').addEventListener('click', endMola);
+  $('wheel').addEventListener('pointerdown', onWheelDown, { capture: true, passive: true });
+  $('wheel').addEventListener('click', onWheelClick);
+  $('detail').addEventListener('click', closeDetail);
   $('btn-sound').addEventListener('click', onSoundButton);
 
   $('rpe-back').addEventListener('click', backToWorkout);

@@ -148,18 +148,28 @@ Lock; desteklenmiyorsa sessizce devam eder). Kartın altında hedefin **100 m te
 (ör. `Tempo 1:35/100 · Z3`) bölge renginde görünür.
 
 **Zamanlama (tek düğme).** Ayrı kronometre yoktur; ayrıntılı kurallar `ZAMANLAMA.md`'de.
-- Alttaki büyük düğme sırayla **İDMANA BAŞLA → ÇIK → GELDİM → ÇIK → …** olur. Tekrar ve
-  dinlenme süreleri yalnızca dokunuş zamanlarından hesaplanır; uygulama kapanıp açılsa da kaymaz.
-- Aktif kartta tekrar kutucukları (yüzülen tekrarların süreleri) ve büyük saat: yüzerken
-  yukarı sayar, dinlenirken plandaki dinlenmeden geri sayar, süre aşılınca eksiye kırmızı geçer.
-- Setin son GELDİM'i seti bitirir ve kart sıradaki sete geçer (araya giren dinlenme
-  "Set sonu" olarak biten sete yazılır). Son setin son GELDİM'i idmanı bitirir.
-- Dinlenmenin son 3 saniyesinde kısa bip, çıkış anında uzun bip; GELDİM'de onay sesi.
+- Alttaki büyük düğme **YÜZ → DUR → YÜZ → …** olur. İlk YÜZ idman saatini ve 1. tekrarı
+  birlikte başlatır; son setin son DUR'u idmanı bitirir. Altındaki küçük yazı ne olacağını söyler
+  ("7. tekrar başlar", "Son tekrar · set biter", "Son tekrar · idman biter"). Tekrar ve dinlenme
+  süreleri yalnızca dokunuş zamanlarından hesaplanır; uygulama kapanıp açılsa da kaymaz.
+- Yüzerken ve dinlenirken kartta set bilgisi (*Hedef · Dinlen · Alet* ve açıklamanın ilk satırı),
+  tekrar durumu ve büyük saat: yüzerken yukarı sayar, dinlenirken plandaki dinlenmeden geri sayar,
+  süre aşılınca eksiye kırmızı geçer. 4 ve altı tekrarda tekrar kutucukları; 5+ tekrarda tek satır
+  şerit (yapılan yeşil, yüzülen sarı, dinlenilen mavi), **Tekrar 7/12**, ortalama ve son 3 süre.
+- Setin son DUR'u seti bitirir ve kart sıradaki sete geçer. Bu **set sonu dinlenmesinde** sıradaki
+  setin içeriği öne çıkar (stil · tür, açıklama, hedef, dinlen, alet, tempo); dinlenme sayacı kartın
+  altında ince bir şerittir. Set sonu dinlenmesi biten sete yazılır.
+- **Karta dokununca** (yüzerken de) setin tüm bilgisi büyük yazıyla açılır; dokununca kapanır.
+- Dinlenmenin son 3 saniyesinde kısa bip, çıkış anında uzun bip; DUR'da onay sesi.
   Alt bardaki **Ses** düğmesi sesi açar/kapatır. iPhone sessiz moddaysa ses çıkmaz.
-- **Geri al** (sol alt) son dokunuşu 5 saniye boyunca geri alır. 2 saniye içindeki ikinci
-  dokunuş yok sayılır. Yüzerken setler kaydırılamaz ve ‹ çalışmaz.
+- Sol alt düğme: her basıştan sonra 5 saniye **Geri al**, sonra dinlenirken **⏸ Mola**.
+  2 saniye içindeki ikinci dokunuş yok sayılır. Yüzerken setler kaydırılamaz ve ‹ çalışmaz.
+- **Mola** (tuvalet arası vb.): yalnızca dinlenirken, sol alt düğmeden ya da ‹ → *Mola ver*.
+  Mola ekranında idman saati, dinlenme sayacı ve bipler durur; yalnızca **DEVAM ET** molayı
+  bitirir. Mola süresi idman süresinden ve dinlenme ölçümünden düşülür; özette "Mola 4:30"
+  hazır ifadesi çıkar (işaretlenirse açıklamaya yazılır).
 - **Seti erken bitirmek:** dinlenirken başka sete kaydırın; kart hangi setin kaç tekrarla
-  kapanacağını yazar, ÇIK'a basınca önceki set n/N olarak kapanır. Geri kaydırmak vazgeçer.
+  kapanacağını yazar, YÜZ'e basınca önceki set n/N olarak kapanır. Geri kaydırmak vazgeçer.
 - **İdmanı erken bitirmek:** ‹ → *İdmanı bitir ve kaydet* / *Devam et* / *Takvime dön (idman sürer)*.
 - **Seti sıfırla:** tamamlanan sette düğme *SET TAMAM* olur; dokununca onay sorulur, onaylanırsa
   o setin tekrarları silinir ve set yeniden yapılabilir (diğer setler etkilenmez).
@@ -175,7 +185,7 @@ ama bölge rengi verilmez: ekipmanlı tempo ekipmansız bölgelerle karşılaşt
 1. **RPE** — 0–10 arası tek dokunuş (5 sn içinde *İdmana dön* ile son adım geri alınır).
 2. **MSI** — *Ağrı yok* ya da vücut şemasında bölgeye dokundukça 0,5 → 1 → 1,5 → 2 → 3 → boş.
    Dokunulmayan bölge kaydedilmez; MSI seans sayfasına `sag omuz 1; bel 0.5` biçiminde yazılır.
-3. **Özet ve kaydet** — süre (İDMANA BAŞLA → bitiş) ve mesafe (yapılan tekrarlar × mesafe)
+3. **Özet ve kaydet** — süre (ilk YÜZ → bitiş, molalar hariç) ve mesafe (yapılan tekrarlar × mesafe)
    otomatik; havuz 25/50 (son seçim hatırlanır); hazır ifadeler ve açıklama. Her set için
    ortalama tekrar süresi **Gerçek**'e gider. Nota yazılabilecek satırlar (tekrar süreleri,
    plandan belirgin sapan dinlenmeler, eksik tekrar) işaret kutusuyla gösterilir; yalnızca
@@ -240,7 +250,8 @@ node tests/test-e2e.cjs       # baştan sona tam akış
 ```
 
 Uçtan uca testler için Playwright gerekir (global kuruluysa `NODE_PATH=$(npm root -g)`).
-Senaryolar: tam idman (otomatik set geçişi, son GELDİM'le bitiş), dinlenme sayacı ve bipler,
+Senaryolar: tam idman (otomatik set geçişi, son DUR'la bitiş), tek basışla başlangıç, 12 tekrarlı
+set şeridi, set sonu kartı, ayrıntı paneli, mola, dinlenme sayacı ve bipler,
 ses düğmesi, çift dokunma ve geri al, yüzerken kaydırma/‹ kilidi, seti ve idmanı erken bitirme,
 şüpheli tekrar düzeltme, dinlenme notu onayı, RPE/MSI/havuz, yeniden açılışta devam, Sürüm 9
 seansının taşınması, hızlı açılış ve arka plan yenileme, eski Code.gs uyumu, çevrimdışı,

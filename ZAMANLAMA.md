@@ -2,6 +2,15 @@
 
 30.09.2026 · Görseller: `tasarim/v12/idman-zamanlama-2.png`, `tasarim/v12/seans-sonu.png`
 
+> **Sürüm 10.4 değişiklikleri (bu belgenin geri kalanından önce gelir):**
+> - Düğme yazıları: ÇIK → **YÜZ**, GELDİM → **DUR** (olay adları `cik` / `geldim` aynı kaldı).
+> - "İDMANA BAŞLA" adımı yok: ilk YÜZ `basla` ve `cik` olaylarını aynı damgayla ekler; Geri al ikisini birlikte siler.
+> - **Mola:** `{ t: 'mola', ts }` / `{ t: 'devam', ts }` — yalnızca dinlenirken. Molada idman saati, dinlenme sayacı
+>   ve bipler durur. Mola süresi idman süresinden, dinlenme ve set sonu ölçümünden düşülür. Sol alt düğme
+>   basıştan sonra 5 sn "Geri al", sonra dinlenirken "Mola"; ‹ panelinde "Mola ver".
+> - 5+ tekrarlı setlerde kutucuk yerine şerit + "Tekrar n/N" + son 3 süre; set bilgisi yüzerken de görünür;
+>   set sonu dinlenmesinde sıradaki setin içeriği öne çıkar; karta dokununca ayrıntı paneli.
+
 ## 0. İlkeler
 
 1. **Tek zamanlayıcı.** Ayrı kronometre yok. İdman ekranı zamanlayıcının kendisidir.

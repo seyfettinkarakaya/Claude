@@ -123,7 +123,7 @@ const server = http.createServer((req, res) => {
   const info = await page.evaluate(() => {
     const a = document.querySelector('.w-item.is-active');
     const r = a.getBoundingClientRect(); const w = document.getElementById('wheel').getBoundingClientRect();
-    const btns = [...document.querySelectorAll('#screen-program button')].map(b => { const q = b.getBoundingClientRect(); return [b.id || b.textContent, Math.round(q.width), Math.round(q.height)]; });
+    const btns = [...document.querySelectorAll('#screen-program button')].filter(b => b.offsetParent).map(b => { const q = b.getBoundingClientRect(); return [b.id || b.textContent, Math.round(q.width), Math.round(q.height)]; });
     return { title: a.querySelector('.w-title').textContent, font: parseFloat(getComputedStyle(a.querySelector('.w-title')).fontSize), top: r.top, bottom: r.bottom, wTop: w.top, wBottom: w.bottom, btns, count: document.querySelectorAll('.w-item.is-done').length, tag: a.querySelector('.w-tag').textContent, dist: document.getElementById('prog-dist').textContent, docW: document.documentElement.scrollWidth };
   });
   console.log('Program:', JSON.stringify(info));
@@ -165,11 +165,16 @@ const server = http.createServer((req, res) => {
     await page.waitForTimeout(400);
     assert.strictEqual(await activeIdx(), target);
   };
-  // Tek zamanlayıcı: büyük düğme İDMANA BAŞLA → ÇIK → GELDİM; süreler dokunuş zamanlarından
+  // Tek zamanlayıcı: büyük düğme YÜZ → DUR → YÜZ (ilk YÜZ idmanı da başlatır); süreler dokunuş zamanlarından
   const label = () => page.textContent('#btn-main-label');
   const adv = async (sec) => { // sahte saat fastForward'u ara sıra uygulamıyor: ilerleyene dek tekrar
     const want = sec * 1000; const t0 = await page.evaluate(() => Date.now());
-    for (let k = 0; k < 5; k++) { const done = (await page.evaluate(() => Date.now())) - t0; if (done >= want - 20) break; await page.clock.fastForward(want - done); }
+    for (let k = 0; k < 5; k++) {
+      let done = (await page.evaluate(() => Date.now())) - t0;
+      if (done < want - 20 && k > 0) { await page.waitForTimeout(40); done = (await page.evaluate(() => Date.now())) - t0; }
+      if (done >= want - 20) break;
+      await page.clock.fastForward(want - done);
+    }
     await page.clock.runFor(250);
   };
   const tap = async (sec) => { await page.$eval('#btn-main', b => b.click()); if (sec) await adv(sec); };
@@ -191,11 +196,9 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(await page.$eval('.w-item.is-active .w-pace b', e => getComputedStyle(e).color), 'rgb(248, 113, 113)');
   await goTo(0);
 
-  assert.strictEqual(await label(), 'İDMANA BAŞLA');
-  await tap(5);
-  assert.strictEqual(await label(), 'ÇIK');
-  await tap(150); // 1 × 200
-  assert.strictEqual(await label(), 'GELDİM');
+  assert.strictEqual(await label(), 'YÜZ');
+  await tap(150); // ilk YÜZ: idman + 1 × 200
+  assert.strictEqual(await label(), 'DUR');
   await tap(20);  // set tamam → kart 4 × 100'e geçer; set sonu dinlenmesi
   await page.waitForTimeout(900);
   assert.strictEqual(await activeIdx(), 1);
@@ -205,7 +208,7 @@ const server = http.createServer((req, res) => {
   // 4 × 100: tekrar süreleri 1:23.4, 1:24.6, 1:24.0, 1:24.0 (tap +0,25 sn ekler)
   const reps = [83.15, 84.35, 83.75, 83.75];
   for (let r = 0; r < reps.length; r++) {
-    assert.strictEqual(await label(), 'ÇIK', `tekrar ${r + 1}`);
+    assert.strictEqual(await label(), 'YÜZ', `tekrar ${r + 1}`);
     await tap(reps[r]);
     await tap(r < 3 ? 19.75 : 5);
     if (r === 1) {
@@ -214,7 +217,7 @@ const server = http.createServer((req, res) => {
       await page.waitForSelector('#screen-program:not([hidden]) .w-item.is-active');
       await page.waitForTimeout(300);
       assert.strictEqual(await activeIdx(), 1);
-      assert.strictEqual(await label(), 'ÇIK');
+      assert.strictEqual(await label(), 'YÜZ');
       assert.strictEqual(await page.$$eval('.w-item.is-active .w-reps div.ok', e => e.length), 2);
     }
   }
@@ -268,14 +271,14 @@ const server = http.createServer((req, res) => {
   await page.waitForFunction(() => !document.getElementById('days-today-bar').hidden);
   await page.click('#days-today-btn');
   await page.waitForSelector('#screen-program:not([hidden]) .w-item.is-active');
-  await tap(3); await tap(60); // başla, ÇIK
+  await tap(60); // ilk YÜZ
   offline = true;
   await page.reload(); // uçak modunda yeniden açılış (yüzerken)
   await page.waitForSelector('#screen-program:not([hidden]) .w-item.is-active');
   assert.strictEqual(await activeTitle(), '1 × 400');
-  assert.strictEqual(await label(), 'GELDİM');
+  assert.strictEqual(await label(), 'DUR');
   await adv(300);
-  await page.click('#btn-main'); // son setin son GELDİM'i idmanı bitirir
+  await page.click('#btn-main'); // son setin son DUR'u idmanı bitirir
   await page.waitForSelector('#screen-rpe:not([hidden])');
   await page.click('#rpe-grid button[data-v="5"]');
   await page.waitForSelector('#screen-msi:not([hidden])');
@@ -345,7 +348,7 @@ const server = http.createServer((req, res) => {
   await page.click('#days-today-btn');
   await page.waitForSelector('#screen-program:not([hidden])');
   await page.evaluate(() => localStorage.setItem('ysk.dates', JSON.stringify({ dates: 'bozuk' })));
-  await tap(3); await tap(60); await page.click('#btn-main'); // tek set: GELDİM idmanı bitirir
+  await tap(60); await page.click('#btn-main'); // tek set: DUR idmanı bitirir
   await page.waitForSelector('#screen-rpe:not([hidden])');
   await page.click('#rpe-grid button[data-v="5"]');
   await page.click('#msi-none');
@@ -357,7 +360,7 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
   await page.click('#days-back');
   await page.waitForSelector('#screen-home:not([hidden])');
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10.3');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 10.4');
   assert.match(await page.textContent('#home-history-meta'), /^3 kayıt$/);
 
   // Toplu silme: yalnızca telefondaki kopyalar gider

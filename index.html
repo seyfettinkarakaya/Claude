@@ -18,9 +18,9 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="fonts/fonts.css?v=10.3">
-  <link rel="stylesheet" href="style.css?v=10.3">
-  <script type="module" src="app.js?v=10.3"></script>
+  <link rel="stylesheet" href="fonts/fonts.css?v=10.4">
+  <link rel="stylesheet" href="style.css?v=10.4">
+  <script type="module" src="app.js?v=10.4"></script>
 </head>
 <body>
 
@@ -47,7 +47,7 @@
 
       <div id="setup-prefs" hidden>
         <h2 class="set-h">Çıkış sesi</h2>
-        <p class="muted">Dinlenmede çıkışa 3-2-1 saniye kala kısa bip, çıkışta uzun bip; GELDİM'de kısa onay sesi. İdman ekranındaki ses düğmesiyle de açılıp kapanır. iPhone sessiz moddaysa ses çıkmaz.</p>
+        <p class="muted">Dinlenmede çıkışa 3-2-1 saniye kala kısa bip, çıkışta uzun bip; DUR'da kısa onay sesi. İdman ekranındaki ses düğmesiyle de açılıp kapanır. iPhone sessiz moddaysa ses çıkmaz.</p>
         <div class="seg" id="pref-ses">
           <button data-v="1">Açık</button>
           <button data-v="0">Kapalı</button>
@@ -150,9 +150,22 @@
     <div class="wheel" id="wheel"></div>
     <footer class="dock">
       <button class="dock-side" id="btn-undo" aria-label="Son dokunuşu geri al"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span>Geri al</span></button>
-      <button class="dock-main" id="btn-main"><b id="btn-main-label">İDMANA BAŞLA</b><small id="btn-main-sub"></small></button>
+      <button class="dock-main" id="btn-main"><b id="btn-main-label">YÜZ</b><small id="btn-main-sub"></small></button>
       <button class="dock-side" id="btn-sound" aria-label="Ses"></button>
     </footer>
+    <!-- Karta dokununca: setin tüm bilgisi (dokununca kapanır) -->
+    <div class="detail" id="detail" hidden><div class="detail-in" id="detail-body"></div></div>
+    <!-- Mola: idman saati, dinlenme sayacı ve bipler durur -->
+    <div class="mola" id="mola" hidden>
+      <div class="mola-in">
+        <p class="mola-k"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg> MOLA</p>
+        <b class="mola-t" id="mola-time">0:00</b>
+        <p class="mola-s">İdman saati durdu · <b id="mola-idman">0:00</b></p>
+        <p class="mola-s">Dinlenme sayacı ve bipler duruyor</p>
+        <p class="mola-next" id="mola-next" hidden></p>
+      </div>
+      <button class="mola-go" id="mola-devam"><b>DEVAM ET</b><small>İdman saati yeniden işler</small></button>
+    </div>
   </section>
 
   <!-- Seans sonu 1/3: RPE -->
