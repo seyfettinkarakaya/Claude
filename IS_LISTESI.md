@@ -33,6 +33,10 @@ Sürüm 10.5 (bekliyor, "uygula" ile):
 - [ ] **Yüzme idmanını idman anında değiştir / ekle / sil** (öneri sohbette, karar bekliyor): karta dokun →
   ayrıntı panelinde Düzenle / Sonrasına set ekle / Sil; dinlenirken "+1 tekrar"; yüzerken kapalı;
   eklenen ve değişen setler tabloya planla farkı notuyla yazılır (Code.gs değişir).
+  - Karar: planla fark Not sütununa yazılır ("Plan: 4×100 → 6×100", "idmanda eklendi").
+  - Karar: `eski` sayfasında **Sıra**, **Set Mesafe**, **Set Süre** sütunları boş bırakılır (tablo kendisi
+    dolduruyor). Eklenen sete sıra numarası verilmez; uygulama içindeki sırası yeterli.
+  - Giriş yeri: resimli seçenekler gösterilecek (`tasarim/v17/`).
 - [ ] **Salon idman planlama** (konuşulacak; taslak `tasarim/v16/salon-planlama.png`): hedef kaslara göre katsayı hesaplayıp hareket listesinden
   (H, hkEtki) hareket önermek; planlama sayfası.
 - [ ] **sporRef'ten referans verileri** (öneri, karar bekliyor): CSS (tarih aralığı + alet + havuz), 7 bölge
