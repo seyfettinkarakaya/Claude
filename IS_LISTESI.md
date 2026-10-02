@@ -76,6 +76,12 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
   - Karar: **Nabız, RPE, MSI her hareket için elle** girilir (hareket sonunda giriş adımı).
   - Karar: **hareket süresi** (ilk set başı → son set sonu, mm:ss) `idman` sayfasının **K sütununa** yazılır
     (v2 formülü A–J okuduğu için K güvenli).
+  - Salon idman ekranı (taslak `tasarim/v18/salon-idman.png`): düğme **BAŞLA / BİTTİ**; set tekrarı ± ile
+    düzeltilir; dinlenme sayacı; hareket sonunda Nabız (±, geçen değerle hazır) · RPE · MSI · Not girişi.
+    Hareket süresi ilk set başından son set sonuna. Süreli hareketlerde BAŞLA → geri sayım, kendiliğinden biter.
+  - Öneri (karar bekliyor): yüzmedeki A düzeni salonda da — karta dokun → panel: Düzenle (set, tekrar,
+    ağırlık, dinlen) · **Değiştir** (aynı kas grubundan puanlı liste; makine doluysa) · Sonrasına ekle
+    (puanlı hareket listesi) · Sil (başlanmamış); dinlenirken **"+1 set"** kısayolu.
 
 - [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
