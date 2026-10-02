@@ -46,7 +46,7 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
   - Yüzme katsayısı: `H` sayfasındaki **Swim Transfer Coefficient** sütunu.
   - Seçim **kas grubu** düzeyinde; alt kas ve kinetik zincir hareket satırında bilgi olarak.
   - Hedef yüzdeleri tek tablodan (`rH` HEDEF %) okunur, uygulamada değiştirilebilir.
-    (Açık: değişiklik tabloya da yazılsın mı, yalnız telefonda mı kalsın?)
+    Değişiklik tabloya da yazılır (salon betiği hedef sütununa yazar).
   - Varsayılan set/tekrar/ağırlık = son yapılan. İlerleme: son seferde RPE ≤ 8 ve MSI ≤ 0,5 → "+1 tekrar"
     veya "+2,5 kg" önerisi; RPE ≥ 9,5 veya MSI ≥ 1,5 → aynı değer + ⚠.
   - Son iki idmanda MSI ≥ 1,5 olan hareket ⚠ ile işaretlenir, puanı düşer, gizlenmez.
@@ -54,8 +54,10 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
   - Plan yalnızca telefonda tutulur, tabloya yazılmaz; idman yapılınca satırlar `idman` sayfasına eklenir.
 - [ ] **Hareket videosu (YouTube)**: hareket kataloğuna (`H` sayfası) "Video" sütunu; uygulamada hareket
   kartında, planlama listesinde ve ayrıntı panelinde ▶ düğmesi, dokununca YouTube'da açılır.
-  Yalnızca youtube.com / youtu.be adresleri kabul edilir. (Açık: yüzme drill'lerine de mi; uygulama içinde
-  gömülü oynatma mı, YouTube'da açma mı.)
+  Yalnızca youtube.com / youtu.be adresleri kabul edilir.
+  - Karar: video **YouTube'da açılır** (uygulama içinde gömülü oynatma yok; idman saati etkilenmez).
+  - Karar: **yüzme drill'lerinde de** olur — YuzmeProgram Plan sayfasına "Video" sütunu (satır başına);
+    tamamlanan satırla `arsiv`/`eski`'ye taşınır. İleride drill kataloğu sayfası düşünülebilir.
 - [ ] **sporRef'ten referans verileri** (onaylandı): CSS (tarih aralığı + alet + havuz), 7 bölge
   (SP3–REC, CSS'e göre sn/100 m) ve HR bölgeleri, max nabız, faz bilgisi, RPE/MSI açıklamaları, kısaltmalar.
   Şu an CSS Ayarlar'dan elle (varsayılan 1:57), bölgeler uygulamada sabit Z1–Z5 — sporRef ile uyumsuz.
