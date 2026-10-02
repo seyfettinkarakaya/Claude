@@ -24,15 +24,17 @@
 </head>
 <body>
 
-  <!-- Kurulum / Ayarlar: Apps Script adresi ve token, ses, CSS temposu -->
+  <!-- Kurulum / Ayarlar: 3 bağlantı (yüzme, salon, sporRef), ses, CSS temposu -->
   <section id="screen-setup" class="screen" hidden>
     <header class="topbar">
       <button class="icon-btn" id="setup-back" aria-label="Geri" hidden>‹</button>
       <h1 class="topbar-title" id="setup-title">Kurulum</h1>
     </header>
     <div class="scroll pad">
-      <h2 class="set-h">Bağlantı</h2>
-      <p class="muted">Apps Script web uygulamasının adresini (<b>/exec</b> ile biter) ve gizli anahtarı girin. Bilgiler yalnızca bu cihazda saklanır.</p>
+      <h2 class="set-h">Bağlantılar</h2>
+      <p class="muted">Her tablonun kendi Apps Script'i var; her biri yalnızca kendi dosyasını görür. Adres <b>/exec</b> ile biter. Bilgiler yalnızca bu cihazda saklanır.</p>
+
+      <h3 class="conn-h">Yüzme <small>YuzmeProgram · gerekli</small></h3>
       <label class="field">
         <span>Apps Script adresi</span>
         <input id="setup-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
@@ -40,6 +42,26 @@
       <label class="field">
         <span>Gizli anahtar (token)</span>
         <input id="setup-token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tokenUret() çıktısı">
+      </label>
+
+      <h3 class="conn-h">Salon <small>SalonTakip · isteğe bağlı</small></h3>
+      <label class="field">
+        <span>Apps Script adresi</span>
+        <input id="setup-salon-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="boş: salon kapalı">
+      </label>
+      <label class="field">
+        <span>Gizli anahtar (token)</span>
+        <input id="setup-salon-token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </label>
+
+      <h3 class="conn-h">sporRef <small>CSS, bölgeler, RPE/MSI · isteğe bağlı</small></h3>
+      <label class="field">
+        <span>Apps Script adresi</span>
+        <input id="setup-ref-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="boş: CSS elle girilir">
+      </label>
+      <label class="field">
+        <span>Gizli anahtar (token)</span>
+        <input id="setup-ref-token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
       </label>
       <p id="setup-msg" class="msg" hidden></p>
       <button id="setup-save" class="btn btn-primary btn-block">Kaydet ve bağlan</button>
@@ -55,8 +77,9 @@
         <button id="pref-ses-test" class="btn btn-block set-gap">Sesi dene</button>
 
         <h2 class="set-h">Tempo (CSS)</h2>
-        <p class="muted">Kritik yüzme hızın, 100 m için dd:ss. Set kartında ve kronometrede 100 m temposu bu değere göre bölge rengiyle gösterilir. Ekipmanlı (Alet, Pull, Drill, Kick) setlerde bölge gösterilmez.</p>
-        <label class="field">
+        <p class="muted" id="pref-css-note">Kritik yüzme hızın, 100 m için dd:ss. Set kartında ve kronometrede 100 m temposu bu değere göre bölge rengiyle gösterilir. Ekipmanlı (Alet, Pull, Drill, Kick) setlerde bölge gösterilmez.</p>
+        <p class="ref-css" id="pref-css-ref" hidden></p>
+        <label class="field" id="pref-css-field">
           <span>CSS / 100 m</span>
           <input id="pref-css" type="text" inputmode="numeric" autocomplete="off" placeholder="1:57">
         </label>

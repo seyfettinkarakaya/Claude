@@ -104,11 +104,12 @@ function readZones_(ss) {
   var t = optSheet_(ss, 'zone');
   if (!t) return [];
   var cZ = col_(t, 'Zone', true), cA = col_(t, 'Alt Sınır', true), cU = col_(t, 'Üst Sınır', true), cT = col_(t, 'Tür', true);
+  var cAd = col_(t, 'Türkçe Adı', false);
   var out = [];
   t.values.forEach(function (r) {
     var z = text_(r, cZ);
     if (!z) return;
-    out.push({ zone: z, alt: signedNumber_(r[cA]), ust: signedNumber_(r[cU]), tur: text_(r, cT).toUpperCase() });
+    out.push({ zone: z, alt: signedNumber_(r[cA]), ust: signedNumber_(r[cU]), tur: text_(r, cT).toUpperCase(), ad: text_(r, cAd) });
   });
   return out;
 }

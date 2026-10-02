@@ -60,7 +60,7 @@ const server = http.createServer((req, res) => {
   await page.fill('#setup-url', 'https://script.google.com/macros/s/TEST/exec');
   await page.fill('#setup-token', 'wrong');
   await page.click('#setup-save');
-  await page.waitForFunction(() => /Anahtar hatalı/.test(document.getElementById('setup-msg').textContent));
+  await page.waitForFunction(() => /anahtar hatalı/i.test(document.getElementById('setup-msg').textContent));
   await page.fill('#setup-token', 'secret');
   await page.click('#setup-save');
 
@@ -191,9 +191,9 @@ const server = http.createServer((req, res) => {
   await goTo(2);
   const desc = await page.$eval('.w-item.is-active .w-desc', e => ({ sh: e.scrollHeight, ch: e.clientHeight }));
   assert.ok(desc.sh <= desc.ch + 1, 'açıklama kırpılmamalı');
-  // 100 m tempo: hedef 1:30 / 200 m → 0:45, CSS 1:57'ye göre Z5 (ekipmansız Swim)
-  assert.strictEqual((await page.textContent('.w-item.is-active .w-pace')).replace(/\s+/g, ' ').trim(), 'Tempo 0:45/100 · Z5');
-  assert.strictEqual(await page.$eval('.w-item.is-active .w-pace b', e => getComputedStyle(e).color), 'rgb(248, 113, 113)');
+  // 100 m tempo: hedef 1:30 / 200 m → 0:45, CSS 1:57'ye göre SP3 (ekipmansız Swim)
+  assert.strictEqual((await page.textContent('.w-item.is-active .w-pace')).replace(/\s+/g, ' ').trim(), 'Tempo 0:45/100 · SP3');
+  assert.strictEqual(await page.$eval('.w-item.is-active .w-pace b', e => getComputedStyle(e).color), 'rgb(232, 121, 249)');
   await goTo(0);
 
   assert.strictEqual(await label(), 'YÜZ');
@@ -379,9 +379,9 @@ const server = http.createServer((req, res) => {
   await page.waitForSelector('#screen-setup:not([hidden])');
   assert.strictEqual(await page.textContent('#setup-title'), 'Ayarlar');
   assert.strictEqual(await page.inputValue('#pref-css'), '1:57');
-  assert.strictEqual(await page.$$eval('#pref-zones .zone', e => e.length), 5);
+  assert.strictEqual(await page.$$eval('#pref-zones .zone', e => e.length), 7);
   await page.fill('#pref-css', '1:50'); await page.press('#pref-css', 'Tab');
-  assert.match(await page.textContent('#pref-zones .z4'), /1:48 – 1:53/);
+  assert.match(await page.textContent('#pref-zones .z4'), /1:47 – 1:53/);
   await page.click('#pref-ses button[data-v="0"]');
   assert.deepStrictEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('ysk.prefs'))), { ses: false, css: 110, havuz: 50 });
   await page.click('#setup-forget');

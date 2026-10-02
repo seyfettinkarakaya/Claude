@@ -12,7 +12,13 @@ const KEYS = {
   queue: 'ysk.queue',
   history: 'ysk.history', // telefonda saklanan biten seanslar (elle silinir)
   prefs: 'ysk.prefs',
+  ref: 'ysk.ref',               // sporRef verisi (CSS, bölgeler, RPE/MSI tanımları)
+  salon: 'ysk.salon',           // SalonTakip verisi (katalog, kas etkileri, geçmiş)
+  salonSession: 'ysk.salonSession',
 };
+
+// Bağlantılar: her tablonun kendi Apps Script'i, adresi ve anahtarı vardır.
+export const TARGETS = ['yuzme', 'salon', 'ref'];
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -57,16 +63,27 @@ function store(key, value) {
 // Ayarlar (Apps Script adresi + token)
 // ---------------------------------------------------------------------------
 
-export function getConfig() {
-  const c = load(KEYS.config, null);
+// Saklama biçimi: { apiUrl, token, salon: { apiUrl, token }, ref: { apiUrl, token } }
+// (yüzme bağlantısı eski sürümlerle uyum için en üst düzeyde kalır).
+function pick(c) {
   return {
     apiUrl: c && typeof c.apiUrl === 'string' ? c.apiUrl : '',
     token: c && typeof c.token === 'string' ? c.token : '',
   };
 }
 
-export function setConfig({ apiUrl, token }) {
-  store(KEYS.config, { apiUrl: String(apiUrl || '').trim(), token: String(token || '').trim() });
+export function getConfig(target = 'yuzme') {
+  const c = load(KEYS.config, null);
+  if (!c || typeof c !== 'object') return pick(null);
+  return target === 'yuzme' ? pick(c) : pick(c[target]);
+}
+
+export function setConfig({ apiUrl, token }, target = 'yuzme') {
+  const c = load(KEYS.config, null);
+  const all = c && typeof c === 'object' ? c : {};
+  const v = { apiUrl: String(apiUrl || '').trim(), token: String(token || '').trim() };
+  if (target === 'yuzme') store(KEYS.config, { ...all, ...v });
+  else store(KEYS.config, { ...all, [target]: v.apiUrl || v.token ? v : undefined });
 }
 
 /** Adres ve anahtarı bu cihazdan siler (Anahtarı unut). Kayıtlar ve kuyruk kalır. */
@@ -74,8 +91,8 @@ export function clearConfig() {
   store(KEYS.config, null);
 }
 
-export function isConfigured() {
-  const c = getConfig();
+export function isConfigured(target = 'yuzme') {
+  const c = getConfig(target);
   return Boolean(c.apiUrl && c.token);
 }
 
@@ -105,8 +122,8 @@ export function setPrefs(patch) {
 // Apps Script çağrısı
 // ---------------------------------------------------------------------------
 
-async function call(action, body = {}) {
-  const { apiUrl, token } = getConfig();
+async function call(action, body = {}, target = 'yuzme') {
+  const { apiUrl, token } = getConfig(target);
   if (!apiUrl || !token) throw new ApiError('NO_CONFIG', 'Sunucu adresi veya anahtar tanımlı değil.');
 
   const ctrl = new AbortController();
@@ -288,12 +305,16 @@ export function clearSession() {
 export function getHistory() {
   const h = load(KEYS.history, []);
   if (!Array.isArray(h)) return [];
-  return h.filter((x) => x && typeof x.id === 'string' && typeof x.tarih === 'string' && Array.isArray(x.setler));
+  return h.filter((x) => x && typeof x.id === 'string' && typeof x.tarih === 'string'
+    && (turOf(x) === 'salon' ? Array.isArray(x.hareketler) : Array.isArray(x.setler)));
 }
 
-/** Kaydı ekler; aynı günün eski kaydı varsa yerine geçer. Yazılamazsa false. */
+/** Kayıt türü: 'salon' ya da 'yuzme' (eski kayıtlarda tur yok). */
+const turOf = (x) => (x && x.tur === 'salon' ? 'salon' : 'yuzme');
+
+/** Kaydı ekler; aynı gün ve türün eski kaydı varsa yerine geçer. Yazılamazsa false. */
 export function addHistory(record) {
-  const list = getHistory().filter((x) => x.tarih !== record.tarih);
+  const list = getHistory().filter((x) => !(x.tarih === record.tarih && turOf(x) === turOf(record)));
   list.push(record);
   list.sort((a, b) => (a.tarih < b.tarih ? 1 : a.tarih > b.tarih ? -1 : 0));
   return store(KEYS.history, list);
@@ -304,9 +325,9 @@ export function removeHistory(ids) {
   store(KEYS.history, getHistory().filter((x) => !drop.has(x.id)));
 }
 
-function markHistory(tarih, status) {
+function markHistory(tarih, status, tur = 'yuzme') {
   const list = getHistory();
-  const x = list.find((r) => r.tarih === tarih);
+  const x = list.find((r) => r.tarih === tarih && turOf(r) === tur);
   if (!x || x.status === 'sent') return;
   x.status = status;
   x.sentAt = Date.now();
@@ -327,10 +348,11 @@ export function getQueue() {
   return q.filter((x) => x && typeof x.id === 'string' && x.payload && typeof x.payload.tarih === 'string');
 }
 
-export function enqueue(payload, error) {
+export function enqueue(payload, error, tur = 'yuzme') {
   const queue = getQueue();
   queue.push({
-    id: `${payload.tarih}-${Date.now()}`,
+    id: `${tur === 'salon' ? 's-' : ''}${payload.tarih}-${Date.now()}`,
+    tur,
     payload,
     createdAt: Date.now(),
     tries: 0,
@@ -354,23 +376,21 @@ export function flushQueue() {
   if (flushing) return flushing;
   flushing = (async () => {
     const result = { sent: [], duplicates: [], remaining: 0 };
-    if (!isConfigured()) {
-      result.remaining = getQueue().length;
-      return result;
-    }
     for (const item of getQueue()) {
+      const tur = turOf(item);
+      if (!isConfigured(tur)) continue;
       try {
-        const data = await finishSession(item.payload);
+        const data = tur === 'salon' ? await saveSalon(item.payload) : await finishSession(item.payload);
         removeFromQueue(item.id);
-        forgetDate(item.payload.tarih);
-        markHistory(item.payload.tarih, 'sent');
-        result.sent.push({ tarih: item.payload.tarih, data });
+        if (tur === 'yuzme') forgetDate(item.payload.tarih);
+        markHistory(item.payload.tarih, 'sent', tur);
+        result.sent.push({ tarih: item.payload.tarih, tur, data });
       } catch (err) {
         if (err.code === 'DUPLICATE') {
           removeFromQueue(item.id);
-          forgetDate(item.payload.tarih);
-          markHistory(item.payload.tarih, 'duplicate');
-          result.duplicates.push({ tarih: item.payload.tarih });
+          if (tur === 'yuzme') forgetDate(item.payload.tarih);
+          markHistory(item.payload.tarih, 'duplicate', tur);
+          result.duplicates.push({ tarih: item.payload.tarih, tur });
           continue;
         }
         const queue = getQueue();
@@ -389,4 +409,52 @@ export function flushQueue() {
     flushing = null;
   });
   return flushing;
+}
+
+// ---------------------------------------------------------------------------
+// sporRef (salt okuma): CSS, bölgeler, RPE/MSI tanımları. Son başarılı cevap
+// telefonda saklanır; bağlantı yoksa saklanan kullanılır.
+// ---------------------------------------------------------------------------
+
+export async function getRef() {
+  const data = await call('getRef', {}, 'ref');
+  if (data && Array.isArray(data.css) && Array.isArray(data.zones)) store(KEYS.ref, { data, savedAt: Date.now() });
+  return data;
+}
+
+export function getCachedRef() {
+  const r = load(KEYS.ref, null);
+  return r && r.data && Array.isArray(r.data.css) && Array.isArray(r.data.zones) ? r : null;
+}
+
+// ---------------------------------------------------------------------------
+// Salon (SalonTakip)
+// ---------------------------------------------------------------------------
+
+export async function getSalon() {
+  const data = await call('getSalon', {}, 'salon');
+  if (data && Array.isArray(data.katalog) && Array.isArray(data.gecmis)) store(KEYS.salon, { data, savedAt: Date.now() });
+  return data;
+}
+
+export function getCachedSalon() {
+  const r = load(KEYS.salon, null);
+  return r && r.data && Array.isArray(r.data.katalog) && Array.isArray(r.data.gecmis) ? r : null;
+}
+
+export function saveSalon(payload) {
+  return call('saveSalon', payload, 'salon');
+}
+
+export function loadSalonSession() {
+  const s = load(KEYS.salonSession, null);
+  return s && typeof s === 'object' && typeof s.tarih === 'string' && Array.isArray(s.hareketler) ? s : null;
+}
+
+export function saveSalonSession(s) {
+  return store(KEYS.salonSession, s);
+}
+
+export function clearSalonSession() {
+  store(KEYS.salonSession, null);
 }

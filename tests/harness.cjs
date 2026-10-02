@@ -6,6 +6,8 @@ const { Sheet, makeEnv, D, ESKI_H, SEANS_H } = require('./fakegas.cjs');
 
 const ROOT = path.join(__dirname, '..');
 const API = 'https://script.google.com/macros/s/TEST/exec';
+const REF_API = 'https://script.google.com/macros/s/REF/exec';
+const SALON_API = 'https://script.google.com/macros/s/SALON/exec';
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.woff2': 'font/woff2' };
 
 function startServer(port) {
@@ -34,8 +36,28 @@ function samplePlan() {
   ];
 }
 
+/** Örnek sporRef: 06.07–30.09 CSS 2:00 (25 m), 1:55 (50 m); Pullbuoy 1:52 ("Şamandıra" = PB). */
+function sampleRef() {
+  return {
+    zone: new Sheet('zone', ['Zone', 'Alt Sınır', 'Üst Sınır', 'Tür', 'Türkçe Adı'], [
+      ['SP3', -999, '−19', 'PACE', 'Yüksek Spriniti'], ['SP2', '−19', '−9', 'PACE', 'Maksimal Spriniti'], ['SP1', '−9', '−3', 'PACE', 'Eşik Spriniti'],
+      ['EN3', '−3', 3, 'PACE', 'Yüksek Aerobik'], ['EN2', 3, 11, 'PACE', 'Orta Aerobik'], ['EN1', 11, 21, 'PACE', 'Düşük Aerobik'], ['REC', 21, 999, 'PACE', 'Toparlanma'],
+      ['REC', 0, 150, 'HR', ''],
+    ]),
+    css: new Sheet('css', ['Tarih_ilk', 'Tarih_son', 'CSS (sn)', 'Alet', 'Havuz'], [
+      [D('2026-05-01'), D('2026-07-05'), 125, '', 25], [D('2026-07-06'), D('2026-09-30'), 120, '', 25],
+      [D('2026-07-06'), D('2026-09-30'), 115, '', 50], [D('2026-07-06'), D('2026-09-30'), 112, 'PB', 25],
+    ]),
+    alet: new Sheet('alet', ['Kod', 'Ad', 'Açıklama'], [['PB', 'Pullbuoy', 'Pulboy'], ['Şamandıra', 'Pullbuoy', '']]),
+    RPE: new Sheet('RPE', ['1–2 — Çok kolay.'], [['7–8 — Zor, set sonlarında zorlanma.'], ['9 — Çok zor.'], ['10 — Maksimal.']]),
+    MSI: new Sheet('MSI', ['0 — Ağrı yok.'], [['0,5 — Hafif his.'], ['1 — Belirgin ağrı.']]),
+  };
+}
+
 async function launch(opts = {}) {
   const env = makeEnv({ Plan: new Sheet('Plan', PLAN_H, opts.rows || samplePlan()), eski: new Sheet('eski', ESKI_H), seans: new Sheet('seans', SEANS_H) });
+  const envs = { TEST: env, REF: makeEnv(opts.refSheets || sampleRef(), 'refkey', 'SporRef.gs') };
+  if (opts.salonSheets) envs.SALON = makeEnv(opts.salonSheets, 'salonkey', 'Salon.gs');
   const net = { offline: Boolean(opts.offline), delay: {}, override: null, calls: [], external: [] };
   const browser = opts.browser;
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 440, height: 956 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
@@ -57,7 +79,10 @@ async function launch(opts = {}) {
     if (ms) await new Promise((r) => setTimeout(r, ms));
     let out = net.override && net.override(body);
     if (out === 'abort') return route.abort('internetdisconnected');
-    if (!out) out = env.call(body);
+    if (!out) {
+      const e = envs[(/\/s\/([^/]+)\/exec/.exec(route.request().url()) || [])[1]];
+      out = e ? JSON.parse(e.ctx.doPost({ postData: { contents: JSON.stringify(body) } }).s) : { ok: false, error: 'NOT_FOUND', message: 'yok' };
+    }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(out) });
   });
   const page = await ctx.newPage();
@@ -67,12 +92,15 @@ async function launch(opts = {}) {
   await page.clock.install({ time: new Date(opts.time || '2026-09-23T07:00:00') });
   await page.goto(`http://localhost:${opts.port}/`);
   if (opts.configured !== false) {
-    await page.evaluate((api) => localStorage.setItem('ysk.config', JSON.stringify({ apiUrl: api, token: 'secret' })), API);
+    const cfg = { apiUrl: API, token: 'secret' };
+    if (opts.ref) cfg.ref = { apiUrl: REF_API, token: 'refkey' };
+    if (opts.salonSheets) cfg.salon = { apiUrl: SALON_API, token: 'salonkey' };
+    await page.evaluate((c) => localStorage.setItem('ysk.config', JSON.stringify(c)), cfg);
     if (opts.storage) await page.evaluate((s) => { for (const [k, v] of Object.entries(s)) localStorage.setItem(k, JSON.stringify(v)); }, opts.storage);
     await page.reload();
   }
   const h = helpers(page);
-  return { env, net, ctx, page, errors, ...h, close: () => ctx.close() };
+  return { env, envs, net, ctx, page, errors, ...h, close: () => ctx.close() };
 }
 
 function helpers(page) {
@@ -178,4 +206,4 @@ async function runScenarios(title, scenarios, port) {
   if (failed) process.exit(1);
 }
 
-module.exports = { launch, runScenarios, prow, samplePlan, API, D };
+module.exports = { launch, runScenarios, prow, samplePlan, sampleRef, API, REF_API, SALON_API, D };

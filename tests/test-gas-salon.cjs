@@ -26,8 +26,8 @@ test('sporRef getRef: bölgeler (Unicode eksi), CSS, bilgi, alet, RPE/MSI (başl
   const r = refEnv().call({ action: 'getRef' });
   assert.ok(r.ok, JSON.stringify(r));
   const d = r.data;
-  assert.deepStrictEqual(d.zones[0], { zone: 'SP3', alt: -999, ust: -19, tur: 'PACE' });
-  assert.deepStrictEqual(d.zones[1], { zone: 'SP2', alt: -19, ust: -9, tur: 'PACE' });
+  assert.deepStrictEqual(d.zones[0], { zone: 'SP3', alt: -999, ust: -19, tur: 'PACE', ad: '' });
+  assert.deepStrictEqual(d.zones[1], { zone: 'SP2', alt: -19, ust: -9, tur: 'PACE', ad: '' });
   assert.strictEqual(d.zones[3].alt, null, 'TEC sınırsız');
   assert.strictEqual(d.zones[4].tur, 'HR');
   assert.deepStrictEqual(d.css, [

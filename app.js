@@ -3,6 +3,7 @@
 import * as data from './data.js?v=10.4';
 import { Wheel } from './wheel.js?v=10.4';
 import * as zaman from './zaman.js?v=10.4';
+import * as ref from './ref.js?v=10.4';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
 export const APP_VERSION = '10.4';
@@ -50,6 +51,8 @@ const state = {
   suppressDayClick: false,
   opening: false,   // program sunucudan yükleniyor (çift dokunmaya karşı)
   homeNext: null,   // ana sayfadaki "İdmanı aç" düğmesinin açacağı gün
+  ref: undefined,   // sporRef önbelleği (undefined: henüz okunmadı)
+  zones: null,      // ref.paceZones önbelleği
 };
 
 // ---------------------------------------------------------------------------
@@ -167,43 +170,58 @@ const setKey = (s, i) => (s.sira == null || s.sira === '' ? `i${i}` : String(s.s
 // ---------------------------------------------------------------------------
 // 100 m tempo ve CSS bölgeleri
 //
-// min: bölgenin alt sınırı, 100 m temposunun CSS'ten farkı (sn). Yavaştan
-// hızlıya: Z1 ≥ CSS+15, Z2 CSS+8…+15, Z3 CSS+3…+8, Z4 CSS−2…+3, Z5 < CSS−2.
-// Ekipmanlı setlerin temposu ekipmansız bölgelerle karşılaştırılmaz.
+// sporRef bağlıysa CSS idman gününe, havuza ve alete göre `css` sayfasından,
+// bölgeler `zone` sayfasından (PACE; CSS farkı sn/100 m, alt ≤ fark < üst) gelir.
+// Bağlı değilse Ayarlar'daki elle girilen CSS ve varsayılan 7 bölge kullanılır.
+// Drill/kick setlerinde ve CSS'i olmayan aletlerde bölge gösterilmez.
 // ---------------------------------------------------------------------------
-
-const ZONES = [
-  { ad: 'Toparlanma', min: 15 },
-  { ad: 'Aerobik', min: 8 },
-  { ad: 'Tempo', min: 3 },
-  { ad: 'Eşik (CSS)', min: -2 },
-  { ad: 'Hız', min: -Infinity },
-];
 
 /** Saniye/100 m; mesafe yoksa null. */
 const pacePer100 = (sec, mesafe) => (sec > 0 && Number(mesafe) > 0 ? (sec / Number(mesafe)) * 100 : null);
 
-const isEquipped = (set) => Boolean(String(set.alet || '').trim()) || /pull|drill|kick|tekme|ayak/i.test(String(set.tur || ''));
-
-/** { n: 1..5, ad } ya da null (CSS yok / ekipmanlı set). */
 /** Tercihler; değişince refreshPrefs() ile tazelenir. */
 const prefs = () => state.prefs || (state.prefs = data.getPrefs());
 const refreshPrefs = () => { state.prefs = data.getPrefs(); };
 
-function zoneOf(pace, set) {
-  const css = prefs().css;
-  if (!pace || !css || isEquipped(set)) return null;
-  const d = pace - css;
-  const i = ZONES.findIndex((z) => d >= z.min);
-  return { n: i + 1, ad: ZONES[i].ad };
+/** sporRef önbelleği (getRef cevabı) ya da null. */
+const sporRef = () => (state.ref === undefined ? (state.ref = (data.getCachedRef() || {}).data || null) : state.ref);
+const zones = () => state.zones || (state.zones = ref.paceZones(sporRef()));
+
+/** Setin CSS'i: { css, stale, kaynak } ya da null. */
+function cssOf(set) {
+  if (ref.isDrill(set)) return null;
+  const r = sporRef();
+  if (r && r.css.length) {
+    const c = ref.cssFor(r, { tarih: (state.plan && state.plan.tarih) || todayKey(), havuz: Number(set.havuz) || prefs().havuz, alet: set.alet });
+    return c ? { ...c, kaynak: 'ref' } : null;
+  }
+  if (String(set.alet || '').trim() || /pull/i.test(String(set.tur || ''))) return null;
+  return prefs().css ? { css: prefs().css, stale: false, kaynak: 'elle' } : null;
 }
 
-/** "1:35 Z3" gibi: tempo + bölge, bölge renginde. */
+/** { n, zone, ad } ya da null. */
+function zoneOf(pace, set) {
+  const c = cssOf(set);
+  return c ? ref.zoneFor(pace, c.css, zones()) : null;
+}
+
+/** "1:35 EN2" gibi: tempo + bölge, bölge renginde. */
 function paceHtml(sec, set) {
   const pace = pacePer100(sec, set.mesafe);
   if (!pace) return '';
   const z = zoneOf(pace, set);
-  return `<b class="${z ? `zc z${z.n}` : ''}">${fmtDur(pace)}</b><small>/100${z ? ` · Z${z.n}` : ''}</small>`;
+  return `<b class="${z ? `zc z${z.n}` : ''}">${fmtDur(pace)}</b><small>/100${z ? ` · ${esc(z.zone)}` : ''}</small>`;
+}
+
+/** sporRef'i arka planda tazeler; bölge önbelleğini sıfırlar. */
+async function refreshRef() {
+  if (!data.isConfigured('ref')) return;
+  try {
+    state.ref = await data.getRef();
+    state.zones = null;
+    if (state.screen === 'setup') renderPrefs();
+    if (state.screen === 'program') refreshAllItems();
+  } catch { /* bağlantı yok: önbellek kullanılır */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -347,11 +365,19 @@ function endSessionLocally() {
 // Kurulum
 // ---------------------------------------------------------------------------
 
+const CONN = [
+  { target: 'yuzme', url: 'setup-url', token: 'setup-token', ad: 'Yüzme' },
+  { target: 'salon', url: 'setup-salon-url', token: 'setup-salon-token', ad: 'Salon' },
+  { target: 'ref', url: 'setup-ref-url', token: 'setup-ref-token', ad: 'sporRef' },
+];
+
 function showSetup(canGoBack) {
-  const c = data.getConfig();
   const configured = data.isConfigured();
-  $('setup-url').value = c.apiUrl;
-  $('setup-token').value = c.token;
+  for (const k of CONN) {
+    const c = data.getConfig(k.target);
+    $(k.url).value = c.apiUrl;
+    $(k.token).value = c.token;
+  }
   $('setup-back').hidden = !canGoBack;
   $('setup-msg').hidden = true;
   $('setup-title').textContent = configured ? 'Ayarlar' : 'Kurulum';
@@ -364,32 +390,57 @@ function showSetup(canGoBack) {
 /** Web uygulaması adresi: script.google.com/…/exec (Workspace hesapları: /a/macros/alan/s/…). */
 const EXEC_URL = /^https:\/\/script\.google\.com\/(?:a\/macros\/[^/]+\/|macros\/)s\/[\w-]+\/exec\/?$/;
 
+/** Adres/anahtar denetimi; hata metni ya da ''. Boş isteğe bağlı bağlantı geçerlidir. */
+function checkConn(k, apiUrl, token) {
+  if (!apiUrl && !token && k.target !== 'yuzme') return '';
+  if (/\/dev\/?$/.test(apiUrl)) return `${k.ad}: bu bir test (/dev) adresi. "Dağıtımları yönet"ten /exec ile biten adresi kopyalayın.`;
+  if (!EXEC_URL.test(apiUrl)) return `${k.ad}: adres https://script.google.com/macros/s/…/exec biçiminde olmalı.`;
+  if (!token) return `${k.ad}: anahtar boş olmamalı.`;
+  return '';
+}
+
+const connError = (k, err) => (err.code === 'AUTH'
+  ? `${k.ad}: anahtar hatalı. O tablonun Script Properties'indeki TOKEN ile aynı olmalı.`
+  : `${k.ad}: bağlanılamadı (${err.message})`);
+
 async function saveSetup() {
-  const apiUrl = $('setup-url').value.trim();
-  const token = $('setup-token').value.trim();
   const msg = $('setup-msg');
   const fail = (text) => {
     msg.textContent = text;
     msg.hidden = false;
   };
-  if (/\/dev\/?$/.test(apiUrl)) return fail('Bu bir test (/dev) adresi. "Dağıtımları yönet"ten /exec ile biten adresi kopyalayın.');
-  if (!EXEC_URL.test(apiUrl)) return fail('Adres https://script.google.com/macros/s/…/exec biçiminde olmalı.');
-  if (!token) return fail('Anahtar boş olmamalı.');
-  data.setConfig({ apiUrl, token });
+  const vals = CONN.map((k) => ({ k, apiUrl: $(k.url).value.trim(), token: $(k.token).value.trim() }));
+  const bad = vals.map((v) => checkConn(v.k, v.apiUrl, v.token)).filter(Boolean);
+  if (bad.length) return fail(bad.join(' '));
+  // Aynı adres iki tabloya girilmesin (her tablonun kendi betiği var).
+  const urls = vals.filter((v) => v.apiUrl).map((v) => v.apiUrl.replace(/\/$/, ''));
+  if (new Set(urls).size !== urls.length) return fail('Her bağlantının adresi farklı olmalı: her tablonun kendi Apps Script\'i var.');
+  for (const v of vals) data.setConfig({ apiUrl: v.apiUrl, token: v.token }, v.k.target);
+  state.ref = undefined;
+  state.zones = null;
   const btn = $('setup-save');
   btn.disabled = true;
   btn.textContent = 'Bağlanıyor…';
   try {
-    const r = await data.getDates();
-    state.dates = r.dates;
-    state.datesAt = Date.now();
-    state.datesInfo = { offline: r.fromCache };
-    showHome();
-  } catch (err) {
-    fail(err.code === 'AUTH'
-      ? 'Anahtar hatalı. Script Properties\'teki TOKEN ile aynı olmalı.'
-      : `Bağlanılamadı: ${err.message} Ayarlar kaydedildi; sol üstten ana sayfaya geçebilirsiniz.`);
+    const [yuzme, ...rest] = await Promise.allSettled([
+      data.getDates(),
+      data.isConfigured('salon') ? data.getSalon() : null,
+      data.isConfigured('ref') ? data.getRef() : null,
+    ]);
+    const errs = [];
+    if (yuzme.status === 'fulfilled') {
+      state.dates = yuzme.value.dates;
+      state.datesAt = Date.now();
+      state.datesInfo = { offline: yuzme.value.fromCache };
+    } else {
+      errs.push(connError(CONN[0], yuzme.reason));
+    }
+    rest.forEach((r, i) => { if (r.status === 'rejected') errs.push(connError(CONN[i + 1], r.reason)); });
+    if (rest[1].status === 'fulfilled' && rest[1].value) state.ref = rest[1].value;
+    if (!errs.length) return showHome();
+    fail(`${errs.join(' ')} Ayarlar kaydedildi; sol üstten ana sayfaya geçebilirsiniz.`);
     $('setup-back').hidden = false;
+    $('setup-forget').hidden = false;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Kaydet ve bağlan';
@@ -398,31 +449,49 @@ async function saveSetup() {
 
 async function forgetKey() {
   const ok = await modal({
-    title: 'Anahtar unutulsun mu?',
-    body: '<p>Apps Script adresi ve anahtar bu telefondan silinir; yeniden girmeden tabloya bağlanılamaz.</p><p class="muted">Yapılmış idmanlar ve gönderilmeyi bekleyen kayıtlar silinmez.</p>',
+    title: 'Anahtarlar unutulsun mu?',
+    body: '<p>Üç bağlantının adresi ve anahtarı bu telefondan silinir; yeniden girmeden tabloya bağlanılamaz.</p><p class="muted">Yapılmış idmanlar ve gönderilmeyi bekleyen kayıtlar silinmez.</p>',
     actions: [{ label: 'Evet, unut', value: true, cls: 'btn-danger' }, { label: 'Vazgeç', value: false }],
   });
   if (!ok) return;
   data.clearConfig();
   state.dates = null;
   state.datesAt = 0;
+  state.ref = undefined;
+  state.zones = null;
   showSetup(false);
   toast('Adres ve anahtar silindi.');
 }
 
 // --- Tercihler: çıkış sesi ve CSS temposu -----------------------------------
 
+const dm = (k) => (k ? `${k.slice(8, 10)}.${k.slice(5, 7)}` : '…');
+
 function renderPrefs() {
   refreshPrefs();
   const p = prefs();
   for (const b of $('pref-ses').children) b.classList.toggle('is-on', (b.dataset.v === '1') === p.ses);
-  if (document.activeElement !== $('pref-css')) $('pref-css').value = p.css ? fmtDur(p.css) : '';
-  $('pref-zones').innerHTML = p.css
-    ? ZONES.map((z, i) => {
-      const hi = i === 0 ? '' : fmtDur(p.css + ZONES[i - 1].min);
-      const lo = z.min === -Infinity ? '' : fmtDur(p.css + z.min);
+  // sporRef bağlıysa CSS oradan (bugün, son havuz, aletsiz); elle girilen alan gizlenir.
+  const r = data.isConfigured('ref') ? sporRef() : null;
+  const fromRef = Boolean(r && r.css.length);
+  const c = fromRef ? ref.cssFor(r, { tarih: todayKey(), havuz: p.havuz, alet: '' }) : null;
+  $('pref-css-field').hidden = fromRef;
+  $('pref-css-note').hidden = fromRef;
+  $('pref-css-ref').hidden = !fromRef;
+  if (fromRef) {
+    $('pref-css-ref').innerHTML = c
+      ? `sporRef'ten: <b>${fmtDur(c.css)}</b> /100 m <span>${dm(c.ilk)}–${dm(c.son)} · ${c.havuz} m</span>${c.stale ? '<em>CSS güncel değil: bugünü kapsayan satır yok, en son değer kullanılıyor.</em>' : ''}<small>Aletli setlerde alete göre ayrı CSS kullanılır; aleti tabloda olmayan sette bölge gösterilmez.</small>`
+      : 'sporRef\'te aletsiz CSS satırı yok.';
+  } else if (document.activeElement !== $('pref-css')) {
+    $('pref-css').value = p.css ? fmtDur(p.css) : '';
+  }
+  const css = fromRef ? c && c.css : p.css;
+  $('pref-zones').innerHTML = css
+    ? zones().map((z) => {
+      const lo = z.alt === -Infinity ? '' : fmtDur(css + z.alt);
+      const hi = z.ust === Infinity ? '' : fmtDur(css + z.ust);
       const range = !hi ? `${lo} ve üstü` : !lo ? `${hi} altı` : `${lo} – ${hi}`;
-      return `<div class="zone z${i + 1}"><b>Z${i + 1}</b><span>${z.ad}</span><em>${range}</em></div>`;
+      return `<div class="zone z${z.n}"><b>${esc(z.zone)}</b><span>${esc(z.ad)}</span><em>${range}</em></div>`;
     }).join('')
     : '';
 }
@@ -519,7 +588,7 @@ function showDays(force = false) {
 
 /** Kuyrukta bekleyen (kaydedilmiş ama gönderilmemiş) günler listede görünmez. */
 function visibleDates() {
-  const hidden = new Set([...data.getQueue().map((q) => q.payload.tarih), ...state.sentDates]);
+  const hidden = new Set([...data.getQueue().filter((q) => turOf(q) === 'yuzme').map((q) => q.payload.tarih), ...state.sentDates]);
   return (state.dates || []).filter((d) => !hidden.has(d.tarih));
 }
 
@@ -858,7 +927,7 @@ async function flushQueue(verbose = false) {
     return;
   }
   const sent = [...r.sent, ...r.duplicates];
-  for (const x of sent) state.sentDates.add(x.tarih);
+  for (const x of sent) if (x.tur !== 'salon') state.sentDates.add(x.tarih);
   if (sent.length) toast(`Bekleyen kayıt gönderildi: ${sent.map((x) => fmtDateTR(x.tarih)).join(', ')}`, 4000);
   else if (verbose && r.remaining) toast('Hâlâ gönderilemedi. Bağlantı gelince tekrar denenecek.');
   if (state.screen === 'history') renderHistory();
@@ -951,12 +1020,16 @@ const DURUM = {
 
 /** Kaydın güncel durumu: kuyrukta mı, gönderildi mi? */
 function historyStatus(rec, queued) {
-  if (queued.has(rec.tarih)) return 'queued';
+  if (queued.has(qKey(rec, rec.tarih))) return 'queued';
   if (rec.status === 'queued') return 'lost'; // kuyruktan elle silinmiş
   return DURUM[rec.status] ? rec.status : 'sent';
 }
 
-const queuedDates = () => new Set(data.getQueue().map((q) => q.payload.tarih));
+/** Kayıt türü: 'salon' ya da 'yuzme' (eski kayıtlarda tur yok). */
+const turOf = (x) => (x && x.tur === 'salon' ? 'salon' : 'yuzme');
+const qKey = (x, tarih) => `${turOf(x)}|${tarih}`;
+/** Kuyruktaki kayıtların "tür|tarih" anahtarları. */
+const queuedDates = () => new Set(data.getQueue().map((q) => qKey(q, q.payload.tarih)));
 
 function showHistory() {
   show('history');
@@ -1026,7 +1099,7 @@ async function onHistoryClick(e) {
     actions: [{ label: 'Bu kaydı sil', value: 'del', cls: 'btn-danger' }, { label: 'Kapat', value: '' }],
   });
   if (act !== 'del') return;
-  const pending = queuedDates().has(rec.tarih);
+  const pending = queuedDates().has(qKey(rec, rec.tarih));
   const ok = await modal({
     title: pending ? 'Henüz gönderilmedi' : 'Kayıt silinsin mi?',
     body: pending
@@ -1042,7 +1115,7 @@ async function clearHistory() {
   const list = data.getHistory();
   const queued = queuedDates();
   const sent = list.filter((r) => ['sent', 'duplicate'].includes(historyStatus(r, queued)));
-  const pending = list.filter((r) => queued.has(r.tarih));
+  const pending = list.filter((r) => queued.has(qKey(r, r.tarih)));
   const actions = [];
   if (sent.length && sent.length < list.length) actions.push({ label: `Tabloya gidenleri sil (${sent.length})`, value: 'sent', cls: 'btn-danger' });
   actions.push({ label: `Tümünü sil (${list.length})`, value: 'all', cls: 'btn-danger' }, { label: 'Vazgeç', value: '' });
@@ -2452,6 +2525,7 @@ function boot() {
     showSetup(false);
     return;
   }
+  refreshRef();
   const s = data.loadSession();
   if (s && data.getCachedPlan(s.tarih)) {
     state.session = s;

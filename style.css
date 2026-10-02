@@ -861,25 +861,31 @@ button {
 .zone b { font-family: var(--num); font-size: 22px; }
 .zone em { font-style: normal; font-family: var(--num); font-size: 20px; font-weight: 700; color: var(--muted); }
 
-/* Tempo bölge renkleri */
-.z1 { color: #60A5FA; }
-.z2 { color: #34D399; }
-.z3 { color: #FACC15; }
-.z4 { color: #FB923C; }
-.z5 { color: #F87171; }
-.zone.z1 b, .zone.z2 b, .zone.z3 b, .zone.z4 b, .zone.z5 b { color: inherit; }
+/* Tempo bölge renkleri (sporRef PACE; z1 en yavaş REC … z7 en hızlı SP3) */
+.z1 { --zc: #94A3B8; }
+.z2 { --zc: #60A5FA; }
+.z3 { --zc: #34D399; }
+.z4 { --zc: #FACC15; }
+.z5 { --zc: #FB923C; }
+.z6 { --zc: #F87171; }
+.z7 { --zc: #E879F9; }
+.zone b, .w-foot .w-pace b.zc, .dt-row .zc { color: var(--zc); }
 .zone span { color: var(--text); }
+
+/* Kurulum: bağlantı başlıkları, sporRef CSS özeti */
+.conn-h { margin: 18px 0 4px; font-size: 18px; font-weight: 800; color: var(--text); }
+.conn-h small { margin-left: 6px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.ref-css { margin: 6px 0 12px; padding: 12px 14px; border-radius: 12px; background: var(--panel); font-size: 17px; color: var(--text); }
+.ref-css b { font-family: var(--num); font-size: 24px; }
+.ref-css span { margin-left: 6px; color: var(--muted); font-weight: 700; }
+.ref-css em { display: block; margin-top: 6px; font-style: normal; font-weight: 700; color: #FB923C; }
+.ref-css small { display: block; margin-top: 6px; font-size: 14px; color: var(--muted); }
 
 /* Set kartı: tempo · mesafe tek satırda */
 .w-foot .w-last { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 8px; }
 .w-foot .w-dist { white-space: nowrap; margin-left: auto; }
 .w-foot .w-pace { white-space: nowrap; }
 .w-foot .w-pace b { font-family: var(--num); font-size: 24px; }
-.w-foot .w-pace b.zc.z1 { color: #60A5FA; }
-.w-foot .w-pace b.zc.z2 { color: #34D399; }
-.w-foot .w-pace b.zc.z3 { color: #FACC15; }
-.w-foot .w-pace b.zc.z4 { color: #FB923C; }
-.w-foot .w-pace b.zc.z5 { color: #F87171; }
 .w-foot .w-pace small { font-size: 15px; color: var(--muted); }
 
 /* --- sürüm 10: tek zamanlayıcı (ZAMANLAMA.md) ------------------------------ */
@@ -1107,7 +1113,6 @@ button {
 .dt-row { margin-top: 12px; font-size: 22px; font-weight: 700; color: #C3CCD6; }
 .dt-row b { color: var(--text); font-size: 26px; }
 .dt-hint { margin-top: 20px; text-align: center; font-size: 16px; font-weight: 700; color: var(--muted); }
-.dt-row .zc.z1 { color: #60A5FA; } .dt-row .zc.z2 { color: #34D399; } .dt-row .zc.z3 { color: #FACC15; } .dt-row .zc.z4 { color: #FB923C; } .dt-row .zc.z5 { color: #F87171; }
 
 .w-item.m-next.fit-1 .w-banner { padding: 6px 10px; font-size: 17px; }
 .w-item.m-next.fit-1 .w-timer.is-mini { padding: 5px 10px; }

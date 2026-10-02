@@ -22,9 +22,11 @@ class Store {
 globalThis.localStorage = new Store();
 let handler = null; // (body) => { status, json } | throws
 const calls = [];
+const urls = [];
 globalThis.fetch = async (url, opts) => {
   const body = JSON.parse(opts.body);
   calls.push(body.action);
+  urls.push(`${url}|${body.token}`);
   if (opts.signal && opts.signal.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' });
   const r = await handler(body, opts);
   return { ok: r.status === undefined || r.status < 400, status: r.status || 200, json: async () => { if (r.raw) throw new Error('bad json'); return r.json; } };
@@ -32,7 +34,7 @@ globalThis.fetch = async (url, opts) => {
 
 const data = await import(pathToFileURL(modPath).href);
 const LS = globalThis.localStorage;
-const reset = () => { LS.clear(); LS.full = false; calls.length = 0; handler = null; };
+const reset = () => { LS.clear(); LS.full = false; calls.length = 0; urls.length = 0; handler = null; };
 const cfg = () => data.setConfig({ apiUrl: 'https://script.google.com/macros/s/X/exec', token: 'tok' });
 let n = 0;
 const test = async (name, fn) => { reset(); await fn(); n++; };
@@ -277,6 +279,69 @@ await test('flush: yapılandırma yoksa göndermez', async () => {
   data.enqueue(payload('2026-09-26'));
   const r = await data.flushQueue();
   assert.equal(r.remaining, 1); assert.equal(calls.length, 0);
+});
+
+// --- 3 bağlantı (yüzme, salon, sporRef) ----------------------------------------
+const SALON = 'https://script.google.com/macros/s/S/exec';
+const REF = 'https://script.google.com/macros/s/R/exec';
+
+await test('3 bağlantı: ayrı saklanır, eski biçim yüzme olarak okunur, boş isteğe bağlı silinir', () => {
+  LS.setItem('ysk.config', JSON.stringify({ apiUrl: 'https://a/exec', token: 't' })); // sürüm 10 biçimi
+  assert.deepEqual(data.getConfig(), { apiUrl: 'https://a/exec', token: 't' });
+  assert.equal(data.isConfigured('salon'), false);
+  data.setConfig({ apiUrl: SALON, token: 's' }, 'salon');
+  data.setConfig({ apiUrl: REF, token: 'r' }, 'ref');
+  assert.deepEqual(data.getConfig('salon'), { apiUrl: SALON, token: 's' });
+  assert.deepEqual(data.getConfig('ref'), { apiUrl: REF, token: 'r' });
+  data.setConfig({ apiUrl: 'https://b/exec', token: 't2' });
+  assert.deepEqual(data.getConfig('salon'), { apiUrl: SALON, token: 's' }, 'yüzme değişince diğerleri kalır');
+  data.setConfig({ apiUrl: '', token: '' }, 'salon');
+  assert.equal(data.isConfigured('salon'), false);
+  assert.equal(JSON.parse(LS.getItem('ysk.config')).salon, undefined);
+  data.clearConfig();
+  assert.equal(data.isConfigured('ref'), false);
+});
+
+await test('3 bağlantı: her çağrı kendi adresine ve anahtarına gider; sporRef/salon önbelleği', async () => {
+  cfg();
+  data.setConfig({ apiUrl: SALON, token: 's' }, 'salon');
+  data.setConfig({ apiUrl: REF, token: 'r' }, 'ref');
+  handler = (b) => ({ json: { ok: true, data: b.action === 'getRef' ? { zones: [], css: [{ ilk: '2026-01-01', css: 120 }] } : { katalog: [], etki: [], bw: [], gecmis: [] } } });
+  await data.getRef();
+  await data.getSalon();
+  assert.deepEqual(urls, [`${REF}|r`, `${SALON}|s`]);
+  assert.equal(data.getCachedRef().data.css[0].css, 120);
+  assert.ok(data.getCachedSalon());
+});
+
+await test('salon kuyruğu: salon kaydı saveSalon ile gider; salon bağlı değilse bekler; geçmiş türe göre', async () => {
+  cfg();
+  const sp = { tarih: '2026-10-01', hareketler: [{ hareket: 'Row', set: 3, tekrar: 10, agirlik: 20 }] };
+  data.addHistory({ id: 'h1', tarih: '2026-10-01', tur: 'salon', status: 'queued', hareketler: [] });
+  data.addHistory({ id: 'h2', tarih: '2026-10-01', status: 'sent', setler: [] });
+  assert.equal(data.getHistory().length, 2, 'aynı gün yüzme ve salon ayrı kayıt');
+  data.enqueue(sp, null, 'salon');
+  handler = () => ({ json: { ok: true, data: { yazilan: 1 } } });
+  let r = await data.flushQueue();
+  assert.equal(r.remaining, 1, 'salon bağlı değil: bekler');
+  assert.equal(calls.length, 0);
+  data.setConfig({ apiUrl: SALON, token: 's' }, 'salon');
+  r = await data.flushQueue();
+  assert.deepEqual(calls, ['saveSalon']);
+  assert.equal(r.sent[0].tur, 'salon');
+  const h = data.getHistory();
+  assert.equal(h.find((x) => x.tur === 'salon').status, 'sent');
+  assert.equal(h.find((x) => x.tur !== 'salon').status, 'sent');
+});
+
+await test('salon seansı: kaydet/oku/sil, bozuk biçim yok sayılır', () => {
+  assert.equal(data.loadSalonSession(), null);
+  data.saveSalonSession({ tarih: '2026-10-01', hareketler: [] });
+  assert.equal(data.loadSalonSession().tarih, '2026-10-01');
+  LS.setItem('ysk.salonSession', JSON.stringify({ tarih: 5 }));
+  assert.equal(data.loadSalonSession(), null);
+  data.clearSalonSession();
+  assert.equal(data.loadSalonSession(), null);
 });
 
 await test('zaman aşımı TIMEOUT olarak döner', async () => {

@@ -1,7 +1,7 @@
 // Uçtan uca senaryolar: her biri temiz tarayıcı bağlamında, sahte Apps Script ile.
 //   NODE_PATH=$(npm root -g) node tests/e2e-senaryolar.cjs [filtre]
 const assert = require('assert');
-const { runScenarios, prow, D } = require('./harness.cjs');
+const { runScenarios, prow, D, REF_API, SALON_API } = require('./harness.cjs');
 
 const T23 = '2026-09-23';
 const stripDetay = (r) => (r.ok ? { ...r, data: r.data.map(({ detay, ...d }) => d) } : r);
@@ -269,7 +269,7 @@ sc('Ayarlar: adres doğrulama, CSS doğrulama/kapatma, tempo bölgesi gösterimi
   }
   await p.fill('#setup-url', 'https://script.google.com/a/macros/alan.com/s/X-y_z/exec'); await p.fill('#setup-token', '');
   await p.click('#setup-save');
-  assert.match(await p.textContent('#setup-msg'), /Anahtar boş/);
+  assert.match(await p.textContent('#setup-msg'), /anahtar boş/i);
   await p.fill('#pref-css', 'abc'); await p.press('#pref-css', 'Tab');
   assert.match(await p.textContent('#toast'), /dd:ss/);
   assert.strictEqual((await s.ls('ysk.prefs') || { css: 117 }).css, 117);
@@ -291,16 +291,79 @@ sc('Kurulum: ilk açılış, hatalı anahtar, anahtarı unut, yeniden bağlan', 
   assert.ok(await p.isHidden('#setup-back')); assert.ok(await p.isHidden('#setup-prefs'));
   await p.fill('#setup-url', 'https://script.google.com/macros/s/TEST/exec');
   await p.fill('#setup-token', 'yanlis'); await p.click('#setup-save');
-  await p.waitForFunction(() => /Anahtar hatalı/.test(document.getElementById('setup-msg').textContent));
+  await p.waitForFunction(() => /anahtar hatalı/i.test(document.getElementById('setup-msg').textContent));
   await p.fill('#setup-token', 'secret'); await p.click('#setup-save');
   await s.waitScreen('home');
   await p.click('#home-settings');
-  await p.click('#setup-forget'); await s.waitModal('Anahtar unutulsun mu?');
+  await p.click('#setup-forget'); await s.waitModal('Anahtarlar unutulsun mu?');
   await s.modalClick('Evet, unut');
   await p.waitForFunction(() => document.getElementById('setup-title').textContent === 'Kurulum');
   await p.reload(); await s.waitScreen('setup');
   await p.fill('#setup-url', 'https://script.google.com/macros/s/TEST/exec'); await p.fill('#setup-token', 'secret');
   await p.click('#setup-save'); await s.waitScreen('home');
+});
+
+// --- sporRef ------------------------------------------------------------------------------------
+sc('sporRef: CSS güne/havuza/alete göre; 7 bölge; Ayarlar özeti; elle CSS gizli', async ({ launch }) => {
+  const s = await launch({ ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.ref'));
+  await s.openToday();
+  // WU 1×200 4:00 → 2:00/100, CSS 2:00 (25 m, 06.07–30.09) → EN3
+  assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 2:00/100 · EN3');
+  assert.ok(await p.$('.w-item.is-active .w-pace b.zc.z4'));
+  await s.goTo(1); // Drill: bölge yok
+  assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 2:10/100');
+  await s.goTo(2); // 1:30/100, CSS 2:00 → fark −30 → SP3
+  assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 1:30/100 · SP3');
+  await s.goTo(3); // Pull, alet "Şamandıra" = PB → CSS 1:52; 1:40 → fark −12 → SP2
+  assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 1:40/100 · SP2');
+  await p.evaluate(() => { localStorage.setItem('ysk.prefs', JSON.stringify({ ses: true, css: 117, havuz: 50 })); localStorage.removeItem('ysk.session'); });
+  await p.reload(); await s.waitScreen('home');
+  await p.click('#home-settings'); await s.waitScreen('setup');
+  assert.ok(await p.isHidden('#pref-css-field'));
+  assert.match(await s.text('#pref-css-ref'), /sporRef'ten: 1:55 \/100 m 06\.07–30\.09 · 50 m/);
+  assert.doesNotMatch(await s.text('#pref-css-ref'), /güncel değil/);
+  assert.strictEqual(await p.$$eval('#pref-zones .zone', (e) => e.length), 7);
+  assert.match(await s.text('#pref-zones .z4'), /EN3\s*Yüksek Aerobik\s*1:52 – 1:58/);
+  assert.match(await s.text('#pref-zones .z1'), /REC\s*Toparlanma\s*2:16 ve üstü/);
+  assert.match(await s.text('#pref-zones .z7'), /SP3\s*Yüksek Spriniti\s*1:36 altı/);
+});
+
+sc('sporRef: bugünü kapsayan CSS yoksa en son değer ve "güncel değil" uyarısı; bağlantı yokken önbellek', async ({ launch }) => {
+  const s = await launch({ ref: true, time: '2026-10-05T07:00:00' }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.ref'));
+  s.net.offline = true;
+  await p.reload(); await s.waitScreen('home');
+  await p.click('#home-settings'); await s.waitScreen('setup');
+  assert.match(await s.text('#pref-css-ref'), /2:00 .*CSS güncel değil/);
+});
+
+sc('Kurulum: 3 bağlantı; isteğe bağlılar boş geçilir; eksik/yanlış/aynı adres uyarısı', async ({ launch }) => {
+  const s = await launch({ configured: false }); const p = s.page;
+  await s.waitScreen('setup');
+  await p.fill('#setup-url', 'https://script.google.com/macros/s/TEST/exec'); await p.fill('#setup-token', 'secret');
+  await p.fill('#setup-salon-url', 'https://script.google.com/macros/s/SALON/exec');
+  await p.click('#setup-save');
+  assert.match(await s.text('#setup-msg'), /^Salon: anahtar boş/);
+  await p.fill('#setup-salon-url', '');
+  await p.fill('#setup-ref-url', 'https://script.google.com/macros/s/TEST/exec'); await p.fill('#setup-ref-token', 'refkey');
+  await p.click('#setup-save');
+  assert.match(await s.text('#setup-msg'), /adresi farklı olmalı/);
+  await p.fill('#setup-ref-url', REF_API); await p.fill('#setup-ref-token', 'yanlis');
+  await p.click('#setup-save');
+  await p.waitForFunction(() => /sporRef: anahtar hatalı/.test(document.getElementById('setup-msg').textContent));
+  assert.ok(await p.isVisible('#setup-back'), 'yüzme bağlandı: geri dönülebilir');
+  await p.fill('#setup-ref-token', 'refkey'); await p.click('#setup-save');
+  await s.waitScreen('home');
+  const cfg = await s.ls('ysk.config');
+  assert.deepStrictEqual(cfg.ref, { apiUrl: REF_API, token: 'refkey' });
+  assert.strictEqual(cfg.salon, undefined);
+  assert.ok(await s.ls('ysk.ref'), 'sporRef önbelleğe alındı');
+  await p.click('#home-settings'); await s.waitScreen('setup');
+  assert.strictEqual(await p.inputValue('#setup-ref-token'), 'refkey');
+  assert.ok(await p.isVisible('#pref-css-ref'));
 });
 
 // --- Düzen ---------------------------------------------------------------------------------------------
