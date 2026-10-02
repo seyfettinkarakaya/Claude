@@ -39,8 +39,23 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
   - Karar: **A** — karta dokununca açılan ayrıntı panelinin altında Düzenle · Sonrasına ekle · Sil
     (yüzerken sönük). Ortak düzenleme ekranı: ± düğmeler, stil/tür/alet seçenekleri, kısıt uyarıları.
     Dinlenirken kartta **"+1 tekrar"** kısayolu (bildirim + Geri al). Görsel: `tasarim/v17/duzenle.png`.
-- [ ] **Salon idman planlama** (konuşulacak; taslak `tasarim/v16/salon-planlama.png`): hedef kaslara göre katsayı hesaplayıp hareket listesinden
-  (H, hkEtki) hareket önermek; planlama sayfası.
+- [ ] **Salon idman planlama** (taslak `tasarim/v16/salon-planlama.png`): hedef kaslara göre katsayı hesaplayıp
+  hareket listesinden (H, hkEtki) hareket önermek.
+  - Puan = Σ (kas öncelik ağırlığı × hareketin o kasa etkisi `hkEtki`) × yüzme aktarım katsayısı.
+    Seçilen kaslar 1; son 4 haftada hedefin altında kalan kaslar açık kadar otomatik ağırlık alır.
+  - Yüzme katsayısı: `H` sayfasındaki **Swim Transfer Coefficient** sütunu.
+  - Seçim **kas grubu** düzeyinde; alt kas ve kinetik zincir hareket satırında bilgi olarak.
+  - Hedef yüzdeleri tek tablodan (`rH` HEDEF %) okunur, uygulamada değiştirilebilir.
+    (Açık: değişiklik tabloya da yazılsın mı, yalnız telefonda mı kalsın?)
+  - Varsayılan set/tekrar/ağırlık = son yapılan. İlerleme: son seferde RPE ≤ 8 ve MSI ≤ 0,5 → "+1 tekrar"
+    veya "+2,5 kg" önerisi; RPE ≥ 9,5 veya MSI ≥ 1,5 → aynı değer + ⚠.
+  - Son iki idmanda MSI ≥ 1,5 olan hareket ⚠ ile işaretlenir, puanı düşer, gizlenmez.
+  - Süre tahmini: set × (tekrar × 3 sn + 60 sn); süreli harekette süre + 30 sn.
+  - Plan yalnızca telefonda tutulur, tabloya yazılmaz; idman yapılınca satırlar `idman` sayfasına eklenir.
+- [ ] **Hareket videosu (YouTube)**: hareket kataloğuna (`H` sayfası) "Video" sütunu; uygulamada hareket
+  kartında, planlama listesinde ve ayrıntı panelinde ▶ düğmesi, dokununca YouTube'da açılır.
+  Yalnızca youtube.com / youtu.be adresleri kabul edilir. (Açık: yüzme drill'lerine de mi; uygulama içinde
+  gömülü oynatma mı, YouTube'da açma mı.)
 - [ ] **sporRef'ten referans verileri** (onaylandı): CSS (tarih aralığı + alet + havuz), 7 bölge
   (SP3–REC, CSS'e göre sn/100 m) ve HR bölgeleri, max nabız, faz bilgisi, RPE/MSI açıklamaları, kısaltmalar.
   Şu an CSS Ayarlar'dan elle (varsayılan 1:57), bölgeler uygulamada sabit Z1–Z5 — sporRef ile uyumsuz.
