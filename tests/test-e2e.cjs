@@ -251,7 +251,7 @@ const server = http.createServer((req, res) => {
   await page.waitForSelector('#screen-done:not([hidden])');
   console.log('Onay:', await page.textContent('#done-text'));
   const eski = env.sheets.eski.data.slice(1);
-  assert.deepStrictEqual(eski.map(r => r[1]), [1, 2]);
+  assert.deepStrictEqual(eski.map(r => [r[1], r[4]]), [['', 200], ['', 100]]); // Sıra boş (tablo doldurur)
   assert.ok(Math.abs(eski[1][11] * 86400 - 84) < 0.05, `Gerçek ${eski[1][11] * 86400}`);
   assert.match(eski[1][16], /^Tekrarlar: 1:2\d, 1:2\d, 1:2\d, 1:2\d$/);
   const seans = env.sheets.seans.data[1];

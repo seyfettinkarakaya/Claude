@@ -406,7 +406,7 @@ sc('Tam idman: 12 tekrar, otomatik set geçişi, son DUR idmanı bitirir, 3 doku
   assert.ok(!/Dinlenme/.test(notes.join()), 'plana uygun dinlenmede not önerilmez');
   await p.click('#oz-save'); await s.waitScreen('done');
   const eski = s.env.sheets.eski.data.slice(1);
-  assert.deepStrictEqual(eski.map((r) => r[col('Sıra')]), [1, 2, 3, 4, 5]);
+  assert.deepStrictEqual(eski.map((r) => [r[col('Sıra')], r[col('Blok')]]), [['', 'WU'], ['', 'PS'], ['', 'MS'], ['', 'AS'], ['', 'CD']], 'Sıra boş, plan sırası');
   const g = eski.map((r) => sec(r[col('Gerçek')]));
   [240, 65, 90, 100, 270].forEach((x, i) => assert.ok(Math.abs(g[i] - x) < 0.6, `Gerçek ${i}: ${g[i]}`));
   assert.strictEqual(eski[0][col('Not')], '', 'tek tekrarlı sette tekrar notu yok');
@@ -858,6 +858,111 @@ sc('Ayrıntı paneli: karta dokununca (yüzerken de) açılır, dokununca kapan�
   assert.ok(await p.isHidden('#detail'));
   assert.deepStrictEqual(await s.events(), before);
   assert.strictEqual(await s.label(), 'DUR');
+});
+
+// --- İdman anında düzenleme (duzen.js) ------------------------------------------------------
+const openDet = async (s) => { await s.page.click('.w-item.is-active .w-card'); await s.page.waitForSelector('#detail:not([hidden])'); };
+const dact = async (s, act) => { await openDet(s); await s.page.click(`#detail [data-dact="${act}"]`); };
+const nSets = (s) => s.page.$$eval('.w-item', (e) => e.length);
+
+sc('Düzenle / Sonrasına ekle / Sil (+ Geri al); tabloya plan farkı notu, eklenen set, Sıra boş', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.goTo(2);
+  await dact(s, 'edit');
+  await p.waitForSelector('#eset:not([hidden])');
+  assert.match(await s.text('#eset-tag'), /MS · ANA SET · 3\/5 · DÜZENLE/);
+  await p.click('[data-es="tekrar:1"]'); await p.click('[data-es="tekrar:1"]');
+  await p.click('[data-es="hedef:-1"]');
+  assert.strictEqual(await s.text('#eset-title'), '6 × 100 FR Swim');
+  await p.click('#eset-save');
+  await p.waitForSelector('#eset', { state: 'hidden' });
+  assert.strictEqual(await s.title(), '6 × 100');
+  assert.match(await s.text('#toast'), /Plan: 4×100 → 6×100, Hedef 1:30 → 1:25/);
+  // Sonrasına ekle: düzenlenen setin kopyası; 2 × 100 BK
+  await dact(s, 'add');
+  assert.match(await s.text('#eset-tag'), /4\/6 · YENİ SET/);
+  for (let k = 0; k < 4; k++) await p.click('[data-es="tekrar:-1"]');
+  await p.click('[data-es-chip="stil"][data-v="BK"]');
+  await p.click('#eset-save');
+  await p.waitForFunction(() => document.querySelectorAll('.w-item').length === 6);
+  assert.strictEqual(await s.activeIdx(), 3);
+  assert.strictEqual(await s.title(), '2 × 100');
+  // Sil + Geri al, sonra son seti (CD) sil
+  await s.goTo(4);
+  await dact(s, 'del');
+  await p.waitForFunction(() => document.querySelectorAll('.w-item').length === 5);
+  await p.click('#toast .toast-act');
+  await p.waitForFunction(() => document.querySelectorAll('.w-item').length === 6);
+  await s.goTo(5);
+  await dact(s, 'del');
+  await p.waitForFunction(() => document.querySelectorAll('.w-item').length === 5);
+  // Kalıcılık: yeniden açınca düzenlenen plan
+  await p.reload(); await s.waitScreen('program'); await p.waitForSelector('.w-item.is-active');
+  assert.strictEqual(await nSets(s), 5);
+  // WU tam, MS 1 tekrar, eklenen set 1 tekrar → erken bitir ve kaydet
+  await s.goTo(0); await s.tap(60); await s.tap(5);
+  await p.waitForTimeout(800); // set bitince kart kendiliğinden sonraki sete kayar
+  await s.goTo(2); await s.tap(30); await s.tap(5);
+  await s.goTo(3); await s.tap(30); await s.press();
+  await s.finishToOzet();
+  await p.click('#oz-save'); await s.waitScreen('done');
+  const E = s.env.sheets.eski; const col = (k) => E.data[0].indexOf(k);
+  const rows = E.data.slice(1).map((r) => [r[col('Sıra')], r[col('Blok')], r[col('Tekrar')], r[col('Mesafe')], r[col('Stil')], r[col('Not')]]);
+  assert.strictEqual(rows.length, 3);
+  assert.deepStrictEqual(rows[0], ['', 'WU', 1, 200, 'FR', '']);
+  assert.deepStrictEqual(rows[1].slice(0, 5), ['', 'MS', 6, 100, 'FR']);
+  assert.match(rows[1][5], /^Plan: 4×100 → 6×100, Hedef 1:30 → 1:25/);
+  assert.deepStrictEqual(rows[2].slice(0, 5), ['', 'MS', 2, 100, 'BK']);
+  assert.match(rows[2][5], /^idmanda eklendi/);
+  assert.ok(Math.abs(E.data[2][col('Hedef')] * 86400 - 85) < 1e-6);
+  const A = s.env.sheets.arsiv; const ac = (k) => A.data[0].indexOf(k);
+  assert.deepStrictEqual(A.data.slice(1).map((r) => r[ac('Tekrar')]), [1, 4, 4, 2, 1], 'arsiv: özgün plan');
+  const h = (await s.ls('ysk.history'))[0];
+  assert.deepStrictEqual(h.setler.map((x) => x.tekrar), [1, 4, 6, 2, 2]);
+});
+
+sc('Düzenleme kısıtları: yüzerken sönük; +1 tekrar (Geri al); başlanan set silinmez, tekrar ≥ yapılan; mesafe değişirse yeni set', async ({ launch }) => {
+  const s = await launch(); const p = s.page;
+  await s.openToday();
+  await s.goTo(2);
+  await s.tap(30); // MS 1. tekrar yüzülüyor
+  await openDet(s);
+  assert.ok(await p.isDisabled('#detail [data-dact="edit"]'));
+  assert.ok(await p.isDisabled('#detail [data-dact="add"]'));
+  assert.match(await s.text('#detail'), /Yüzerken düzenlenemez/);
+  await p.click('#detail [data-dact="edit"]', { force: true });
+  assert.ok(await p.isVisible('#detail'), 'sönük düğme paneli kapatmaz');
+  await p.click('#detail .dt-title');
+  await s.press(); // DUR → dinlenme
+  await p.waitForSelector('.w-item.is-active .w-plus');
+  await p.click('.w-item.is-active .w-plus');
+  await p.waitForFunction(() => document.querySelector('.w-item.is-active .w-title').firstChild.textContent.trim() === '5 × 100');
+  assert.match(await s.text('#toast'), /4 × 100 → 5 × 100/);
+  await p.click('#toast .toast-act');
+  await p.waitForFunction(() => document.querySelector('.w-item.is-active .w-title').firstChild.textContent.trim() === '4 × 100');
+  await openDet(s);
+  assert.ok(await p.isEnabled('#detail [data-dact="edit"]'));
+  assert.ok(await p.isDisabled('#detail [data-dact="del"]'));
+  await p.click('#detail [data-dact="edit"]');
+  for (let k = 0; k < 5; k++) await p.click('[data-es="tekrar:-1"]');
+  assert.strictEqual(await s.text('#eset-title'), '1 × 100 FR Swim', 'tekrar yapılandan aşağı inmez');
+  assert.match(await s.text('#eset-body'), /en az 1 \(yapıldı\)|MESAFE/);
+  for (let k = 0; k < 3; k++) await p.click('[data-es="tekrar:1"]');
+  await p.click('[data-es="mesafe:-1"]'); await p.click('[data-es="mesafe:-1"]');
+  assert.match(await s.text('#eset-body'), /kalanlar yeni set olarak eklenir/);
+  await p.click('#eset-save');
+  await s.waitModal('Yeni set olarak eklensin mi?');
+  await s.modalClick('Yeni set olarak ekle');
+  await p.waitForFunction(() => document.querySelectorAll('.w-item').length === 6);
+  assert.strictEqual(await s.title(), '3 × 50');
+  const ses = await s.session();
+  assert.deepStrictEqual(ses.setler.map((x) => `${x.tekrar}×${x.mesafe}`), ['1×200', '4×50', '1×100', '3×50', '2×100', '1×200']);
+  assert.deepStrictEqual(ses.events.filter((e) => e.set != null).map((e) => e.set), [2], 'olaylar MS setinde kalır');
+  await s.goTo(2);
+  await openDet(s);
+  assert.ok(await p.isDisabled('#detail [data-dact="edit"]'), 'biten set düzenlenmez');
+  assert.match(await s.text('#detail'), /Biten set düzenlenemez/);
 });
 
 sc('Mola: dinlenirken sol düğme Mola olur; saat, sayaç ve bipler durur; DEVAM ET; süreler moladan arınır', async ({ launch }) => {

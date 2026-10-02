@@ -47,7 +47,7 @@ assert.ok(A.data.slice(1).every(x => Object.prototype.toString.call(x[ah('Tarih'
 assert.deepStrictEqual(A.data.slice(1).map(x => x[1]), [1,2,3]);
 const eski = env.sheets.eski.data;
 assert.strictEqual(eski.length, 3);
-assert.deepStrictEqual(eski.slice(1).map(x=>x[1]), [1,3], 'orijinal Sıra sırası');
+assert.deepStrictEqual(eski.slice(1).map(x=>[x[1], x[2]]), [['','WU'],['','MS']], 'orijinal Sıra sırası; Sıra sütunu boş (tablo doldurur)');
 assert.strictEqual(eski[2][10], 'Şamandıra');
 assert.ok(Math.abs(eski[2][11]*86400 - 83.4) < 1e-6); assert.strictEqual(env.sheets.eski.fmt[2][11], '[mm]:ss.0');
 assert.strictEqual(eski[2][12], 13); assert.strictEqual(eski[2][16], 'Turlar: 01:23.0, 01:23.8'); assert.strictEqual(env.sheets.eski.fmt[2][16], '@');
@@ -87,7 +87,7 @@ const E = env.sheets.eski;
 E.data.push(['eski-satir', 9, 'CD', 1, 100, 'FR', 'Swim', '', '', '', '', '', '', '', '', '', '']);
 E.fmt.push(E.data[1].map(() => 'VERI'));
 r = env.call(payload); assert.ok(r.ok, JSON.stringify(r));
-assert.deepStrictEqual(E.data.slice(1).map(x => x[1]), [1, 3, 9], 'yeni setler üstte, Sıra sırasıyla');
+assert.deepStrictEqual(E.data.slice(1).map(x => x[2]), ['WU', 'MS', 'CD'], 'yeni setler üstte, Sıra sırasıyla');
 assert.ok(!E.fmt[1].includes('HEADER') && E.fmt[1][12] === 'VERI', 'biçim başlıktan değil ilk veri satırından');
 // seans yazımı başarısız → üste eklenen blok tamamen kalkar, tepede boş satır kalmaz
 env = fresh(); const E2 = env.sheets.eski;
@@ -96,4 +96,38 @@ env.sheets.seans.failOn = 'write';
 r = env.call(payload); assert.strictEqual(r.error, 'SERVER');
 assert.deepStrictEqual(E2.data.slice(1).filter(x => x.some(v => v !== '')).map(x => x[0]), ['eski-satir']);
 assert.strictEqual(E2.data[1][0], 'eski-satir', 'tepede boş satır kalmamalı');
+// İdman anında düzenleme: değişen alanlar eski'ye yazılır; eklenen set (Sıra yok) arkasına
+// eklendiği setin hemen arkasına; arsiv'e özgün plan gider; Set Mesafe/Set Süre boş.
+env = fresh();
+env.sheets.eski = new Sheet('eski', [...ESKI_H, 'Set Mesafe', 'Set Süre']);
+r = env.call({ action: 'finishSession', tarih: '2026-09-24', seans: { sure: '00:40:00', mesafe: 900, havuz: 25, rpe: 7, msi: '', aciklama: '' }, setler: [
+  { sira: 1, tamamlandi: true, gercek: '', not: '' },
+  { sira: null, eklendi: true, tamamlandi: true, gercek: '00:45.0', not: 'idmanda eklendi', plan: { blok: 'PS', tekrar: 2, mesafe: 50, stil: 'BK', tur: 'Kick', aciklama: 'yeni', hedef: '01:00', dinlen: '00:15', alet: 'Finn' } },
+  { sira: 2, tamamlandi: false },
+  { sira: 3, tamamlandi: true, gercek: '01:25.0', not: 'Plan: 4×100 → 6×100, Hedef 1:30 → 1:25', plan: { tekrar: 6, hedef: '01:25' } },
+  { sira: null, eklendi: true, tamamlandi: false, plan: { tekrar: 1, mesafe: 100 } },
+] });
+assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.data.yazilanSet, 3);
+{
+  const X = env.sheets.eski; const xh = (k) => X.data[0].indexOf(k);
+  const rows = X.data.slice(1).map((x) => [x[xh('Sıra')], x[xh('Blok')], x[xh('Tekrar')], x[xh('Mesafe')], x[xh('Stil')], x[xh('Tür')], x[xh('Alet')], x[xh('Not')], x[xh('Set Mesafe')]]);
+  assert.deepStrictEqual(rows, [
+    ['', 'WU', 1, 200, 'FR', 'Swim', '', '', ''],
+    ['', 'PS', 2, 50, 'BK', 'Kick', 'Finn', 'idmanda eklendi', ''],
+    ['', 'MS', 6, 100, 'FR', 'Pull', 'Şamandıra', 'Plan: 4×100 → 6×100, Hedef 1:30 → 1:25', ''],
+  ]);
+  assert.ok(Object.prototype.toString.call(X.data[2][xh('Tarih')]) === '[object Date]', 'eklenen sette tarih');
+  assert.ok(Math.abs(X.data[3][xh('Hedef')] * 86400 - 85) < 1e-6);
+  assert.ok(Math.abs(X.data[2][xh('Dinlen')] * 86400 - 15) < 1e-6);
+  const A = env.sheets.arsiv; const ah = (k) => A.data[0].indexOf(k);
+  assert.deepStrictEqual(A.data.slice(1).map((x) => [x[ah('Sıra')], x[ah('Tekrar')]]), [[1, 1], [2, 4], [3, 4]], 'arsiv: özgün plan');
+}
+// Eklenen set tamamlanmadıysa yazılmaz; plan alanı dışındaki anahtarlar yok sayılır
+env = fresh();
+r = env.call({ action: 'finishSession', tarih: '2026-09-24', seans: { sure: '00:10:00', mesafe: 200, havuz: 25, rpe: '', msi: '', aciklama: '' }, setler: [
+  { sira: 1, tamamlandi: true, plan: { gercek: 'x', Tarih: 'y', tekrar: 1 } },
+  { sira: null, eklendi: true, tamamlandi: false, plan: { tekrar: 1, mesafe: 100 } },
+] });
+assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(env.sheets.eski.getLastRow(), 2);
+assert.ok(Object.prototype.toString.call(env.sheets.eski.data[1][0]) === '[object Date]');
 console.log('Code.gs testleri: TAMAM');

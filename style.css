@@ -1133,3 +1133,35 @@ button {
 /* Küçük başlıklı kartlarda stil · tür sığmazsa alt satıra boşluksuz geçer */
 .w-item.m-live .w-title, .w-item.m-sum .w-title { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
 .w-item.m-live .w-title small, .w-item.m-sum .w-title small { margin-left: 0; line-height: 1.05; }
+
+/* --- sürüm 11: idman anında düzenleme (duzen.js) ---------------------------- */
+.dt-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+.dt-act { min-height: 68px; border-radius: 18px; border: 1.5px solid #2A3440; background: transparent; color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 15px; font-weight: 800; }
+.dt-act i { font-style: normal; font-size: 22px; line-height: 1; }
+.dt-act.del { color: #FF8A8A; border-color: rgba(255, 138, 138, 0.4); }
+.dt-act:disabled { opacity: 0.35; }
+.dt-why { margin-top: 8px; text-align: center; font-size: 15px; font-weight: 700; color: #FFB020; }
+
+.eset { position: absolute; inset: 0; z-index: 35; display: flex; flex-direction: column; background: #0B0F14; padding: var(--safe-t) 0 0; }
+.es-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px 6px; }
+.es-tag { font-size: 12px; font-weight: 800; letter-spacing: 1.6px; color: var(--c, var(--accent)); }
+.es-title { font-size: 26px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.es-scroll { flex: 1; overflow-y: auto; padding: 4px 16px 16px; }
+.es-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; margin-top: 10px; border-radius: 18px; background: #141B23; border: 1px solid #1E2731; }
+.es-l { display: block; font-size: 12px; font-weight: 800; letter-spacing: 1.6px; color: #7A8694; }
+.es-l small { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; letter-spacing: 0; color: #FFB020; }
+.es-stp { display: flex; align-items: center; gap: 8px; }
+.es-stp b { min-width: 84px; text-align: center; font-family: var(--num); font-size: 38px; font-weight: 700; }
+.es-stp button { width: 56px; height: 56px; border-radius: 16px; border: 1px solid #2A3440; background: #1C242E; color: var(--text); font-size: 30px; font-weight: 700; }
+.es-blk { display: block; margin-top: 14px; }
+.es-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.es-chips button { min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1.5px solid #2A3440; background: transparent; color: #9AA5B1; font-size: 16px; font-weight: 800; }
+.es-chips button.is-on { border-color: var(--c, var(--accent)); color: var(--c, var(--accent)); background: rgba(255, 255, 255, 0.06); }
+.es-blk textarea { width: 100%; margin-top: 8px; padding: 12px; border-radius: 14px; border: 1px solid #2A3440; background: #141B23; color: var(--text); font: inherit; font-size: 18px; resize: vertical; }
+.es-warn { margin-top: 14px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 176, 32, 0.12); color: #FFB020; font-size: 16px; font-weight: 700; }
+.es-foot { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; padding: 10px 16px calc(var(--safe-b) + 14px); }
+.es-foot .btn { min-height: 64px; font-size: 19px; font-weight: 800; }
+
+.w-plus { align-self: flex-start; margin-top: 8px; min-height: 44px; padding: 6px 14px; border-radius: 14px; border: 1.5px solid rgba(56, 189, 248, 0.6); background: transparent; color: #7DD3FC; font-size: 17px; font-weight: 800; }
+.toast:has(.toast-act) { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+.toast-act { flex: none; min-height: 44px; padding: 6px 14px; border-radius: 12px; border: 0; background: #001018; color: #F6D35E; font-size: 18px; font-weight: 800; }

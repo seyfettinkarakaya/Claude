@@ -178,6 +178,18 @@
     </footer>
     <!-- Karta dokununca: setin tüm bilgisi (dokununca kapanır) -->
     <div class="detail" id="detail" hidden><div class="detail-in" id="detail-body"></div></div>
+    <!-- Set düzenleme: Düzenle / Sonrasına ekle (duzen.js) -->
+    <div class="eset" id="eset" hidden>
+      <header class="es-head">
+        <button class="icon-btn" id="eset-back" aria-label="Vazgeç">‹</button>
+        <div><p class="es-tag" id="eset-tag"></p><h2 class="es-title" id="eset-title"></h2></div>
+      </header>
+      <div class="es-scroll">
+        <div id="eset-body"></div>
+        <label class="es-blk"><span class="es-l">AÇIKLAMA</span><textarea id="eset-desc" rows="2" autocomplete="off"></textarea></label>
+      </div>
+      <footer class="es-foot"><button class="btn" id="eset-cancel">Vazgeç</button><button class="btn btn-primary" id="eset-save">Kaydet</button></footer>
+    </div>
     <!-- Mola: idman saati, dinlenme sayacı ve bipler durur -->
     <div class="mola" id="mola" hidden>
       <div class="mola-in">

@@ -67,6 +67,22 @@ var SET_RESULT_FIELDS = {
   not: 'text'
 };
 
+// İdmanda değiştirilen ya da eklenen setlerin plan alanları ve türleri.
+var PLAN_EDIT_FIELDS = {
+  blok: 'text',
+  tekrar: 'number',
+  mesafe: 'number',
+  stil: 'text',
+  tur: 'text',
+  aciklama: 'text',
+  hedef: 'duration',
+  dinlen: 'duration',
+  alet: 'text'
+};
+
+// eski sayfasında boş bırakılan sütunlar: tablo bunları kendi formülleriyle doldurur.
+var ESKI_BLANK = ['Sıra', 'Set Mesafe', 'Set Süre'];
+
 // ---------------------------------------------------------------------------
 // Giriş noktaları
 // ---------------------------------------------------------------------------
@@ -282,24 +298,37 @@ function finishSession_(req) {
     if (!(key in planBySira)) planBySira[key] = i;
   });
 
+  // Uygulamadaki sıra korunur: özgün setler Sıra'ya göre, idmanda eklenen setler
+  // (eklendi: true, Sıra yok) uygulamada arkasına eklendikleri setin hemen arkasına.
   var seen = {};
   var done = [];
+  var anchor = { sira: -Infinity, row: -1 };
+  var sub = 0;
   setlerIn.forEach(function (s) {
-    if (!s || s.tamamlandi !== true) return;
+    if (!s) return;
+    if (s.eklendi === true) {
+      sub += 1;
+      if (s.tamamlandi === true) done.push({ row: null, sonuc: s, key: anchor, sub: sub });
+      return;
+    }
     var key = siraKey_(s.sira);
+    var row = key in planBySira ? planBySira[key] : null;
+    if (row !== null) {
+      anchor = { sira: toNumber_(plan.values[row][planSiraCol]), row: row };
+      sub = 0;
+    }
+    if (s.tamamlandi !== true) return;
     if (seen[key]) return;
     seen[key] = true;
-    if (!(key in planBySira)) {
+    if (row === null) {
       throw appError_('PLAN_MISMATCH', 'Sıra ' + s.sira + ' bu tarihin planında bulunamadı.');
     }
-    done.push({ row: planBySira[key], sonuc: s });
+    done.push({ row: row, sonuc: s, key: anchor, sub: 0 });
   });
 
-  // Orijinal Sıra değerine göre yaz (kullanıcının uygulama sırası önemsiz).
   done.sort(function (a, b) {
-    return bySira_(
-      { sira: toNumber_(plan.values[a.row][planSiraCol]), _satir: a.row },
-      { sira: toNumber_(plan.values[b.row][planSiraCol]), _satir: b.row });
+    var c = bySira_({ sira: a.key.sira, _satir: a.key.row }, { sira: b.key.sira, _satir: b.key.row });
+    return c || a.sub - b.sub;
   });
 
   var eskiWritten = null;
@@ -307,7 +336,7 @@ function finishSession_(req) {
   try {
     // 2) eski sayfasına yaz.
     if (done.length) {
-      var eskiRows = done.map(function (d) { return buildEskiRow_(plan, eski, d.row, d.sonuc, tz); });
+      var eskiRows = done.map(function (d) { return buildEskiRow_(plan, eski, d.row, d.sonuc, tarih, tz); });
       eskiWritten = writeRows_(eski, eskiRows, true); // en yeni seans en üstte
     }
 
@@ -405,20 +434,43 @@ function archivePlanRows_(ss, plan, planRows, planSiraCol, tarih, tz) {
   return rows.length;
 }
 
-function buildEskiRow_(plan, eski, planRow, sonuc, tz) {
-  var src = plan.values[planRow];
-  var srcFmt = plan.formats[planRow];
+/**
+ * eski satırı. planRow null ise idmanda eklenen set: plan alanları sonuc.plan'dan gelir.
+ * sonuc.plan, özgün sette idmanda değişen alanları taşır (Not'a fark ayrıca yazılır).
+ * Sıra, Set Mesafe ve Set Süre boş bırakılır.
+ */
+function buildEskiRow_(plan, eski, planRow, sonuc, tarih, tz) {
+  var src = planRow === null ? null : plan.values[planRow];
+  var srcFmt = planRow === null ? null : plan.formats[planRow];
+  var over = sonuc.plan && typeof sonuc.plan === 'object' ? sonuc.plan : {};
+  var editByKey = {};
+  Object.keys(PLAN_EDIT_FIELDS).forEach(function (f) { editByKey[normalize_(COL[f])] = f; });
+  var blank = {};
+  ESKI_BLANK.forEach(function (h) { blank[normalize_(h)] = true; });
+  var tarihKey = normalize_(COL.tarih);
   var values = [];
   var formats = [];
   eski.headers.forEach(function (h) {
     var key = normalize_(h);
-    if (key && Object.prototype.hasOwnProperty.call(SET_RESULT_FIELDS, key)) {
-      var conv = convertValue_(sonuc[key], SET_RESULT_FIELDS[key]);
+    var f = editByKey[key];
+    var conv;
+    if (key && blank[key]) {
+      values.push('');
+      formats.push(null);
+    } else if (key && Object.prototype.hasOwnProperty.call(SET_RESULT_FIELDS, key)) {
+      conv = convertValue_(sonuc[key], SET_RESULT_FIELDS[key]);
       values.push(conv.value);
       formats.push(conv.format);
-    } else if (key && key in plan.map) {
+    } else if (f && Object.prototype.hasOwnProperty.call(over, f)) {
+      conv = convertValue_(over[f], PLAN_EDIT_FIELDS[f]);
+      values.push(conv.value);
+      formats.push(conv.format);
+    } else if (src && key && key in plan.map) {
       values.push(src[plan.map[key]]);
       formats.push(srcFmt[plan.map[key]]);
+    } else if (!src && key === tarihKey) {
+      values.push(Utilities.parseDate(tarih, tz, 'yyyy-MM-dd'));
+      formats.push(null);
     } else {
       values.push('');
       formats.push(null);

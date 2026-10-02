@@ -4,6 +4,7 @@ import * as data from './data.js?v=10.4';
 import { Wheel } from './wheel.js?v=10.4';
 import * as zaman from './zaman.js?v=10.4';
 import * as ref from './ref.js?v=10.4';
+import * as duzen from './duzen.js?v=10.4';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
 export const APP_VERSION = '10.4';
@@ -51,6 +52,7 @@ const state = {
   suppressDayClick: false,
   opening: false,   // program sunucudan yükleniyor (çift dokunmaya karşı)
   homeNext: null,   // ana sayfadaki "İdmanı aç" düğmesinin açacağı gün
+  eset: null,       // set düzenleme ekranı { mode, i, d, r, orig }
   ref: undefined,   // sporRef önbelleği (undefined: henüz okunmadı)
   zones: null,      // ref.paceZones önbelleği
 };
@@ -165,7 +167,7 @@ function setTitle(s) {
   return `${tekrar} × ${s.mesafe}${stil}`;
 }
 
-const setKey = (s, i) => (s.sira == null || s.sira === '' ? `i${i}` : String(s.sira));
+const setKey = (s, i) => s._k || (s.sira == null || s.sira === '' ? `i${i}` : String(s.sira));
 
 // ---------------------------------------------------------------------------
 // 100 m tempo ve CSS bölgeleri
@@ -265,6 +267,20 @@ function toast(text, ms = 2600) {
   toastTimer = setTimeout(() => { el.hidden = true; }, ms);
 }
 
+/** Düğmeli bildirim (Geri al gibi); ms sonra kendiliğinden kapanır. */
+function toastAction(text, label, fn, ms = 5000) {
+  const el = $('toast');
+  el.innerHTML = `<span>${esc(text)}</span><button class="toast-act">${esc(label)}</button>`;
+  el.hidden = false;
+  el.querySelector('button').addEventListener('click', () => {
+    el.hidden = true;
+    clearTimeout(toastTimer);
+    fn();
+  }, { once: true });
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, ms);
+}
+
 /**
  * Büyük düğmeli diyalog. actions: [{ label, value, cls }].
  * Gövdede data-value taşıyan bir elemana dokunmak da diyaloğu o değerle kapatır.
@@ -337,7 +353,7 @@ function persist() {
 }
 
 function hasProgress(s) {
-  return Boolean(s && ((s.events && s.events.length) || (s.legacy && Object.keys(s.legacy.done || {}).length)));
+  return Boolean(s && ((s.events && s.events.length) || s.setler || (s.legacy && Object.keys(s.legacy.done || {}).length)));
 }
 
 const sessionStarted = (s) => Boolean(s && s.events && s.events.some((e) => e.t === 'basla'));
@@ -1240,7 +1256,8 @@ function resumeSession() {
     return showDays();
   }
   state.session = migrateSession(s);
-  state.plan = plan;
+  // İdmanda düzenlenen plan seansta saklanır.
+  state.plan = Array.isArray(state.session.setler) && state.session.setler.length ? { ...plan, setler: state.session.setler } : plan;
   state.zst = null;
   persist();
   if (state.session.screen === 'rpe' && zst().phase === 'done') return openRpe();
@@ -1404,7 +1421,8 @@ function renderItem(node, s, i, cum) {
         <span class="w-last">${s.hedef && pacePer100(parseSec(s.hedef), s.mesafe) ? `<span class="w-pace"><span class="w-alet">Tempo</span> ${paceHtml(parseSec(s.hedef), s)}</span>` : '<span></span>'}<span class="w-dist">${fmtNum(setDist(s))} / ${fmtNum(c.dist)} m</span></span>
       </div>`;
   if (mode === 'live') {
-    body = `${title}${setInfo(s)}${T > 4 ? repStrip(i) : repBoxes(i, true)}${timer}`;
+    const plus = st.phase === 'rest' && st.cur === i ? '<button class="w-plus" data-plus>＋1 tekrar</button>' : '';
+    body = `${title}${setInfo(s)}${T > 4 ? repStrip(i) : repBoxes(i, true)}${plus}${timer}`;
   } else if (mode === 'next') {
     const cs = state.plan.setler[st.cur];
     const cd = zaman.doneReps(st, st.cur);
@@ -1903,12 +1921,229 @@ function openDetail(i) {
     ${pace}
     ${s.alet ? `<p class="dt-row">Alet <b>${esc(s.alet)}</b></p>` : ''}
     <p class="dt-row">${fmtNum(setDist(s))} m${c.time ? ` · yığımlı hedef ${fmtDur(c.time)}` : ''}</p>
-    <p class="dt-hint">Kapatmak için dokun · süre işlemeye devam eder</p>`;
+    ${detailActions(i)}
+    <p class="dt-hint">Boşluğa dokun: kapat · süre işlemeye devam eder</p>`;
+  box.dataset.i = String(i);
   box.hidden = false;
+}
+
+/** Ayrıntı panelinin altındaki Düzenle · Sonrasına ekle · Sil (yüzerken sönük). */
+function detailActions(i) {
+  const r = editRules(i);
+  const why = zst().phase === 'swim' ? 'Yüzerken düzenlenemez' : !r.canEdit ? 'Biten set düzenlenemez' : !r.canDelete ? 'Başlanan set silinemez' : '';
+  const b = (act, icon, label, on, cls = '') => `<button class="dt-act ${cls}" data-dact="${act}"${on ? '' : ' disabled'}><i>${icon}</i>${label}</button>`;
+  return `<div class="dt-acts">${b('edit', '✎', 'Düzenle', r.canEdit)}${b('add', '＋', 'Sonrasına ekle', r.canInsert)}${b('del', '🗑', 'Sil', r.canDelete, 'del')}</div>
+    ${why ? `<p class="dt-why">${why}</p>` : ''}`;
+}
+
+function onDetailClick(e) {
+  const btn = e.target.closest('[data-dact]');
+  if (btn && btn.disabled) return; // sönük düğme paneli kapatmasın
+  const i = Number($('detail').dataset.i);
+  closeDetail();
+  if (!btn || !state.plan || !(i >= 0)) return;
+  if (btn.dataset.dact === 'edit') openSetEdit('edit', i);
+  else if (btn.dataset.dact === 'add') openSetEdit('add', i);
+  else if (btn.dataset.dact === 'del') deleteSet(i);
 }
 
 function closeDetail() {
   $('detail').hidden = true;
+}
+
+// ---------------------------------------------------------------------------
+// İdman anında plan düzenleme (duzen.js): Düzenle · Sonrasına ekle · Sil, +1 tekrar.
+// Düzenlenen plan seansta (session.setler) saklanır; tabloya özgün setlerde değişen
+// alanlar, eklenen setlerde tüm alanlar gider ve Not'a plan farkı yazılır.
+// ---------------------------------------------------------------------------
+
+const STILLER = ['FR', 'BK', 'BR', 'BF', 'IM'];
+const TURLER = ['Swim', 'Drill', 'Kick', 'Pull'];
+const ALETLER = ['Finn', 'Paddle', 'PB', 'Snorkel', 'Board'];
+
+function editRules(i) {
+  const st = zst();
+  const status = statusOf(i);
+  return duzen.rules({
+    done: zaman.doneReps(st, i),
+    started: st.per[i].reps.length > 0 || legacyDone(i),
+    finished: status === 'tamam' || status === 'eksik',
+    swimming: st.phase === 'swim',
+  });
+}
+
+const fmtMS = (sec) => `${pad2(Math.floor(sec / 60))}:${pad2(Math.round(sec % 60))}`;
+const aletList = (v) => String(v || '').split(/\s*,\s*/).filter(Boolean);
+
+/** Düzenleme ekranı. mode: 'edit' (i. set) ya da 'add' (i. setin arkasına, onun kopyası). */
+function openSetEdit(mode, i) {
+  const src = state.plan.setler[i];
+  const r = mode === 'edit' ? editRules(i) : duzen.rules({ done: 0, started: false, finished: false, swimming: false });
+  const d = Object.fromEntries(duzen.FIELDS.map((f) => [f, src[f] == null ? '' : src[f]]));
+  d.tekrar = tekrarOf(src);
+  d.mesafe = Number(src.mesafe) || 0;
+  state.eset = { mode, i, d, r, orig: { ...d } };
+  $('eset-desc').value = d.aciklama;
+  renderSetEdit();
+  $('eset').hidden = false;
+}
+
+function renderSetEdit() {
+  const E = state.eset;
+  const { d, r } = E;
+  const b = blokOf(d);
+  const n = state.plan.setler.length;
+  const blok = String(d.blok || '').trim().toUpperCase();
+  const pos = E.mode === 'edit' ? `${E.i + 1}/${n} · DÜZENLE` : `${E.i + 2}/${n + 1} · YENİ SET`;
+  $('eset').style.setProperty('--c', b.renk);
+  $('eset-tag').textContent = `${blok}${b.ad ? ` · ${b.ad.toLocaleUpperCase('tr')}` : ''} · ${pos}`;
+  $('eset-title').textContent = [`${d.tekrar} × ${d.mesafe}`, d.stil, d.tur].filter(Boolean).join(' ');
+  const split = r.splitFields.filter((f) => String(d[f]) !== String(E.orig[f]));
+  const stepper = (key, label, value, note = '') => `<div class="es-row"><div class="es-l">${label}${note ? `<small>${note}</small>` : ''}</div>
+    <div class="es-stp"><button data-es="${key}:-1" aria-label="${label} azalt">−</button><b class="n">${value}</b><button data-es="${key}:1" aria-label="${label} artır">+</button></div></div>`;
+  const chips = (key, list, cur, multi = false) => {
+    const on = multi ? aletList(cur) : [String(cur || '')];
+    const all = [...list, ...on.filter((x) => x && !list.includes(x))];
+    return `<div class="es-chips">${all.map((x) => `<button data-es-chip="${key}" data-v="${esc(x)}" class="${on.includes(x) ? 'is-on' : ''}">${esc(x)}</button>`).join('')}</div>`;
+  };
+  const aletler = (() => {
+    const rr = sporRef();
+    return rr && rr.alet && rr.alet.length ? rr.alet.map((a) => a.kod) : ALETLER;
+  })();
+  $('eset-body').innerHTML = `
+    ${stepper('tekrar', 'TEKRAR', d.tekrar, r.minTekrar > 1 ? `en az ${r.minTekrar} (yapıldı)` : '')}
+    ${stepper('mesafe', 'MESAFE', d.mesafe, r.splitFields.length ? 'başladı · değişirse yeni set' : '')}
+    ${stepper('hedef', 'HEDEF', d.hedef ? fmtDur(parseSec(d.hedef)) : '—')}
+    ${stepper('dinlen', 'DİNLEN', d.dinlen ? fmtDur(parseSec(d.dinlen)) : '—')}
+    <div class="es-blk"><div class="es-l">STİL${r.splitFields.length ? '<small>başladı · değişirse yeni set</small>' : ''}</div>${chips('stil', STILLER, d.stil)}</div>
+    <div class="es-blk"><div class="es-l">TÜR</div>${chips('tur', TURLER, d.tur)}</div>
+    <div class="es-blk"><div class="es-l">ALET</div>${chips('alet', aletler, d.alet, true)}</div>
+    <div class="es-blk"><div class="es-l">BLOK</div>${chips('blok', Object.keys(BLOKLAR), blok)}</div>
+    ${split.length ? '<p class="es-warn">Yapılan tekrarlar eski haliyle kalır; kalanlar yeni set olarak eklenir.</p>' : ''}`;
+}
+
+function onSetEditClick(e) {
+  const E = state.eset;
+  if (!E) return;
+  const t = e.target.closest('button');
+  if (!t) return;
+  const { d } = E;
+  if (t.id === 'eset-back' || t.id === 'eset-cancel') return closeSetEdit();
+  if (t.id === 'eset-save') return saveSetEdit();
+  if (t.dataset.es) {
+    const [key, dir] = t.dataset.es.split(':');
+    const k = Number(dir);
+    if (key === 'tekrar') d.tekrar = Math.max(E.r.minTekrar, Math.min(99, d.tekrar + k));
+    else if (key === 'mesafe') d.mesafe = Math.max(25, Math.min(5000, d.mesafe + k * ((k > 0 ? d.mesafe >= 400 : d.mesafe > 400) ? 100 : 25)));
+    else {
+      const sec = Math.max(0, Math.min(3600, parseSec(d[key]) + k * 5));
+      d[key] = sec ? fmtMS(sec) : '';
+    }
+  } else if (t.dataset.esChip) {
+    const key = t.dataset.esChip;
+    const v = t.dataset.v;
+    if (key === 'alet') {
+      const list = aletList(d.alet);
+      d.alet = (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]).join(', ');
+    } else {
+      d[key] = d[key] === v && key !== 'blok' ? '' : v;
+    }
+  } else {
+    return;
+  }
+  renderSetEdit();
+}
+
+function closeSetEdit() {
+  $('eset').hidden = true;
+  state.eset = null;
+}
+
+/** Düzenlenmiş planı uygular: seansa yazar, tekerleği yeniden kurar. */
+function applyPlan(r, focus) {
+  const s = state.session;
+  s.setler = r.setler;
+  s.events = r.events;
+  s.pos = focus == null ? r.pos : focus;
+  state.plan = { ...state.plan, setler: r.setler };
+  state.zst = null;
+  persist();
+  openProgram();
+}
+
+/** İlk düzenlemede setlere kalıcı anahtar ve özgün hal eklenir. */
+const keyedPlan = () => ({ setler: duzen.keyed(state.plan.setler, setKey), events: ev().slice(), pos: state.wheel ? state.wheel.index : state.session.pos || 0 });
+
+async function saveSetEdit() {
+  const E = state.eset;
+  if (!E || !state.session) return;
+  if (zst().phase === 'swim') { closeSetEdit(); return toast('Yüzerken düzenlenemez'); }
+  const d = { ...E.d, aciklama: $('eset-desc').value.trim() };
+  const base = keyedPlan();
+  if (E.mode === 'add') {
+    const ns = duzen.newSet(d);
+    closeSetEdit();
+    applyPlan(duzen.insertAfter(base, E.i, ns), E.i + 1);
+    return toast(`Set eklendi: ${d.tekrar} × ${d.mesafe}`);
+  }
+  const cur = base.setler[E.i];
+  const split = E.r.splitFields.some((f) => String(d[f]) !== String(E.orig[f]));
+  if (split) {
+    const done = zaman.doneReps(zst(), E.i);
+    const kalan = Math.max(1, d.tekrar - done);
+    const ok = await modal({
+      title: 'Yeni set olarak eklensin mi?',
+      body: `<p>Yapılan ${done} tekrar ${esc(`${done} × ${E.orig.mesafe} ${E.orig.stil}`)} olarak kalır; kalan ${kalan} tekrar ${esc(`${kalan} × ${d.mesafe} ${d.stil}`)} yeni set olarak arkasına eklenir.</p>`,
+      actions: [{ label: 'Yeni set olarak ekle', value: true, cls: 'btn-primary' }, { label: 'Vazgeç', value: false }],
+    });
+    if (!ok) return;
+    closeSetEdit();
+    base.setler[E.i] = { ...cur, tekrar: done };
+    applyPlan(duzen.insertAfter(base, E.i, duzen.newSet({ ...d, tekrar: kalan })), E.i + 1);
+    return toast('Kalan tekrarlar yeni set olarak eklendi');
+  }
+  closeSetEdit();
+  base.setler[E.i] = { ...cur, ...d };
+  applyPlan(base, E.i);
+  toast(duzen.planNote(base.setler[E.i]) || 'Değişiklik yok');
+}
+
+/** Başlanmamış seti siler; 5 sn içinde Geri al. */
+function deleteSet(i) {
+  if (!editRules(i).canDelete) return;
+  const base = keyedPlan();
+  const removed = base.setler[i];
+  let r;
+  try {
+    r = duzen.removeAt(base, i);
+  } catch (err) {
+    return toast(err.message);
+  }
+  applyPlan(r);
+  toastAction(`${setTitle(removed)} silindi`, 'Geri al', () => {
+    if (!state.session || !state.plan) return;
+    applyPlan(duzen.insertAfter(keyedPlan(), i - 1, removed), i);
+  });
+}
+
+/** Dinlenirken kartta "+1 tekrar": setin tekrarını bir artırır; 5 sn içinde Geri al. */
+function plusOneRep() {
+  const st = zst();
+  if (st.phase !== 'rest' || st.cur == null) return;
+  const i = st.cur;
+  const base = keyedPlan();
+  const before = tekrarOf(base.setler[i]);
+  base.setler[i] = { ...base.setler[i], tekrar: before + 1 };
+  applyPlan(base, state.wheel ? state.wheel.index : i);
+  const m = base.setler[i].mesafe;
+  toastAction(`${before} × ${m} → ${before + 1} × ${m}`, 'Geri al', () => {
+    if (!state.session) return;
+    const b2 = keyedPlan();
+    const set = b2.setler[i];
+    if (!set || tekrarOf(set) <= Math.max(1, zaman.doneReps(zst(), i))) return;
+    b2.setler[i] = { ...set, tekrar: tekrarOf(set) - 1 };
+    applyPlan(b2, state.wheel ? state.wheel.index : i);
+  });
 }
 
 // Sürükleme (yüzerken kilitli tekerlekte de) paneli açmasın: yalnızca yerinde dokunuş.
@@ -1919,6 +2154,7 @@ function onWheelClick(e) {
   const d = wheelDown;
   wheelDown = null;
   if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 12) return;
+  if (e.target.closest && e.target.closest('[data-plus]')) return plusOneRep();
   const card = e.target.closest && e.target.closest('.w-item.is-active .w-card');
   if (!card || !state.wheel || zst().mola != null) return;
   const i = state.wheel.items.indexOf(card.closest('.w-item'));
@@ -2292,15 +2528,19 @@ function buildPayload() {
     setler: state.plan.setler.map((set, i) => {
       const k = setKey(set, i);
       const old = legacyRes[k] || {};
+      // İdmanda değişen/eklenen set: plan alanları ve Not'a plan farkı.
+      const ed = duzen.payloadFields(set);
+      const fark = duzen.planNote(set);
+      const base = { sira: set._yeni ? null : set.sira, ...ed };
       if (st.per[i].reps.length && zaman.doneReps(st, i) > 0) {
         const { lines, eff } = setNotes(i);
-        const not = [old.not, ...lines.filter((l) => l.on).map((l) => l.text)].filter(Boolean).join(' | ');
-        return { sira: set.sira, tamamlandi: true, gercek: eff.avgMs ? fmtLap(eff.avgMs) : '', kulac: '', nabiz: '', rpe: '', msi: '', not };
+        const not = [fark, old.not, ...lines.filter((l) => l.on).map((l) => l.text)].filter(Boolean).join(' | ');
+        return { ...base, tamamlandi: true, gercek: eff.avgMs ? fmtLap(eff.avgMs) : '', kulac: '', nabiz: '', rpe: '', msi: '', not };
       }
       if (legacyDone(i)) {
-        return { sira: set.sira, tamamlandi: true, gercek: old.gercek || '', kulac: '', nabiz: '', rpe: '', msi: '', not: old.not || '' };
+        return { ...base, tamamlandi: true, gercek: old.gercek || '', kulac: '', nabiz: '', rpe: '', msi: '', not: [fark, old.not].filter(Boolean).join(' | ') };
       }
-      return { sira: set.sira, tamamlandi: false };
+      return { ...base, tamamlandi: false };
     }),
   };
 }
@@ -2308,7 +2548,6 @@ function buildPayload() {
 /** Biten seansın telefonda saklanan kopyası (Yapılmış idmanlar). */
 function keepInHistory(payload, status) {
   const st = zst();
-  const byS = new Map(payload.setler.map((x) => [String(x.sira), x]));
   const rec = {
     id: `${payload.tarih}-${Date.now()}`,
     tarih: payload.tarih,
@@ -2318,7 +2557,7 @@ function keepInHistory(payload, status) {
     endedAt: st.bitir,
     seans: payload.seans,
     setler: state.plan.setler.map((set, i) => {
-      const p = byS.get(String(set.sira)) || {};
+      const p = payload.setler[i] || {}; // aynı sırayla üretilir (idmanda eklenen setlerin sırası yok)
       return {
         sira: set.sira, blok: set.blok, tekrar: set.tekrar, mesafe: set.mesafe, stil: set.stil, tur: set.tur,
         aciklama: set.aciklama, hedef: set.hedef, dinlen: set.dinlen, alet: set.alet,
@@ -2466,7 +2705,9 @@ function wire() {
   $('mola-devam').addEventListener('click', endMola);
   $('wheel').addEventListener('pointerdown', onWheelDown, { capture: true, passive: true });
   $('wheel').addEventListener('click', onWheelClick);
-  $('detail').addEventListener('click', closeDetail);
+  $('detail').addEventListener('click', onDetailClick);
+  $('eset').addEventListener('click', onSetEditClick);
+  $('eset-desc').addEventListener('input', (e) => { if (state.eset) state.eset.d.aciklama = e.target.value; });
   $('btn-sound').addEventListener('click', onSoundButton);
 
   $('rpe-back').addEventListener('click', backToWorkout);
