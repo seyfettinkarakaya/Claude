@@ -11,7 +11,11 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Yeni talepler buraya.
+Sürüm 10.3 (bekliyor, "uygula" ile):
+- [ ] Hata (Sürüm 10'da oluştu): idman başlamadan set kartında stil · tür ("FR · Kick") başlığın
+  yanına sığmayınca boşluklu bir alt satıra düşüyor; kart uzuyor, en alttaki tempo/mesafe satırı
+  kesiliyor. Çözüm: hazır kartta Sürüm 9'daki gibi başlığın hemen altında kendi satırında;
+  yüzerken/dinlenirken/özet kartlarında başlığın yanında kalır. 320–430 px'te kart taşması testi.
 
 ## 2. Aşama — Orta vade
 
