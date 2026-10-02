@@ -26,7 +26,13 @@ Sürüm 10.5 (bekliyor, "uygula" ile):
 
 ### İşlev
 
-- [ ] **Yüzme idmanını idman anında değiştir / ekle / sil** (konuşulacak).
+> **Karar (02.10.2026):** Tek ve büyük bir sürüm çıkılacak. Dosya yapısı 3'lü: YuzmeProgram, SalonTakip ve
+> sporRef'in her birine kendi `@OnlyCurrentDoc` Apps Script'i (3 adres + anahtar); betikler yalnızca kendi
+> dosyasını görür.
+
+- [ ] **Yüzme idmanını idman anında değiştir / ekle / sil** (öneri sohbette, karar bekliyor): karta dokun →
+  ayrıntı panelinde Düzenle / Sonrasına set ekle / Sil; dinlenirken "+1 tekrar"; yüzerken kapalı;
+  eklenen ve değişen setler tabloya planla farkı notuyla yazılır (Code.gs değişir).
 - [ ] **Salon idman planlama** (konuşulacak; taslak `tasarim/v16/salon-planlama.png`): hedef kaslara göre katsayı hesaplayıp hareket listesinden
   (H, hkEtki) hareket önermek; planlama sayfası.
 - [ ] **sporRef'ten referans verileri** (öneri, karar bekliyor): CSS (tarih aralığı + alet + havuz), 7 bölge
