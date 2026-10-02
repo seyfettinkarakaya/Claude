@@ -56,8 +56,8 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
   kartında, planlama listesinde ve ayrıntı panelinde ▶ düğmesi, dokununca YouTube'da açılır.
   Yalnızca youtube.com / youtu.be adresleri kabul edilir.
   - Karar: video **YouTube'da açılır** (uygulama içinde gömülü oynatma yok; idman saati etkilenmez).
-  - Karar: **yüzme drill'lerinde de** olur — YuzmeProgram Plan sayfasına "Video" sütunu (satır başına);
-    tamamlanan satırla `arsiv`/`eski`'ye taşınır. İleride drill kataloğu sayfası düşünülebilir.
+  - Karar: yalnızca **salon** hareketlerinde (yüzmede video yok). Video sütunu `H` sayfasında E'den sonra
+    (formül `H!A:E` okuduğu için ilk 5 sütun değişmez).
 - [ ] **sporRef'ten referans verileri** (onaylandı): CSS (tarih aralığı + alet + havuz), 7 bölge
   (SP3–REC, CSS'e göre sn/100 m) ve HR bölgeleri, max nabız, faz bilgisi, RPE/MSI açıklamaları, kısaltmalar.
   Şu an CSS Ayarlar'dan elle (varsayılan 1:57), bölgeler uygulamada sabit Z1–Z5 — sporRef ile uyumsuz.
@@ -66,7 +66,15 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
 - [ ] **Salon modülü**: SalonTakip tablosu (`idman` sayfası) ile çalışan salon idmanı.
   - Karar: başlangıçta iki seçenek — **son idmanı göster ve tekrarlamayı sor** ya da **yeni idman planla**
     (planlama ekranı). Kendi `@OnlyCurrentDoc` betiği (3'lü yapı).
-  - Açık: set ayrıntısının (11-9-9) saklanacağı yer; `v2` sayfasının nasıl üretildiği.
+  - Karar: **Tekrar** sütununa setlerin ortalaması (ör. 9,67), set ayrıntısı **Açıklama**'ya ("Setler: 11-9-9").
+  - `v2` formülle üretiliyor (LET/REDUCE, `idman!A:J` sütun sırasıyla okur). Yazma kuralları:
+    - `idman` sütun sırası A–J değişmez (Tarih, No, Hareket, Set, Tekrar, Ağırlık, Nabız, RPE, MSI, Açıklama).
+    - Tarih gerçek tarih; Set/Tekrar/RPE/MSI/Nabız sayı (metin "7,5" değil); nabız yoksa boş.
+    - Vücut ağırlığı tam olarak **"Vücut"** yazılır (formül BW katsayısını buna göre uygular); esnemede 0.
+    - Hareket adı `H` ve `hkEtki` sayfalarındaki adla birebir aynı (yoksa v2'de "##veri yok##").
+    - Uygulama yalnızca katalogdaki hareketleri önerir; katalogda olmayan hareket uyarıyla eklenir.
+  - Hedef % yazımı için `rH`'deki HEDEF sütununun tam yeri uygulamadan önce teyit edilecek (özet tablo
+    yanında elle girilen sütun).
 
 - [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
