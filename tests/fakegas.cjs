@@ -19,7 +19,7 @@ class Sheet {
     setValues(v){ if(sh.failOn==='write') throw new Error('write failed'); if(v.length!==nr||v[0].length!==nc) throw new Error('dim mismatch'); if(r===1) sh.w=Math.max(sh.w,c-1+nc); v.forEach((row,i)=>{const R=sh._row(r-1+i); row.forEach((x,j)=>R[c-1+j]=x);}); return this; },
   }; }
 }
-function makeEnv(sheets, token='secret') {
+function makeEnv(sheets, token='secret', file='Code.gs') {
   const ss = { getSheetByName: n => sheets[n]||null, getSpreadsheetTimeZone: ()=>'UTC', insertSheet: n => { if (ss.failInsert) throw new Error('insert failed'); return (sheets[n] = new Sheet(n, [])); } };
   const pad=n=>String(n).padStart(2,'0');
   const ctx = {
@@ -34,7 +34,7 @@ function makeEnv(sheets, token='secret') {
   vm.createContext(ctx);
   const CDate = vm.runInContext('Date', ctx);
   for (const sh of Object.values(sheets)) sh.data = sh.data.map(r=>r.map(v=> v instanceof Date ? new CDate(v.getTime()) : v));
-  vm.runInContext(fs.readFileSync(require('path').join(__dirname, '..', 'Code.gs'),'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(require('path').join(__dirname, '..', file),'utf8'), ctx);
   return { ctx, CDate, call: req => JSON.parse(ctx.doPost({postData:{contents:JSON.stringify({token, ...req})}}).s), sheets };
 }
 const D = s => { const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); };
