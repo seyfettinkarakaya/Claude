@@ -314,6 +314,16 @@ await test('3 bağlantı: her çağrı kendi adresine ve anahtarına gider; spor
   assert.ok(data.getCachedSalon());
 });
 
+await test('sporRef/salon: beklenmeyen cevap BAD_RESPONSE, önbelleğe yazılmaz', async () => {
+  data.setConfig({ apiUrl: REF, token: 'r' }, 'ref');
+  data.setConfig({ apiUrl: SALON, token: 's' }, 'salon');
+  handler = () => ({ json: { ok: true, data: { uygulama: 'başka betik' } } });
+  await assert.rejects(data.getRef(), (e) => e.code === 'BAD_RESPONSE');
+  await assert.rejects(data.getSalon(), (e) => e.code === 'BAD_RESPONSE');
+  assert.equal(data.getCachedRef(), null);
+  assert.equal(data.getCachedSalon(), null);
+});
+
 await test('salon kuyruğu: salon kaydı saveSalon ile gider; salon bağlı değilse bekler; geçmiş türe göre', async () => {
   cfg();
   const sp = { tarih: '2026-10-01', hareketler: [{ hareket: 'Row', set: 3, tekrar: 10, agirlik: 20 }] };

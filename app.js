@@ -1,14 +1,14 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=11';
-import { Wheel } from './wheel.js?v=11';
-import * as zaman from './zaman.js?v=11';
-import * as ref from './ref.js?v=11';
-import * as duzen from './duzen.js?v=11';
-import * as salon from './salon.js?v=11';
+import * as data from './data.js?v=11.0.1';
+import { Wheel } from './wheel.js?v=11.0.1';
+import * as zaman from './zaman.js?v=11.0.1';
+import * as ref from './ref.js?v=11.0.1';
+import * as duzen from './duzen.js?v=11.0.1';
+import * as salon from './salon.js?v=11.0.1';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '11';
+export const APP_VERSION = '11.0.1';
 
 const $ = (id) => document.getElementById(id);
 
@@ -187,7 +187,8 @@ const prefs = () => state.prefs || (state.prefs = data.getPrefs());
 const refreshPrefs = () => { state.prefs = data.getPrefs(); };
 
 /** sporRef önbelleği (getRef cevabı) ya da null. */
-const sporRef = () => (state.ref === undefined ? (state.ref = (data.getCachedRef() || {}).data || null) : state.ref);
+const okRef = (r) => (r && Array.isArray(r.css) && Array.isArray(r.zones) ? r : null);
+const sporRef = () => (state.ref === undefined ? (state.ref = okRef((data.getCachedRef() || {}).data)) : okRef(state.ref));
 const zones = () => state.zones || (state.zones = ref.paceZones(sporRef()));
 
 /** Setin CSS'i: { css, stale, kaynak } ya da null. */
@@ -220,11 +221,16 @@ function paceHtml(sec, set) {
 async function refreshRef() {
   if (!data.isConfigured('ref')) return;
   try {
-    state.ref = await data.getRef();
+    state.ref = okRef(await data.getRef());
     state.zones = null;
     if (state.screen === 'setup') renderPrefs();
     if (state.screen === 'program') refreshAllItems();
-  } catch { /* bağlantı yok: önbellek kullanılır */ }
+    state.refErr = null;
+  } catch (err) {
+    // Bağlantı yoksa önbellek kullanılır; yanlış/eski betik ise Ayarlar'da yazılır.
+    state.refErr = err.code === 'BAD_RESPONSE' || err.code === 'AUTH' || err.code === 'UNKNOWN_ACTION' ? err.message : null;
+    if (state.screen === 'setup') renderPrefs();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -453,7 +459,7 @@ async function saveSetup() {
       errs.push(connError(CONN[0], yuzme.reason));
     }
     rest.forEach((r, i) => { if (r.status === 'rejected') errs.push(connError(CONN[i + 1], r.reason)); });
-    if (rest[1].status === 'fulfilled' && rest[1].value) state.ref = rest[1].value;
+    if (rest[1].status === 'fulfilled') { state.ref = okRef(rest[1].value); state.refErr = null; } else if (rest[1].reason) state.refErr = rest[1].reason.message;
     if (!errs.length) return showHome();
     fail(`${errs.join(' ')} Ayarlar kaydedildi; sol üstten ana sayfaya geçebilirsiniz.`);
     $('setup-back').hidden = false;
@@ -492,12 +498,15 @@ function renderPrefs() {
   const r = data.isConfigured('ref') ? sporRef() : null;
   const fromRef = Boolean(r && r.css.length);
   const c = fromRef ? ref.cssFor(r, { tarih: todayKey(), havuz: p.havuz, alet: '' }) : null;
+  const refErr = data.isConfigured('ref') && state.refErr;
   $('pref-css-field').hidden = fromRef;
   $('pref-css-note').hidden = fromRef;
-  $('pref-css-ref').hidden = !fromRef;
-  if (fromRef) {
+  $('pref-css-ref').hidden = !fromRef && !refErr;
+  if (refErr && !fromRef) {
+    $('pref-css-ref').innerHTML = `<em>sporRef okunamadı: ${esc(refErr)}</em><small>CSS şimdilik aşağıdaki elle girilen değerden.</small>`;
+  } else if (fromRef) {
     $('pref-css-ref').innerHTML = c
-      ? `sporRef'ten: <b>${fmtDur(c.css)}</b> /100 m <span>${dm(c.ilk)}–${dm(c.son)} · ${c.havuz} m</span>${c.stale ? '<em>CSS güncel değil: bugünü kapsayan satır yok, en son değer kullanılıyor.</em>' : ''}<small>Aletli setlerde alete göre ayrı CSS kullanılır; aleti tabloda olmayan sette bölge gösterilmez.</small>`
+      ? `sporRef'ten: <b>${fmtDur(c.css)}</b> /100 m <span>${dm(c.ilk)}–${dm(c.son)} · ${c.havuz} m</span>${c.stale ? '<em>CSS güncel değil: bugünü kapsayan satır yok, en son değer kullanılıyor.</em>' : ''}${refErr ? `<em>Son okuma başarısız: ${esc(refErr)} Kayıtlı değerler kullanılıyor.</em>` : ''}<small>Aletli setlerde alete göre ayrı CSS kullanılır; aleti tabloda olmayan sette bölge gösterilmez.</small>`
       : 'sporRef\'te aletsiz CSS satırı yok.';
   } else if (document.activeElement !== $('pref-css')) {
     $('pref-css').value = p.css ? fmtDur(p.css) : '';

@@ -340,6 +340,32 @@ sc('sporRef: bugünü kapsayan CSS yoksa en son değer ve "güncel değil" uyar�
   assert.match(await s.text('#pref-css-ref'), /2:00 .*CSS güncel değil/);
 });
 
+sc('sporRef beklenmeyen cevap verirse çökmez: idman açılır, Ayarlar sebebi yazar, elle CSS kullanılır', async ({ launch }) => {
+  const s = await launch({ ref: true }); const p = s.page;
+  s.net.override = (b) => (b.action === 'getRef' ? { ok: true, data: { uygulama: 'başka betik' } } : null);
+  await p.evaluate(() => localStorage.removeItem('ysk.ref'));
+  await p.reload(); await s.waitScreen('home');
+  await s.openToday();
+  await s.goTo(2);
+  assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 1:30/100 · SP3', 'elle CSS 1:57 ile');
+  await s.tap(30); await s.tap(3);
+  assert.deepStrictEqual(s.errors, []);
+  await p.evaluate(() => { localStorage.removeItem('ysk.session'); });
+  await p.reload(); await s.waitScreen('home');
+  await p.click('#home-settings'); await s.waitScreen('setup');
+  await p.waitForFunction(() => /sporRef okunamadı: sporRef cevabı beklenen biçimde değil/.test(document.getElementById('pref-css-ref').textContent));
+  assert.ok(await p.isVisible('#pref-css-field'), 'elle CSS alanı görünür');
+  // Önbellekte geçerli veri varken: o kullanılır, uyarı yine yazılır
+  s.net.override = null;
+  await p.reload(); await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.ref'));
+  s.net.override = (b) => (b.action === 'getRef' ? { ok: true, data: {} } : null);
+  await p.reload(); await s.waitScreen('home');
+  await p.click('#home-settings'); await s.waitScreen('setup');
+  await p.waitForFunction(() => /sporRef'ten: 2:00.*Son okuma başarısız/.test(document.getElementById('pref-css-ref').textContent));
+  assert.deepStrictEqual(s.errors, []);
+});
+
 sc('Kurulum: 3 bağlantı; isteğe bağlılar boş geçilir; eksik/yanlış/aynı adres uyarısı', async ({ launch }) => {
   const s = await launch({ configured: false }); const p = s.page;
   await s.waitScreen('setup');

@@ -416,15 +416,20 @@ export function flushQueue() {
 // telefonda saklanır; bağlantı yoksa saklanan kullanılır.
 // ---------------------------------------------------------------------------
 
+const validRef = (d) => Boolean(d && Array.isArray(d.css) && Array.isArray(d.zones));
+const validSalon = (d) => Boolean(d && Array.isArray(d.katalog) && Array.isArray(d.etki) && Array.isArray(d.gecmis));
+
+/** Cevap beklenen biçimde değilse (yanlış betik, eski dağıtım) BAD_RESPONSE; önbelleğe yazılmaz. */
 export async function getRef() {
   const data = await call('getRef', {}, 'ref');
-  if (data && Array.isArray(data.css) && Array.isArray(data.zones)) store(KEYS.ref, { data, savedAt: Date.now() });
+  if (!validRef(data)) throw new ApiError('BAD_RESPONSE', 'sporRef cevabı beklenen biçimde değil. Adres SporRef.gs betiğinin mi, yeni sürüm dağıtıldı mı?');
+  store(KEYS.ref, { data, savedAt: Date.now() });
   return data;
 }
 
 export function getCachedRef() {
   const r = load(KEYS.ref, null);
-  return r && r.data && Array.isArray(r.data.css) && Array.isArray(r.data.zones) ? r : null;
+  return r && validRef(r.data) ? r : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -433,13 +438,14 @@ export function getCachedRef() {
 
 export async function getSalon() {
   const data = await call('getSalon', {}, 'salon');
-  if (data && Array.isArray(data.katalog) && Array.isArray(data.gecmis)) store(KEYS.salon, { data, savedAt: Date.now() });
+  if (!validSalon(data)) throw new ApiError('BAD_RESPONSE', 'Salon cevabı beklenen biçimde değil. Adres Salon.gs betiğinin mi, yeni sürüm dağıtıldı mı?');
+  store(KEYS.salon, { data, savedAt: Date.now() });
   return data;
 }
 
 export function getCachedSalon() {
   const r = load(KEYS.salon, null);
-  return r && r.data && Array.isArray(r.data.katalog) && Array.isArray(r.data.gecmis) ? r : null;
+  return r && validSalon(r.data) ? r : null;
 }
 
 export function saveSalon(payload) {

@@ -40,7 +40,7 @@ export function zoneFor(pace, css, zones) {
 /** "Paddle, PB" → ['paddle', 'pullbuoy'] (alet sayfasındaki kod/ad eşleşmesiyle, sıralı). */
 export function aletKeys(text, aletler) {
   const map = new Map();
-  for (const a of aletler || []) {
+  for (const a of Array.isArray(aletler) ? aletler : []) {
     const ad = lower(a.ad || a.kod);
     if (a.kod) map.set(lower(a.kod), ad);
     if (a.ad) map.set(lower(a.ad), ad);
