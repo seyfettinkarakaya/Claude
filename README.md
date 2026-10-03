@@ -1,13 +1,18 @@
-# YüzmeSK — Faz 1
+# YüzmeSK — Sürüm 11
 
-Havuz kenarında kullanılan, tek kullanıcılı idman programı uygulaması.
+Havuz kenarında ve salonda kullanılan, tek kullanıcılı idman uygulaması.
 Program Google E-Tablolar'daki **YuzmeProgram** dosyasında hazırlanır; uygulama onu
 büyük puntoyla gösterir, seans bitince yapılan setleri `eski` sayfasına yazar, seans
 özetini `seans` sayfasına yazar ve günün Plan satırlarını `arsiv` sayfasına taşır.
 Biten seansın bir kopyası telefonda da kalır (**Yapılmış idmanlar**).
+Salon idmanı **SalonTakip** dosyasıyla çalışır (plan telefonda yapılır, yapılan hareketler
+`idman` sayfasına yazılır); CSS, tempo bölgeleri ve RPE/MSI açıklamaları **sporRef**
+dosyasından okunur.
 
 - Ön yüz: tek sayfalık PWA (vanilla HTML/CSS/JS, derleme adımı yok), GitHub Pages'te barındırılır.
-- Arka uç: `Code.gs`, tabloya bağlı Google Apps Script web uygulaması.
+- Arka uç: üç dosyanın her birine bağlı ayrı Google Apps Script web uygulaması
+  (`Code.gs`, `Salon.gs`, `SporRef.gs`). Hepsi `@OnlyCurrentDoc`: her betik **yalnızca kendi
+  dosyasını** görür; Drive'daki diğer dosyalara erişim izni istenmez. Üç ayrı adres ve anahtar.
 
 ## Dosyalar
 
@@ -17,11 +22,16 @@ Biten seansın bir kopyası telefonda da kalır (**Yapılmış idmanlar**).
 | `style.css` | Koyu, yüksek kontrastlı havuz kenarı tasarımı |
 | `app.js` | Arayüz: ekranlar, program ve zamanlama, seans sonu |
 | `zaman.js` | Saf zamanlama modülü: dokunuş olaylarından tekrar/dinlenme süreleri (bkz. `ZAMANLAMA.md`) |
+| `duzen.js` | İdman anında yüzme planı düzenleme (değiştir/ekle/sil, plan farkı notu) |
+| `salon.js` | Salon: olaylardan set/dinlenme durumu, tabloya giden satırlar, planlama puanı, ilerleme önerisi |
+| `ref.js` | sporRef hesapları: güne/havuza/alete göre CSS, tempo bölgeleri, RPE/MSI açıklamaları |
 | `wheel.js` | Tekerlek (wheel) gezinme bileşeni: sürükleme, atalet, oturma |
 | `data.js` | **Tek veri erişim modülü**: Apps Script çağrıları, yerel önbellek, gönderim kuyruğu |
 | `manifest.json`, `icons/` | PWA tanımı ve simgeler (192, 512, apple-touch-icon) |
 | `fonts/` | Archivo ve Barlow Condensed (SIL Open Font License); dışarıdan yazı tipi yüklenmez |
-| `Code.gs` | Apps Script arka ucu (`getDates`, `getPlan`, `finishSession`) |
+| `Code.gs` | YuzmeProgram betiği (`getDates`, `getPlan`, `finishSession`) |
+| `Salon.gs` | SalonTakip betiği (`getSalon`, `saveSalon`) |
+| `SporRef.gs` | sporRef betiği, salt okuma (`getRef`) |
 | `tests/` | Arka uç ve uçtan uca testler (bkz. en alt) |
 
 ---
@@ -81,6 +91,38 @@ gönderilmeyi bekleyen kayıtlar kalır).
 
 Hızlı kontrol: `/exec` adresini tarayıcıda açınca `{"ok":true,…}` görmelisiniz.
 
+## 2b. Salon ve sporRef betikleri (isteğe bağlı)
+
+Her dosyaya **kendi** betiği kurulur; adımlar yukarıdakiyle aynıdır (Uzantılar → Apps Script →
+dosyayı yapıştır → `tokenUret` → Dağıt → Web uygulaması, *Ben* / *Herkes*). Her betiğin
+anahtarı ayrıdır. Adresler ve anahtarlar telefonda **Ayarlar → Bağlantılar**'a girilir;
+salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
+
+| Dosya | Betik | Okur | Yazar |
+|---|---|---|---|
+| YuzmeProgram | `Code.gs` | Plan | eski, seans, arsiv |
+| SalonTakip | `Salon.gs` | H, hkEtki, ref, idman | idman (en üste) |
+| sporRef | `SporRef.gs` | zone, css, alet, bilgi, RPE, MSI, fazBilgi | — |
+
+**SalonTakip** (`Salon.gs`):
+- `idman`: A–J sırası değişmez — `Tarih, No, Hareket, Set, Tekrar, Ağırlık, Nabız, RPE, MSI, Açıklama`
+  (`v2` formülü bu sütunları sırasıyla okur). Hareket süresi **K** sütununa (`Süre`) yazılır;
+  başlık yoksa ilk kayıtta açılır (K başka başlıkla doluysa hata verir, hiçbir şey yazılmaz).
+- Yazma kuralları: Tarih gerçek tarih, sayılar sayı, vücut ağırlığı tam olarak `Vücut`;
+  **Tekrar** setlerin ortalaması (ör. 9,67), set ayrıntısı **Açıklama**'da (`Setler: 11-9-9`).
+  Aynı gün ikinci kez yazılmaz (`DUPLICATE`).
+- `H`: `Exercise, Goal Tag, Equipment, BW Coefficient, Swim Transfer Coefficient, …`;
+  isteğe bağlı **Video** sütunu `H!A:E`'den sonra (yalnızca youtube.com / youtu.be adresleri gösterilir).
+- `hkEtki`: `Exercise, Muscle Group, Muscle, Kinetic Chain, Yük Etki Oranı`.
+
+**sporRef** (`SporRef.gs`, salt okuma):
+- `zone` (`Zone, Alt Sınır, Üst Sınır, Tür, Türkçe Adı`): PACE satırları CSS'e eklenen sn/100 m
+  sınırları (alt ≤ fark < üst; `−19` gibi Unicode eksi kabul edilir).
+- `css` (`Tarih_ilk, Tarih_son, CSS (sn), Alet, Havuz`): idman gününe, havuza ve alete göre seçilir;
+  alet adları `alet` sayfasındaki kod/ad ile eşlenir (`PB` = `Pullbuoy`). Günü kapsayan satır yoksa
+  en son değer kullanılır ve Ayarlar'da "CSS güncel değil" yazar. sporRef bağlı değilse CSS Ayarlar'dan elle girilir.
+- `RPE`, `MSI`: başlıksız tek sütun (`7–8 — Zor, …`); salon girişinde ve Ayarlar'da açıklama olarak gösterilir.
+
 ## 3. GitHub Pages'e koyma
 
 1. Bu depoyu GitHub'a gönderin (ücretsiz planda Pages için depo **herkese açık** olmalı).
@@ -115,7 +157,7 @@ kısa bir başvuru numarası görünür, ayrıntı Apps Script **Yürütmeler** 
 ## Kullanım
 
 **Ana sayfa.** Her bölüm kendi renginde bir kart: **Yüzme** turkuaz, **Salon** amber
-(şimdilik "Yakında"). Yüzme kartında takvimdeki ilk planlı idmanın tarihi (*Bugün · Çarşamba
+(SalonTakip bağlı değilse "Kurulmadı" → Ayarlar). Yüzme kartında takvimdeki ilk planlı idmanın tarihi (*Bugün · Çarşamba
 23 Eylül*), günün blok renkli hattı ve set · mesafe · süre · ana set; altında iki düğme:
 **İdmanı aç** o idmana doğrudan girer, **Takvim** hafta takvimini açar. Devam eden seans varsa
 düğme **Seansa devam et** olur; planlı idman yoksa yalnız Takvim görünür. Altta **Yapılmış
@@ -175,11 +217,39 @@ Lock; desteklenmiyorsa sessizce devam eder). Kartın altında hedefin **100 m te
   o setin tekrarları silinir ve set yeniden yapılabilir (diğer setler etkilenmez).
 - Kayıttan sonra *Kaydedildi* ekranından geri dönünce takvim bugün seçili açılır.
 
-**Tempo ve CSS bölgeleri.** Ayarlar'da CSS (kritik yüzme hızı, 100 m için `dd:ss`,
-varsayılan 1:57) girilir. Bölgeler 100 m temposunun CSS'ten farkına göredir:
-Z1 Toparlanma ≥ CSS+15 sn · Z2 Aerobik +8…+15 · Z3 Tempo +3…+8 · Z4 Eşik (CSS) −2…+3 ·
-Z5 Hız < CSS−2. Ekipmanlı setlerde (Alet dolu ya da Tür Pull/Drill/Kick) tempo gösterilir
-ama bölge rengi verilmez: ekipmanlı tempo ekipmansız bölgelerle karşılaştırılmaz.
+**Tempo ve CSS bölgeleri.** sporRef bağlıysa CSS idman gününe, havuza (son seansın havuzu)
+ve alete göre `css` sayfasından, bölgeler `zone` sayfasından gelir: REC · EN1 · EN2 · EN3 ·
+SP1 · SP2 · SP3 (yavaştan hızlıya, her biri kendi renginde). Bağlı değilse Ayarlar'daki elle
+girilen CSS (varsayılan 1:57) ve aynı 7 bölgenin varsayılan sınırları kullanılır. Drill/Kick
+setlerinde ve CSS'i tanımlı olmayan aletle yüzülen setlerde tempo gösterilir, bölge verilmez.
+
+**İdman anında düzenleme.** Karta dokununca açılan panelde **Düzenle · Sonrasına ekle · Sil**
+(yüzerken sönük). Düzenle: ± tekrar/mesafe/hedef/dinlen, stil/tür/alet/blok seçenekleri, açıklama.
+Biten set düzenlenmez, başlanan set silinmez, tekrar yapılandan aşağı inmez; başlanmış sette mesafe
+ya da stil değişirse yapılan tekrarlar eski haliyle kalır, kalanlar yeni set olur. Dinlenirken
+kartta **＋1 tekrar**. Silme ve +1 tekrarda 5 sn **Geri al**. Tabloya özgün setlerde değişen alanlar,
+eklenen setlerde tüm alanlar yazılır; **Not**'a plan farkı düşülür (`Plan: 4×100 → 6×100, Hedef
+1:30 → 1:25`, `idmanda eklendi`). `eski` sayfasında **Sıra, Set Mesafe, Set Süre** boş bırakılır
+(tablo kendisi doldurur); `arsiv`'e planın özgün hali gider.
+
+**Metin boyu.** Kart açıklaması başlık ile kutular arasındaki sabit alanı doldurur: kısa metin
+büyür, uzun metin küçülür; alt sınırda da sığmazsa son satır "…" ile biter (tamamı ayrıntı
+panelinde). Tek satırlık bilgiler kesilmek yerine küçülür.
+
+**Salon.** Ana sayfadaki salon kartı → **Son idmanı tekrarla** (son günün hareketleri, son yapılan
+değerlerle) ya da **Yeni idman planla**:
+1. *Hedef*: kas grubu dağılımı (çubuk son 4 hafta, çizgi tüm zaman); öncelik için dokun
+   (öncelik → ×2 → kapalı). Amaç, yüzmeye etki (aktarım katsayısı) ve ekipman süzgeçleri.
+2. *Hareket seç*: puan = Σ(öncelik × `hkEtki` oranı) × yüzme aktarım katsayısı, 0–100.
+   Son iki idmanda MSI ≥ 1,5 olan hareketin puanı yarıya iner ve ⚠ alır (gizlenmez). ▶ video YouTube'da açılır.
+3. *Plan*: sıra (↑ ↓), son yapılan değerler + öneri (son seferde RPE ≤ 8 ve MSI ≤ 0,5 → +2,5 kg ya da
+   +1 tekrar; RPE ≥ 9,5 ya da MSI ≥ 1,5 → aynı ⚠), süre tahmini set × (tekrar × 3 sn + 60 sn). Plan yalnızca telefonda.
+
+İdmanda büyük düğme **BAŞLA / BİTTİ**; set tekrarı kartta ± ile düzeltilir; dinlenme sayacı, bipler,
+mola, Geri al, dinlenirken **＋1 set**. Süreli hareketler (Plank vb.) geri sayar ve kendiliğinden biter.
+Hareketin son setinden sonra **nabız** (± geçen değerle hazır), **RPE** 6–10, **MSI** (sporRef açıklamasıyla)
+ve **not** girilir. Kart paneli: Düzenle · **Değiştir** (aynı kas grubundan puanlı liste) · Sonrasına ekle · Sil.
+Bitince özet → **Kaydet**; bağlantı yoksa kuyruğa alınır ve bağlantı gelince gönderilir.
 
 **Seans sonu.** Üç kısa adım:
 1. **RPE** — 0–10 arası tek dokunuş (5 sn içinde *İdmana dön* ile son adım geri alınır).
@@ -243,9 +313,13 @@ hesaplanır. Garmin verisi aynı set alanlarını (Gerçek, Kulaç, Nabız, Not)
 sh tests/run-all.sh           # hepsi
 node tests/test-gas.cjs       # Code.gs ana akış (sahte SpreadsheetApp, bağımlılık yok)
 node tests/test-gas-edge.cjs  # Code.gs uç durumlar: kimlik, başlıklar, tarih/süre biçimleri, geri alma, kilit, arsiv
-node tests/test-data.mjs      # data.js: ayarlar, önbellek, kuyruk, geçmiş, hata kodları
+node tests/test-gas-salon.cjs # Salon.gs ve SporRef.gs: okuma, idman'a yazma (A–J + K Süre), DUPLICATE, geri alma
+node tests/test-data.mjs      # data.js: 3 bağlantı, önbellek, kuyruk (yüzme + salon), geçmiş, hata kodları
+node tests/test-ref.mjs       # ref.js: CSS seçimi (gün/havuz/alet), 7 bölge, RPE/MSI açıklaması
+node tests/test-duzen.mjs     # duzen.js: ekle/sil, olay kaydırma, plan farkı notu, kısıtlar
+node tests/test-salon.mjs     # salon.js: set/dinlenme durumu, tabloya giden satırlar, puan, öneri
 node tests/test-zaman.mjs     # zaman.js: olaylardan süreler, düğme sırası, bip, şüpheli tekrar
-node tests/e2e-senaryolar.cjs [filtre]  # 30+ uçtan uca senaryo (Playwright + Chromium)
+node tests/e2e-senaryolar.cjs [filtre]  # 50+ uçtan uca senaryo (Playwright + Chromium)
 node tests/test-e2e.cjs       # baştan sona tam akış
 ```
 
@@ -256,4 +330,6 @@ ses düğmesi, çift dokunma ve geri al, yüzerken kaydırma/‹ kilidi, seti ve
 şüpheli tekrar düzeltme, dinlenme notu onayı, RPE/MSI/havuz, yeniden açılışta devam, Sürüm 9
 seansının taşınması, hızlı açılış ve arka plan yenileme, eski Code.gs uyumu, çevrimdışı,
 geçersiz anahtar, kalıcı/geçici sunucu hataları, DUPLICATE, gizli hata ayrıntısı, gün değiştirme,
-40 setlik program, kuyruk ve geçmiş yönetimi, ayarlar, kurulum, 320–430 px ekranlarda taşma.
+40 setlik program, kuyruk ve geçmiş yönetimi, ayarlar, kurulum (3 bağlantı), sporRef CSS/bölge,
+idman anında düzenleme ve kısıtları, metin boyu, salon (tekrarla, planla, BAŞLA/BİTTİ, giriş, özet,
+kuyruk, Değiştir/Sil, süreli hareket), 320–430 px ekranlarda taşma.

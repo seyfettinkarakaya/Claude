@@ -9,10 +9,22 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 ## Sıradaki
 
+**Sürüm 11 yayında (03.10.2026):** 3'lü dosya yapısı (YuzmeProgram · SalonTakip · sporRef, her birine
+kendi `@OnlyCurrentDoc` betiği), sporRef'ten CSS ve 7 bölge, idman anında düzenleme, metin boyu,
+salon idmanı + planlama + video. Kurulum için yapılacaklar (senin tarafında):
+- [ ] YuzmeProgram: `Code.gs`'i güncelle → Dağıtımları yönet → Yeni sürüm (eski'de Sıra/Set Mesafe/Set Süre artık boş yazılır).
+- [ ] SalonTakip: `Salon.gs`'i kur, `tokenUret`, web uygulaması olarak dağıt; telefonda Ayarlar → Salon.
+- [ ] sporRef: `SporRef.gs`'i kur, `tokenUret`, dağıt; telefonda Ayarlar → sporRef.
+- [ ] İsteğe bağlı: `H` sayfasına Video sütunu (E'den sonra); YouTube adresleri.
+
+Varsayım (kontrol et): süreli hareket adına göre tanınır (Plank, Hold, Hang, Wall Sit, Carry, L-sit,
+Hollow, Side Bridge) ya da açıklamasında "Setler: … sn" varsa; planda/idmanda Düzenle → Tür:
+Süreli/Tekrar ile değiştirilebilir. Süreli harekette Tekrar sütununa ortalama saniye yazılır.
+
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
-Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
-- [ ] Değişken uzunluktaki metinlerde yazı boyu alana uyar; alan boyutu değişmez.
+Sürüm 10.5 (sürüm 11 ile yayında):
+- [x] Değişken uzunluktaki metinlerde yazı boyu alana uyar; alan boyutu değişmez.
   - Alan sabit kalır (kartta başlık ile kutular arasındaki boş yer gibi). Yazı, alanı dolduracak en
     büyük boyda gösterilir: kısa metin büyür (üst sınır), uzun metin küçülür (alt sınır, okunurluk için).
   - Alt sınırda da sığmazsa son satır "…" ile biter; tamamı karta dokununca ayrıntı panelinde.
@@ -34,7 +46,7 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
 > sporRef'in her birine kendi `@OnlyCurrentDoc` Apps Script'i (3 adres + anahtar); betikler yalnızca kendi
 > dosyasını görür.
 
-- [ ] **Yüzme idmanını idman anında değiştir / ekle / sil** (kararlar verildi; eski F.8 bu maddeye katıldı): karta dokun →
+- [x] **Yüzme idmanını idman anında değiştir / ekle / sil** (kararlar verildi; eski F.8 bu maddeye katıldı): karta dokun →
   ayrıntı panelinde Düzenle / Sonrasına set ekle / Sil; dinlenirken "+1 tekrar"; yüzerken kapalı;
   eklenen ve değişen setler tabloya planla farkı notuyla yazılır (Code.gs değişir).
   - Karar: planla fark Not sütununa yazılır ("Plan: 4×100 → 6×100", "idmanda eklendi").
@@ -43,7 +55,7 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
   - Karar: **A** — karta dokununca açılan ayrıntı panelinin altında Düzenle · Sonrasına ekle · Sil
     (yüzerken sönük). Ortak düzenleme ekranı: ± düğmeler, stil/tür/alet seçenekleri, kısıt uyarıları.
     Dinlenirken kartta **"+1 tekrar"** kısayolu (bildirim + Geri al). Görsel: `tasarim/v17/duzenle.png`.
-- [ ] **Salon idman planlama** (taslak `tasarim/v16/salon-planlama.png`): hedef kaslara göre katsayı hesaplayıp
+- [x] **Salon idman planlama** (taslak `tasarim/v16/salon-planlama.png`): hedef kaslara göre katsayı hesaplayıp
   hareket listesinden (H, hkEtki) hareket önermek.
   - Puan = Σ (kas öncelik ağırlığı × hareketin o kasa etkisi `hkEtki`) × yüzme aktarım katsayısı.
     Öncelik ağırlıklarına sen karar verirsin (otomatik öncelik yok).
@@ -56,18 +68,18 @@ Sürüm 10.5 (onaylandı; büyük sürümle birlikte):
   - Son iki idmanda MSI ≥ 1,5 olan hareket ⚠ ile işaretlenir, puanı düşer, gizlenmez.
   - Süre tahmini: set × (tekrar × 3 sn + 60 sn); süreli harekette süre + 30 sn.
   - Plan yalnızca telefonda tutulur, tabloya yazılmaz; idman yapılınca satırlar `idman` sayfasına eklenir.
-- [ ] **Hareket videosu (YouTube)**: hareket kataloğuna (`H` sayfası) "Video" sütunu; uygulamada hareket
+- [x] **Hareket videosu (YouTube)**: hareket kataloğuna (`H` sayfası) "Video" sütunu; uygulamada hareket
   kartında, planlama listesinde ve ayrıntı panelinde ▶ düğmesi, dokununca YouTube'da açılır.
   Yalnızca youtube.com / youtu.be adresleri kabul edilir.
   - Karar: video **YouTube'da açılır** (uygulama içinde gömülü oynatma yok; idman saati etkilenmez).
   - Karar: yalnızca **salon** hareketlerinde (yüzmede video yok). Video sütunu `H` sayfasında E'den sonra
     (formül `H!A:E` okuduğu için ilk 5 sütun değişmez).
-- [ ] **sporRef'ten referans verileri** (onaylandı): CSS (tarih aralığı + alet + havuz), 7 bölge
+- [x] **sporRef'ten referans verileri** (onaylandı): CSS (tarih aralığı + alet + havuz), 7 bölge
   (SP3–REC, CSS'e göre sn/100 m) ve HR bölgeleri, max nabız, faz bilgisi, RPE/MSI açıklamaları, kısaltmalar.
   Şu an CSS Ayarlar'dan elle (varsayılan 1:57), bölgeler uygulamada sabit Z1–Z5 — sporRef ile uyumsuz.
   3'lü yapı kararıyla sporRef kendi betiğinden okunur (salt okuma).
 
-- [ ] **Salon modülü**: SalonTakip tablosu (`idman` sayfası) ile çalışan salon idmanı.
+- [x] **Salon modülü**: SalonTakip tablosu (`idman` sayfası) ile çalışan salon idmanı.
   - Karar: başlangıçta iki seçenek — **son idmanı göster ve tekrarlamayı sor** ya da **yeni idman planla**
     (planlama ekranı). Kendi `@OnlyCurrentDoc` betiği (3'lü yapı).
   - Karar: **Tekrar** sütununa setlerin ortalaması (ör. 9,67), set ayrıntısı **Açıklama**'ya ("Setler: 11-9-9").

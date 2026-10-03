@@ -1,14 +1,14 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=10.4';
-import { Wheel } from './wheel.js?v=10.4';
-import * as zaman from './zaman.js?v=10.4';
-import * as ref from './ref.js?v=10.4';
-import * as duzen from './duzen.js?v=10.4';
-import * as salon from './salon.js?v=10.4';
+import * as data from './data.js?v=11';
+import { Wheel } from './wheel.js?v=11';
+import * as zaman from './zaman.js?v=11';
+import * as ref from './ref.js?v=11';
+import * as duzen from './duzen.js?v=11';
+import * as salon from './salon.js?v=11';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '10.4';
+export const APP_VERSION = '11';
 
 const $ = (id) => document.getElementById(id);
 
