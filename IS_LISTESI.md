@@ -34,7 +34,9 @@ Talep (03.10.2026, karar bekliyor):
   sekmeleri + büyük kas kartları; Hareket seç: mini vücut + puan + plan tepsisi; Plan: sürükle, planın
   kas kapsamı, Kaydet / İdmana başla).
   Vücut çizimi beğenilmedi → `tasarim/v21/`: react-native-body-highlighter (MIT, © 2022 ELABBASSI Hicham)
-  anatomik çizimleri; lisans metni uygulamaya eklenecek. Onay bekliyor.
+  anatomik çizimleri; lisans metni uygulamaya eklenecek.
+  `tasarim/v22/`: aynı çizim SVG ışıklandırmasıyla hacimli (3B), kaslar arası ten dolgusu, öncelik ★ rozeti.
+  (wger çizimi denendi: gerçekçi ama kas katmanları kaba ve lisansı AGPL → kullanılmadı.) Onay bekliyor.
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
