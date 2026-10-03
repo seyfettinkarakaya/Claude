@@ -29,11 +29,43 @@ skel = [o for o in bpy.data.collections['1: Skeletal system'].objects if o.type 
 mid = [o for o in col.objects if o.type == 'MESH' and not re.search(r'\.[a-z]$', o.name) and not SKIP.search(o.name)
        and not any(m and m.name == 'Text' for m in o.data.materials)]
 print('skel', len(skel), 'mid', len(mid), [o.name for o in mid][:20], flush=True)
-keepset = set(keep) | set(skel) | set(mid)
+# Baş: kafatası ve yüz kasları yerine deri yüzeyi (bölgeler) + saç
+HEADZ = float(os.environ.get('HEADZ', '1.47'))
+def zmin(o):
+    return min((o.matrix_world @ mathutils.Vector(c)).z for c in o.bound_box)
+def zmid(o):
+    zs = [(o.matrix_world @ mathutils.Vector(c)).z for c in o.bound_box]; return (min(zs) + max(zs)) / 2
+reg = [o for o in bpy.data.collections['9: Regions of human body'].objects if o.type == 'MESH'
+       and not any(m and m.name == 'Text' for m in o.data.materials) and len(o.data.vertices) > 30]
+headskin = [o for o in reg if zmid(o) > HEADZ + 0.03 and o.name != 'Hairs of head' and 'neck' not in o.name.lower()]
+# baş yüzeylerini tek nesnede birleştir; voksel yeniden örgü delikleri kapatır, yumuşatma manken görünümü verir
+bpy.ops.object.select_all(action='DESELECT')
+copies = []
+for o in headskin:
+    mw = o.matrix_world.copy()
+    c = o.copy(); c.data = o.data.copy(); bpy.context.scene.collection.objects.link(c)
+    c.parent = None; c.matrix_world = mw; c.constraints.clear()
+    c.modifiers.clear(); copies.append(c)
+for c in copies: c.select_set(True)
+bpy.context.view_layer.objects.active = copies[0]
+bpy.ops.object.join()
+bas = bpy.context.view_layer.objects.active; bas.name = 'Bas-manken'
+so = bas.modifiers.new('so', 'SOLIDIFY'); so.thickness = 0.02; so.offset = 0
+rm = bas.modifiers.new('rm', 'REMESH'); rm.mode = 'VOXEL'; rm.voxel_size = float(os.environ.get('VOX', '0.008'))
+sm = bas.modifiers.new('sm', 'SMOOTH'); sm.iterations = 25; sm.factor = 0.9
+bas.data.shade_smooth() if hasattr(bas.data, 'shade_smooth') else None
+headskin = [bas]
+hair = [o for o in reg if o.name == 'Hairs of head'] if os.environ.get('HAIR') else []
+skel = [o for o in skel if zmin(o) < HEADZ - 0.02]
+keep = [o for o in keep if zmin(o) < HEADZ - 0.02]
+mid = [o for o in mid if zmin(o) < HEADZ - 0.02]
+print('head', len(headskin), 'hair', len(hair), flush=True)
+keepset = set(keep) | set(skel) | set(mid) | set(headskin) | set(hair)
 for o in bpy.data.objects:
     o.hide_render = o not in keepset
 mn = mathutils.Vector((1e9,)*3); mx = mathutils.Vector((-1e9,)*3)
-for o in keep:
+bpy.context.view_layer.update()
+for o in keep + headskin + hair:
     for c in o.bound_box:
         w = o.matrix_world @ mathutils.Vector(c)
         mn = mathutils.Vector(map(min, mn, w)); mx = mathutils.Vector(map(max, mx, w))
@@ -59,6 +91,8 @@ def assign(o, m):
         sl.link = 'OBJECT'; sl.material = m
 KAS = newmat('kas', color=(0.30, 0.33, 0.38, 1))
 KEMIK = newmat('kemik', color=(0.16, 0.18, 0.21, 1))
+DERI = newmat('deri', color=(0.30, 0.33, 0.38, 1))
+SAC = newmat('sac', color=(0.07, 0.08, 0.10, 1))
 WHITE = newmat('beyaz', emit=(1, 1, 1, 1)); HOLD = newmat('hold', hold=True)
 for o in bpy.data.objects:
     if o.type == 'LIGHT': o.hide_render = True
@@ -98,6 +132,8 @@ for view, s in [(v, -1 if v == 'front' else 1) for v in VIEWS]:
         for o in keep: assign(o, KAS)
         for o in mid: assign(o, KAS)
         for o in skel: assign(o, KEMIK)
+        for o in headskin: assign(o, DERI)
+        for o in hair: assign(o, SAC)
         sc.cycles.samples = SAMPLES; sc.cycles.use_denoising = True
         sc.render.filepath = f'{OUT}/base_{view}.png'
         bpy.ops.render.render(write_still=True); print('saved', sc.render.filepath, flush=True)
@@ -106,13 +142,13 @@ for view, s in [(v, -1 if v == 'front' else 1) for v in VIEWS]:
         sc.view_settings.view_transform = 'Standard'; sc.view_settings.exposure = 0
         for o in keep:
             g = grp(o.name); assign(o, IDM[g] if g else HOLD)
-        for o in mid + skel: assign(o, HOLD)
+        for o in mid + skel + headskin + hair: assign(o, HOLD)
         sc.render.filepath = f'{OUT}/id_{view}.png'
         bpy.ops.render.render(write_still=True); print('saved', sc.render.filepath, flush=True)
     if ONLY in ('', 'mask'):
         sc.cycles.samples = 4; sc.cycles.use_denoising = False
         for g, _ in GRP:
             for o in keep: assign(o, WHITE if grp(o.name) == g else HOLD)
-            for o in mid + skel: assign(o, HOLD)
+            for o in mid + skel + headskin + hair: assign(o, HOLD)
             sc.render.filepath = f'{OUT}/mask_{g}_{view}.png'
             bpy.ops.render.render(write_still=True); print('saved', sc.render.filepath, flush=True)
