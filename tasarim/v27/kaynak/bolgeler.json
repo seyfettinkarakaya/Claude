@@ -2,20 +2,26 @@
  "grup": [
   "Omuz",
   "Göğüs",
-  "Kol",
+  "Biseps",
+  "Triseps",
+  "Ön kol",
   "Sırt",
-  "Gövde",
+  "Karın",
   "Kalça",
+  "Kalça yanı",
   "Bacak"
  ],
  "renk": {
-  "Omuz": "#958419",
-  "Göğüs": "#3A5BAD",
-  "Kol": "#6C2A2E",
-  "Gövde": "#1F7479",
-  "Kalça": "#6D417C",
-  "Bacak": "#9D5E1E",
-  "Sırt": "#2F5125"
+  "Omuz": "#F4C430",
+  "Göğüs": "#3D6FE8",
+  "Biseps": "#E5423A",
+  "Triseps": "#33B5F0",
+  "Ön kol": "#F06BAE",
+  "Sırt": "#3DB24B",
+  "Karın": "#1EC6B8",
+  "Kalça": "#9A4FE6",
+  "Kalça yanı": "#A8D838",
+  "Bacak": "#F5862A"
  },
  "front": {
   "w": 230,
@@ -29,15 +35,19 @@
     114,
     124
    ],
-   "Kol": [
-    35,
-    191
+   "Biseps": [
+    181,
+    149
    ],
-   "Gövde": [
+   "Ön kol": [
+    33,
+    199
+   ],
+   "Karın": [
     114,
     194
    ],
-   "Kalça": [
+   "Kalça yanı": [
     153,
     235
    ],
@@ -55,17 +65,25 @@
     169,
     104
    ],
-   "Kol": [
-    187,
-    191
+   "Triseps": [
+    176,
+    150
+   ],
+   "Ön kol": [
+    190,
+    204
    ],
    "Sırt": [
     108,
     146
    ],
    "Kalça": [
-    108,
-    254
+    109,
+    245
+   ],
+   "Kalça yanı": [
+    63,
+    283
    ],
    "Bacak": [
     135,

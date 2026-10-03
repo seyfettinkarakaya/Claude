@@ -13,15 +13,18 @@ for f in ('archivo-var-latin.woff2', 'archivo-var-latin-ext.woff2'):
     fonts = fonts.replace(f'url({f})', 'url(data:font/woff2;base64,' + b64('/home/user/Claude/fonts/' + f) + ')')
 DATA = {
     'grup': B['grup'],
-    'renk': {'Omuz': '#E6C229', 'Göğüs': '#4169E1', 'Kol': '#D2453F', 'Sırt': '#3FA34A', 'Gövde': '#20BDBD', 'Kalça': '#A346D9', 'Bacak': '#F28A1C'},
-    'kas': {'Omuz': 'Ön, yan ve arka omuz', 'Göğüs': 'Büyük ve küçük göğüs', 'Kol': 'Biseps, triseps, ön kol', 'Sırt': 'Kanat, trapez, romboid',
-            'Gövde': 'Karın, yan karın, bel', 'Kalça': 'Kalça kasları', 'Bacak': 'Ön/arka bacak, baldır'},
+    'renk': B['renk'],
+    'kas': {'Omuz': 'Deltoid: ön, yan, arka', 'Göğüs': 'Büyük ve küçük göğüs', 'Biseps': 'Kolun ön yüzü', 'Triseps': 'Kolun arka yüzü',
+            'Ön kol': 'Bilek ve kavrama kasları', 'Sırt': 'Kanat, trapez, romboid', 'Karın': 'Core: düz ve yan karın',
+            'Kalça': 'Gluteus (kalça kasları)', 'Kalça yanı': 'Kalça fleksörü ve abdüktör', 'Bacak': 'Ön/arka bacak, baldır'},
     # örnek oranlar: son 4 hafta %, tüm zaman %
-    'oran': {'Sırt': [38, 27], 'Gövde': [9, 19], 'Göğüs': [12, 13], 'Omuz': [16, 14], 'Kol': [14, 9], 'Kalça': [6, 10], 'Bacak': [5, 8]},
+    'oran': {'Sırt': [30, 22], 'Karın': [8, 15], 'Göğüs': [12, 13], 'Omuz': [12, 11], 'Biseps': [9, 6], 'Triseps': [8, 6],
+             'Ön kol': [4, 3], 'Kalça': [6, 9], 'Kalça yanı': [3, 5], 'Bacak': [8, 10]},
     'hareket': {'Omuz': ['Overhead press', 'Yana açış', 'Face pull'], 'Göğüs': ['Bench press', 'Şınav', 'Dumbbell fly'],
-                'Kol': ['Biceps curl', 'Triceps pushdown', 'Çekiç curl'], 'Sırt': ['Barfiks', 'Lat pulldown', 'Kürek çekiş'],
-                'Gövde': ['Plank', 'Dead bug', 'Pallof press'], 'Kalça': ['Hip thrust', 'Romanian deadlift', 'Glute bridge'],
-                'Bacak': ['Squat', 'Lunge', 'Leg press']},
+                'Biseps': ['Biceps curl', 'Çekiç curl', 'Chin-up'], 'Triseps': ['Triceps pushdown', 'Dips', 'Overhead extension'],
+                'Ön kol': ['Bilek curl', "Farmer's walk", 'Asılı durma'], 'Sırt': ['Barfiks', 'Lat pulldown', 'Kürek çekiş'],
+                'Karın': ['Plank', 'Dead bug', 'Pallof press'], 'Kalça': ['Hip thrust', 'Romanian deadlift', 'Glute bridge'],
+                'Kalça yanı': ['Band yürüyüş', 'Yan plank abdüksiyon', 'Hip flexör march'], 'Bacak': ['Squat', 'Lunge', 'Leg press']},
     'a': A,
 }
 html = open('sablon.html').read().replace('/*FONTS*/', fonts).replace('/*DATA*/', json.dumps(DATA, ensure_ascii=False))

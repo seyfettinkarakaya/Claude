@@ -60,6 +60,10 @@ Talep (03.10.2026, karar bekliyor):
   - Tek büyük figür, Ön/Arka düğmesi (seçim sayısıyla), yatay kaydırma, köşede diğer yüzün küçüğü.
   - Kasa dokun → ★ seçilir + alt panel: 4 hafta / tüm zaman çubukları, denge notu, öncelik
     (Yok / ★ / ★★), örnek hareketler. Öncelik çipleri; "Hareketleri getir".
+  - Kas grupları 10 (kullanıcı listesi): Karın (core), Sırt, Göğüs, Omuz, Biseps, Triseps, Ön kol, Kalça
+    (glutes), Kalça yanı (hip), Bacak. Çizimde aynı renkli olanlar ayrıldı (biseps/ön kol, sırt/triseps,
+    kalça/kalça yanı); her grup kendi rengine boyandı (dokusu korunarak). Uygulamada salon kas grubu
+    listesi (şu an 7) bu 10'a göre güncellenecek; sporRef/salon hareket eşlemesi de.
   Onay ("uygula") bekliyor.
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
