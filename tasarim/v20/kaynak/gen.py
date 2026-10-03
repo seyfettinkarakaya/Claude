@@ -30,7 +30,7 @@ body{background:#05070A;font-family:Archivo,system-ui,sans-serif;color:#EDEFF2;d
 .seg{display:flex;gap:4px;margin-top:14px;padding:4px;border-radius:16px;background:#141B23;border:1px solid #1E2731}
 .seg span{flex:1;height:42px;border-radius:12px;display:grid;place-items:center;font-size:17px;font-weight:800;color:#8B97A5}
 .seg span.on{background:#222B36;color:#EDEFF2}
-.map{position:relative;height:352px;margin-top:8px;border-radius:24px;background:radial-gradient(240px 220px at 50% 48%,#131A23,#0B0F14 75%)}
+.map{position:relative;height:388px;margin-top:8px;border-radius:24px;background:radial-gradient(240px 220px at 50% 48%,#131A23,#0B0F14 75%)}
 .map .tag{position:absolute;padding:6px 10px;border-radius:12px;background:#0B0F14EE;border:1.5px solid;font-size:15px;font-weight:800;white-space:nowrap}
 .map .tag b{font-family:'Barlow Condensed';font-size:20px;margin-left:4px}
 .map .vw{position:absolute;bottom:4px;font-size:12px;font-weight:800;letter-spacing:1.6px;color:#5F6B78}
@@ -103,7 +103,7 @@ def svg(w, h, vb, inner):
 def bodymap():
     inner = figure('on', LOAD, PRIO, 0, 0, 1, colors=G) + figure('arka', LOAD, PRIO, 196, 0, 1, colors=G)
     th = f'<span class="tag" style="left:50%;top:6px;transform:translateX(-50%);border-color:{G["Gövde"]};color:{G["Gövde"]}">Gövde<b class="n">%9</b> · tüm %19 · ★★</span>'
-    return f'<div class="map"><div style="padding-top:34px">{svg(358, 316, "-6 0 404 410", inner)}</div>{th}<span class="vw" style="left:72px">ÖN</span><span class="vw" style="right:64px">ARKA</span></div>'
+    return f'<div class="map"><div style="padding-top:34px">{svg(358, 350, "22 0 352 410", inner)}</div>{th}<span class="vw" style="left:82px">ÖN</span><span class="vw" style="right:70px">ARKA</span></div>'
 
 def cards(n=4):
     return '<div class="kg">' + ''.join(f'''<div class="k p{o}"><div class="h"><span><i style="background:{G[nm]}"></i>{nm}</span><span class="st">{"★★" if o == 2 else "★" if o else ""}</span></div>
