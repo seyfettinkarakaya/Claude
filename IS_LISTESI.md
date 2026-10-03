@@ -32,7 +32,9 @@ Talep (03.10.2026, karar bekliyor):
   Seçenekler `tasarim/v19/` (a: büyük kartlar, b: gövde haritası, c: tek ekran + plan tepsisi).
   Karar: üçü birlikte, vücut daha gerçekçi → birleşik taslak `tasarim/v20/` (Hedef: Vücut/Denge/Liste
   sekmeleri + büyük kas kartları; Hareket seç: mini vücut + puan + plan tepsisi; Plan: sürükle, planın
-  kas kapsamı, Kaydet / İdmana başla). Onay bekliyor.
+  kas kapsamı, Kaydet / İdmana başla).
+  Vücut çizimi beğenilmedi → `tasarim/v21/`: react-native-body-highlighter (MIT, © 2022 ELABBASSI Hicham)
+  anatomik çizimleri; lisans metni uygulamaya eklenecek. Onay bekliyor.
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
