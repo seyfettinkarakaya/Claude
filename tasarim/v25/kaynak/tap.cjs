@@ -1,0 +1,11 @@
+const { chromium } = require('playwright'); const http = require('http'); const fs = require('fs'); const path = require('path');
+const srv = http.createServer((q, r) => { const f = path.join(__dirname, decodeURIComponent(q.url.split('?')[0])); if (!fs.existsSync(f)) { r.writeHead(404); return r.end(); } r.writeHead(200, {'Content-Type':'text/html; charset=utf-8'}); r.end(fs.readFileSync(f)); });
+(async () => { await new Promise((ok) => srv.listen(8766, ok)); const b = await chromium.launch();
+  const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
+  const errs = []; p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => m.type()==='error' && errs.push(m.text()));
+  await p.goto('http://localhost:8766/prototip.html'); await p.waitForTimeout(500);
+  await p.screenshot({ path: path.join(__dirname, 'p0.png') });
+  const tap = async (g, i=0) => { const el = p.locator(`path[data-g="${g}"]`).nth(i); await el.tap({ force: true }); await p.waitForTimeout(150); };
+  await tap('Gövde'); await tap('Gövde'); await tap("Sırt"); await tap('Omuz');
+  await p.screenshot({ path: path.join(__dirname, 'p1.png'), fullPage: true });
+  console.log('errors', errs); await b.close(); srv.close(); })();

@@ -42,7 +42,11 @@ Talep (03.10.2026, karar bekliyor):
   yük → renk doygunluğu. Kaynak betikler `tasarim/v23/kaynak/`.
   Karar (03.10.2026): anatomi görselleri istenmedi ("korkunç"); sade ikon dili isteniyor (örnek: yuvarlak
   ikonlar, gri siluet, çalışan bölge tek renk). → `tasarim/v24/`: MIT çizimi düz stilde; harita gri→turuncu,
-  kas grubu seçimi 8 yuvarlak ikon (★/★★ öncelik). Onay bekliyor.
+  kas grubu seçimi 8 yuvarlak ikon (★/★★ öncelik).
+  Karar (03.10.2026): kullanıcının Gemini görseli (siyah zemin, ön/arka, renkli kas grupları) kullanılacak,
+  dokunmatik olacak. → `tasarim/v25/prototip.html`: renk bölütleme (OpenCV, `kaynak/ayikla.py`) ile 7 grup
+  SVG yol olarak görselin üstünde; kasa dokun → ★ öncelik → ★★ çift → kapalı; seçilen grup amber çerçeve
+  + ★ rozet; üst kutuda 4 hafta / tüm zaman yüzdesi. Görsel kullanıcıya ait. Onay ("uygula") bekliyor.
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
