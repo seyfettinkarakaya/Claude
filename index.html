@@ -109,9 +109,9 @@
           <button class="hc-cal" id="home-swim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Takvim</button>
         </div>
       </div>
-      <button class="home-card gym" id="home-gym" aria-disabled="true">
-        <span class="hc-hd"><span class="hc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span><b class="hc-name">Salon</b><span class="hc-soon">YAKINDA</span></span>
-        <span class="hc-desc">Kuvvet ve mobilite programları burada olacak.</span>
+      <button class="home-card gym" id="home-gym">
+        <span class="hc-hd"><span class="hc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span><b class="hc-name">Salon</b><span class="hc-soon" id="home-gym-badge">KURULMADI</span></span>
+        <span class="hc-desc" id="home-gym-desc">Ayarlar'dan SalonTakip bağlantısını gir.</span>
       </button>
       <button class="home-row" id="home-history">
         <span><b>Yapılmış idmanlar</b><small id="home-history-meta"></small></span>
@@ -119,6 +119,76 @@
       </button>
       <p class="app-version" id="app-version"></p>
     </div>
+  </section>
+
+  <!-- Salon: başlangıç (son idmanı tekrarla / yeni plan) -->
+  <section id="screen-salon-start" class="screen days salon-start" hidden>
+    <header class="days-top">
+      <button class="icon-btn" id="ss-back" aria-label="Ana sayfa">‹</button>
+      <h1 class="days-title">Salon</h1>
+    </header>
+    <div class="scroll pad" id="ss-body"></div>
+  </section>
+
+  <!-- Salon planlama: hedef kaslar → hareket seç → plan (plan yalnızca telefonda) -->
+  <section id="screen-salon-plan" class="screen days salon-plan" hidden>
+    <header class="days-top">
+      <button class="icon-btn" id="sp-back" aria-label="Geri">‹</button>
+      <h1 class="days-title" id="sp-title">Salon idmanı planla</h1>
+    </header>
+    <div class="sp-steps" id="sp-steps"><i></i><i></i><i></i></div>
+    <div class="scroll pad" id="sp-body"></div>
+    <div class="bottom-bar"><button class="btn btn-primary btn-block" id="sp-next"></button></div>
+  </section>
+
+  <!-- Salon idmanı: hareketler tekerlekte; BAŞLA / BİTTİ -->
+  <section id="screen-salon" class="screen salon" hidden>
+    <div class="prog-amb"></div>
+    <header class="prog-head">
+      <div class="prog-row">
+        <button class="icon-btn" id="sl-back" aria-label="Geri / idmanı bitir">‹</button>
+        <div class="prog-stat"><span class="lbl">SÜRE</span><b class="fit"><span id="sl-clock">0:00</span><small id="sl-end" class="y"></small></b></div>
+        <div class="prog-stat end"><span class="lbl">HAREKET</span><b class="fit" id="sl-count">0</b></div>
+      </div>
+      <div class="seg-bar" id="sl-bar"></div>
+    </header>
+    <div class="wheel" id="sl-wheel"></div>
+    <footer class="dock">
+      <button class="dock-side sl-left" id="sl-undo" aria-label="Son dokunuşu geri al"><span>Geri al</span></button>
+      <button class="dock-main" id="sl-main"><b id="sl-main-label">BAŞLA</b><small id="sl-main-sub"></small></button>
+      <button class="dock-side" id="sl-sound" aria-label="Ses"></button>
+    </footer>
+    <div class="detail" id="sl-detail" hidden><div class="detail-in" id="sl-detail-body"></div></div>
+    <!-- Hareket sonu: nabız · RPE · MSI · not -->
+    <div class="eset sl-giris" id="sl-giris" hidden>
+      <header class="es-head"><div><p class="es-tag" id="sg-tag"></p><h2 class="es-title" id="sg-title"></h2></div></header>
+      <div class="es-scroll" id="sg-body"></div>
+      <footer class="es-foot sg-foot"><button class="btn btn-primary" id="sg-save"><b>Kaydet</b><small id="sg-save-sub"></small></button></footer>
+    </div>
+    <!-- Hareket düzenleme -->
+    <div class="eset" id="sl-edit" hidden>
+      <header class="es-head"><button class="icon-btn" id="se-back" aria-label="Vazgeç">‹</button><div><p class="es-tag" id="se-tag"></p><h2 class="es-title" id="se-title"></h2></div></header>
+      <div class="es-scroll" id="se-body"></div>
+      <footer class="es-foot"><button class="btn" id="se-cancel">Vazgeç</button><button class="btn btn-primary" id="se-save">Kaydet</button></footer>
+    </div>
+    <div class="mola" id="sl-mola" hidden>
+      <div class="mola-in">
+        <p class="mola-k">MOLA</p>
+        <b class="mola-t" id="sl-mola-time">0:00</b>
+        <p class="mola-s">İdman saati ve dinlenme sayacı durdu</p>
+      </div>
+      <button class="mola-go" id="sl-devam"><b>DEVAM ET</b><small>İdman saati yeniden işler</small></button>
+    </div>
+  </section>
+
+  <!-- Salon özeti ve kayıt -->
+  <section id="screen-salon-ozet" class="screen days salon-ozet" hidden>
+    <header class="days-top">
+      <button class="icon-btn" id="so-back" aria-label="İdmana dön">‹</button>
+      <h1 class="days-title">Salon özeti</h1>
+    </header>
+    <div class="scroll pad" id="so-body"></div>
+    <div class="bottom-bar"><button class="btn btn-primary btn-block" id="so-save">Kaydet</button></div>
   </section>
 
   <!-- Telefonda yapılmış idmanlar -->

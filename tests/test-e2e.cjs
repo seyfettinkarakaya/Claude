@@ -64,7 +64,7 @@ const server = http.createServer((req, res) => {
   await page.fill('#setup-token', 'secret');
   await page.click('#setup-save');
 
-  // Ana sayfa: Yüzme (sıradaki idman) · Salon (yakında)
+  // Ana sayfa: Yüzme (sıradaki idman) · Salon (kurulmadı → Ayarlar)
   await page.waitForSelector('#screen-home:not([hidden])');
   await page.waitForFunction(() => /set/.test(document.getElementById('home-swim-meta').textContent));
   assert.strictEqual(await page.textContent('#home-date'), 'Çarşamba, 23 Eylül');
@@ -72,9 +72,11 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(await page.textContent('#home-swim-meta'), '8 set · 2.400 m · 36:40 · ana set 800 m');
   assert.strictEqual(await page.textContent('#home-open-text'), 'İdmanı aç');
   assert.strictEqual(await page.textContent('#home-history-meta'), 'Henüz kayıt yok');
-  await page.click('#home-gym', { force: true });
-  assert.match(await page.textContent('#toast'), /yakında/);
-  assert.ok(await page.isVisible('#screen-home'));
+  assert.strictEqual(await page.textContent('#home-gym-badge'), 'KURULMADI');
+  await page.click('#home-gym');
+  await page.waitForSelector('#screen-setup:not([hidden])');
+  await page.click('#setup-back');
+  await page.waitForSelector('#screen-home:not([hidden])');
   await page.click('#home-swim');
 
   // Gün seçimi

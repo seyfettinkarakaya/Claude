@@ -9,6 +9,7 @@ node tests/test-gas-salon.cjs
 node tests/test-data.mjs
 node tests/test-ref.mjs
 node tests/test-duzen.mjs
+node tests/test-salon.mjs
 node tests/test-zaman.mjs
 node tests/e2e-senaryolar.cjs
 node tests/test-e2e.cjs

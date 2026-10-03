@@ -5,6 +5,7 @@ import { Wheel } from './wheel.js?v=10.4';
 import * as zaman from './zaman.js?v=10.4';
 import * as ref from './ref.js?v=10.4';
 import * as duzen from './duzen.js?v=10.4';
+import * as salon from './salon.js?v=10.4';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
 export const APP_VERSION = '10.4';
@@ -25,7 +26,7 @@ const MSI_BOLGELER = [
   { key: 'boyun', label: 'Boyun' },
 ];
 
-const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'rpe', 'msi', 'ozet', 'done'];
+const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'rpe', 'msi', 'ozet', 'done', 'salon-start', 'salon', 'salon-ozet', 'salon-plan'];
 const WAKE_SCREENS = new Set(['program', 'rpe', 'msi', 'ozet']);
 
 const state = {
@@ -959,6 +960,8 @@ function showHome() {
   show('home');
   renderHome();
   loadDates();
+  const c = data.getCachedSalon();
+  if (data.isConfigured('salon') && (!c || Date.now() - c.savedAt > 5 * 60 * 1000)) loadSalon();
 }
 
 function renderHome() {
@@ -1019,6 +1022,7 @@ function renderHome() {
   const n = data.getHistory().length;
   const q = data.getQueue().length;
   $('home-history-meta').textContent = (n ? `${n} kayıt` : 'Henüz kayıt yok') + (q ? ` · ${q} gönderilmeyi bekliyor` : '');
+  renderHomeGym();
   fitListLines();
 }
 
@@ -1065,6 +1069,17 @@ function renderHistory() {
   $('hist-list').innerHTML = list.map((r) => {
     const dt = parseKey(r.tarih);
     const st = DURUM[historyStatus(r, queued)];
+    if (turOf(r) === 'salon') {
+      const sets = r.hareketler.reduce((a, x) => a + (Number(x.set) || 0), 0);
+      return `
+      <button class="day-row hist-row is-salon" data-hist="${esc(r.id)}">
+        <span class="dr-date"><b>${dt.getDate()}</b><small>${AY_KISA[dt.getMonth()].toLocaleUpperCase('tr')}</small></span>
+        <span class="dr-info">
+          <span class="dr-name">Salon · ${GUNLER[dt.getDay()]} <em class="chip ${st.cls}">${st.ad}</em></span>
+          <span class="dr-meta">${r.hareketler.length} hareket · ${sets} set${r.sure ? ` · ${esc(fmtDur(parseSec(r.sure)))}` : ''}</span>
+        </span>
+      </button>`;
+    }
     const done = r.setler.filter((x) => x.tamamlandi);
     const mesafe = r.seans && r.seans.mesafe !== '' && r.seans.mesafe != null ? Number(r.seans.mesafe) : done.reduce((a, x) => a + setDist(x), 0);
     const sure = r.seans && parseSec(r.seans.sure) ? fmtDur(parseSec(r.seans.sure)) : '';
@@ -1082,6 +1097,15 @@ function renderHistory() {
 }
 
 function historyDetail(r) {
+  if (turOf(r) === 'salon') {
+    const box = document.createElement('div');
+    box.className = 'hd';
+    box.innerHTML = `${r.sure ? `<p>Salon · Süre ${esc(fmtDur(parseSec(r.sure)))}</p>` : ''}<div class="hd-sets">${r.hareketler.map((x) => `
+      <div class="hd-set"><i data-bg="${grupInfo(x.hareket).renk}"></i><span><b>${esc(x.hareket)}</b>
+        <small>${x.set} × ${esc(fmtDec(x.tekrar))} · ${esc(fmtKg(x.agirlik))}${x.sure ? ` · ${esc(x.sure)}` : ''}${x.rpe !== '' ? ` · RPE ${esc(fmtDec(x.rpe))}` : ''}${x.msi !== '' ? ` · MSI ${esc(fmtDec(x.msi))}` : ''}</small>
+        ${x.aciklama ? `<small>${esc(x.aciklama)}</small>` : ''}</span></div>`).join('')}</div>`;
+    return paint(box);
+  }
   const s = r.seans || {};
   const facts = [
     s.sure ? `Süre ${esc(s.sure)}` : '',
@@ -2740,6 +2764,910 @@ function showDone({ ok, result }) {
 // Başlangıç
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Salon idmanı (salon.js). SalonTakip'in kendi betiği; plan telefonda tutulur.
+// Ana sayfa salon kartı → son idmanı tekrarla / yeni idman planla → hareketler
+// tekerlekte: BAŞLA / BİTTİ, dinlenme sayacı, set tekrarı ±, hareket sonunda
+// nabız · RPE · MSI · not → özet → idman sayfasına yazılır.
+// ---------------------------------------------------------------------------
+
+const sl = { ses: null, st: null, wheel: null, ticker: null, giris: null, edit: null, saving: false, loading: null, err: null };
+const slH = () => sl.ses.hareketler;
+const slst = () => sl.st || (sl.st = salon.replay(sl.ses.events, slH()));
+const salonData = () => (data.getCachedSalon() || {}).data || null;
+const fmtKg = (v) => (v === salon.VUCUT ? 'Vücut' : v === '' || v == null ? '—' : `${String(v).replace('.', ',')} kg`);
+const fmtDec = (v) => String(v).replace('.', ',');
+
+function slPersist() {
+  sl.st = null;
+  if (sl.ses) data.saveSalonSession(sl.ses);
+}
+
+const GRUP = {
+  Back: ['SIRT', '#60A5FA'], Chest: ['GÖĞÜS', '#F87171'], Core: ['GÖVDE', '#A78BFA'], Abs: ['KARIN', '#A78BFA'],
+  Legs: ['BACAK', '#34D399'], Glutes: ['KALÇA', '#2DD4BF'], Shoulders: ['OMUZ', '#F5A524'], Arms: ['KOL', '#FB923C'],
+};
+/** Hareketin ana kas grubu (hkEtki'de en yüksek oranlı). */
+function grupOf(ad) {
+  const d = salonData();
+  const rows = d ? d.etki.filter((e) => e.ad === ad) : [];
+  if (!rows.length) return '';
+  const by = {};
+  for (const r of rows) by[r.grup] = (by[r.grup] || 0) + (Number(r.oran) || 0);
+  return Object.entries(by).sort((a, b) => b[1] - a[1])[0][0];
+}
+const grupInfo = (ad) => { const g = grupOf(ad); return { ad: (GRUP[g] || [g.toLocaleUpperCase('tr')])[0], renk: (GRUP[g] || [0, '#94A3B8'])[1] }; };
+const katalogOf = (ad) => { const d = salonData(); return d ? d.katalog.find((k) => k.ad === ad) : null; };
+
+// --- Ana sayfa kartı ve başlangıç ---------------------------------------------------
+
+function renderHomeGym() {
+  const badge = $('home-gym-badge');
+  const desc = $('home-gym-desc');
+  if (!data.isConfigured('salon')) {
+    badge.textContent = 'KURULMADI';
+    badge.hidden = false;
+    desc.textContent = "Ayarlar'dan SalonTakip bağlantısını gir.";
+    return;
+  }
+  const s = data.loadSalonSession();
+  if (s) {
+    badge.textContent = 'DEVAM EDİYOR';
+    badge.hidden = false;
+    desc.textContent = `${s.hareketler.length} hareket${s.events.length ? ' · başladı' : ''} · devam etmek için dokun`;
+    return;
+  }
+  badge.hidden = true;
+  const d = salonData();
+  const w = d && salon.lastWorkout(d.gecmis);
+  desc.textContent = w ? `Son idman ${fmtDateTR(w.tarih)} · ${w.rows.length} hareket` : 'İdman planla ya da son idmanı tekrarla.';
+}
+
+function onHomeGym() {
+  if (!data.isConfigured('salon')) return showSetup(true);
+  const s = data.loadSalonSession();
+  if (s) { sl.ses = s; return openSalon(); }
+  showSalonStart();
+}
+
+async function loadSalon() {
+  if (sl.loading) return sl.loading;
+  sl.loading = data.getSalon().then(() => { sl.err = null; }).catch((err) => { sl.err = err; }).finally(() => {
+    sl.loading = null;
+    if (state.screen === 'salon-start') renderSalonStart();
+    if (state.screen === 'home') renderHomeGym();
+  });
+  return sl.loading;
+}
+
+function showSalonStart() {
+  show('salon-start');
+  renderSalonStart();
+  loadSalon();
+}
+
+function renderSalonStart() {
+  const d = salonData();
+  const body = $('ss-body');
+  if (!d) {
+    body.innerHTML = sl.err
+      ? `<p class="empty">Salon verisi alınamadı: ${esc(sl.err.message)}</p><button class="btn btn-block" data-ss="retry">Tekrar dene</button>`
+      : '<p class="empty">Yükleniyor…</p>';
+    return;
+  }
+  const w = salon.lastWorkout(d.gecmis);
+  const last = w ? `
+    <div class="ss-card">
+      <p class="ss-k">SON İDMAN · ${esc(fmtDateTR(w.tarih).toLocaleUpperCase('tr'))}</p>
+      ${w.rows.map((r) => {
+        const reps = salon.parseSetler(r.aciklama);
+        return `<div class="ss-row"><i data-bg="${grupInfo(r.hareket).renk}"></i><span><b>${esc(r.hareket)}</b>
+          <small>${r.set || ''} × ${esc(reps ? reps.map(fmtDec).join('-') : fmtDec(r.tekrar))} · ${esc(fmtKg(r.agirlik))}${r.rpe != null ? ` · RPE ${fmtDec(r.rpe)}` : ''}${r.msi != null ? ` · MSI ${fmtDec(r.msi)}` : ''}</small></span></div>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-primary btn-block" data-ss="repeat">Son idmanı tekrarla</button>` : '<p class="empty">idman sayfasında kayıt yok.</p>';
+  body.innerHTML = `${last}<button class="btn btn-block set-gap" data-ss="plan">Yeni idman planla</button>
+    ${sl.err ? `<p class="muted set-gap">Çevrimdışı: son alınan veri gösteriliyor.</p>` : ''}`;
+  paint(body);
+}
+
+function onSalonStartClick(e) {
+  const b = e.target.closest('[data-ss]');
+  if (!b) return;
+  const act = b.dataset.ss;
+  if (act === 'retry') { sl.err = null; renderSalonStart(); loadSalon(); }
+  else if (act === 'repeat') {
+    const w = salon.lastWorkout(salonData().gecmis);
+    if (w) startSalon(w.hareketler);
+  } else if (act === 'plan') showSalonPlan();
+}
+
+function startSalon(hareketler) {
+  sl.ses = salon.newSession(todayKey(), hareketler.map((h) => ({ ...h })));
+  slPersist();
+  openSalon();
+}
+
+// --- İdman ekranı ------------------------------------------------------------------
+
+function openSalon() {
+  sl.ses.screen = 'salon';
+  slPersist();
+  if (slst().phase === 'done') return showSalonOzet();
+  show('salon');
+  if (!sl.wheel) {
+    sl.wheel = new Wheel($('sl-wheel'), {
+      onLayout: () => { sl.wheel.items.forEach(fitCardText); },
+      onChange: (i) => {
+        if (!sl.ses) return;
+        sl.ses.pos = i;
+        slPersist();
+        slRefreshAll();
+      },
+    });
+  }
+  const nodes = slH().map((x, h) => { const n = document.createElement('div'); slRenderItem(n, x, h); return n; });
+  sl.wheel.setItems(nodes, Math.min(sl.ses.pos || 0, nodes.length - 1));
+  slRefreshAll();
+  clearInterval(sl.ticker);
+  sl.ticker = setInterval(slTick, 200);
+  slTick();
+}
+
+function slRefreshAll() {
+  if (!sl.wheel || !sl.ses) return;
+  sl.wheel.items.forEach((n, h) => slRenderItem(n, slH()[h], h));
+  slTick(); // sayaç dolu olsun ki kart doğru ölçülsün
+  sl.wheel.items.forEach(fitCardText);
+  sl.wheel.render();
+  slUpdate();
+}
+
+function slCardMode(h) {
+  const st = slst();
+  const stat = salon.status(st, slH(), h);
+  if (st.cur === h && (st.phase === 'work' || (st.phase === 'rest' && stat !== 'tamam'))) return 'live';
+  if (stat === 'tamam' || stat === 'eksik') return 'sum';
+  return 'ready';
+}
+
+function slBoxes(h, live) {
+  const x = slH()[h];
+  const st = slst();
+  const sets = st.per[h].sets;
+  const reps = salon.repsOf(sl.ses, st, h);
+  const n = Math.max(x.set, sets.length);
+  const out = [];
+  for (let j = 0; j < n; j++) {
+    let cls = '';
+    let v = String(x.sure || x.tekrar);
+    if (j < reps.length) { cls = 'ok'; v = fmtDec(reps[j]); }
+    else if (live && sets[j] && sets[j].bit == null) { cls = 'now'; v = String(x.sure || x.tekrar); }
+    else if (live && st.phase === 'rest' && j === reps.length) { cls = 'rest'; v = '—'; }
+    out.push(`<div class="${cls}"><small>${j + 1}.</small><b class="n">${v}</b></div>`);
+  }
+  return `<div class="w-reps sl-sets">${out.join('')}</div>`;
+}
+
+function slRenderItem(node, x, h) {
+  const st = slst();
+  const mode = slCardMode(h);
+  const stat = salon.status(st, slH(), h);
+  const g = grupInfo(x.ad);
+  const k = katalogOf(x.ad);
+  const n = slH().length;
+  const hedef = `${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}`;
+  let tag = `${g.ad ? `${esc(g.ad)} · ` : ''}${h + 1}/${n}`;
+  if (stat === 'tamam') tag = `✓ TAMAMLANDI · ${tag}`;
+  else if (stat === 'eksik') tag = `${salon.doneSets(st, h)}/${x.set} · ERKEN BİTTİ · ${tag}`;
+  const vid = k && k.video ? `<a class="sl-vid" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer" aria-label="Videoyu YouTube'da aç">▶ Video</a>` : '';
+  const info = `<div class="w-info">Hedef <b>${esc(hedef)}</b> · ${esc(fmtKg(x.agirlik))}${x.dinlen ? ` · Dinlen <b>${fmtDur(x.dinlen)}</b>` : ''}</div>`;
+  const timer = '<div class="w-timer"><span class="w-tmode"></span><b class="w-tbig n"></b><span class="w-tsub n"></span></div>';
+  let body;
+  if (mode === 'live') {
+    const reps = salon.repsOf(sl.ses, st, h);
+    const j = st.phase === 'work' ? st.per[h].sets.length - 1 : reps.length - 1;
+    const cur = st.phase === 'work' ? (sl.ses.reps[x._k] || [])[j] : reps[j];
+    const val = cur != null ? cur : (x.sure || x.tekrar);
+    const plus = st.phase === 'rest' ? '<button class="w-plus" data-sl-plus>＋1 set</button>' : '';
+    body = `<div class="w-title sl-ad">${esc(x.ad)}</div>${info}${slBoxes(h, true)}
+      <div class="sl-wt"><div><span class="lbl">${j + 1}. SET ${x.sure ? 'SÜRE (SN)' : 'TEKRAR'}</span><b class="n">${fmtDec(val)}</b></div>
+        <div class="sl-pm"><button data-sl-rep="-1" aria-label="Azalt">−</button><button data-sl-rep="1" aria-label="Artır">+</button></div></div>
+      ${plus}${timer}`;
+  } else if (mode === 'sum') {
+    const reps = salon.repsOf(sl.ses, st, h);
+    const gi = sl.ses.giris[x._k];
+    const avg = reps.length ? reps.reduce((a, b) => a + b, 0) / reps.length : 0;
+    body = `<div class="w-title sl-ad">${esc(x.ad)}</div>${slBoxes(h, false)}
+      <div class="w-summary n">Ort. <b>${fmtDec(Math.round(avg * 100) / 100)}</b> · ${fmtShort(salon.hareketMs(st, h))}${gi && gi.rpe != null ? ` · RPE ${fmtDec(gi.rpe)}` : ''}${gi && gi.msi != null ? ` · MSI ${fmtDec(gi.msi)}` : ''}</div>
+      ${gi ? '' : '<button class="w-plus" data-sl-giris>Nabız · RPE · MSI gir</button>'}`;
+  } else {
+    const o = salonData() ? salon.oneri(salonData().gecmis, x.ad) : null;
+    const prev = o ? `<div class="sl-prev">Geçen: ${o.rpe != null ? `RPE ${fmtDec(o.rpe)}` : ''}${o.msi ? ` · MSI ${fmtDec(o.msi)}` : ''} · <em class="${o.warn ? 'warn' : ''}">öneri: ${esc(o.text)}</em></div>` : '';
+    const w = x.agirlik === salon.VUCUT ? '' : `<div class="sl-wt"><div><span class="lbl">AĞIRLIK</span><b class="n">${esc(fmtKg(x.agirlik))}</b></div>
+      <div class="sl-pm"><button data-sl-w="-1" aria-label="Ağırlığı azalt">−</button><button data-sl-w="1" aria-label="Ağırlığı artır">+</button></div></div>`;
+    body = `<div class="w-title sl-ad">${esc(x.ad)}</div>${info}${prev}${slBoxes(h, false)}${w}<div class="w-desc"></div>`;
+  }
+  node.classList.add('w-item');
+  node.classList.toggle('is-done', stat === 'tamam' || stat === 'eksik');
+  for (const m of ['live', 'next', 'sum', 'ready']) node.classList.toggle(`m-${m}`, m === mode);
+  node.dataset.mode = mode;
+  node.style.setProperty('--c', g.renk);
+  node.style.setProperty('--c-soft', hexA(g.renk, 0.35));
+  node.style.setProperty('--c-glow', hexA(g.renk, 0.55));
+  node.style.setProperty('--c-wash', hexA(g.renk, 0.12));
+  node.innerHTML = `
+    <div class="w-line"></div><div class="w-dot"></div>
+    <div class="w-row"><span class="w-tm">${h + 1}</span><span class="w-nm">${esc(x.ad)}</span></div>
+    <div class="w-ctm">${h + 1}</div>
+    <div class="w-card">${vid}<div class="w-tag">${tag}</div>${body}</div>`;
+}
+
+/** Üst bilgi, ilerleme çubuğu, büyük düğme. */
+function slUpdate() {
+  if (!sl.ses || !sl.wheel) return;
+  const st = slst();
+  const H = slH();
+  const doneN = H.filter((_, h) => ['tamam', 'eksik'].includes(salon.status(st, H, h))).length;
+  $('sl-count').innerHTML = `${doneN}<small class="y">/${H.length}</small>`;
+  const tahmin = H.reduce((a, x) => a + x.set * ((x.sure ? x.sure + 30 : x.tekrar * 3 + 60)), 0);
+  $('sl-end').textContent = ` /~${fmtDur(tahmin)}`;
+  $('sl-bar').innerHTML = H.map((x, h) => {
+    const stt = salon.status(st, H, h);
+    return `<span class="seg${stt === 'tamam' || stt === 'eksik' ? ' is-on' : ''}${st.cur === h && st.phase !== 'done' ? ' is-cur' : ''}" data-bg="${grupInfo(x.ad).renk}" data-grow="${x.set}"></span>`;
+  }).join('');
+  paint($('sl-bar'));
+  const a = salon.mainAction(st, H, sl.wheel.index);
+  let label = 'BAŞLA';
+  let sub = '';
+  const x = H[a.h];
+  if (a.kind === 'set') {
+    sub = `${a.set}. set${st.basla == null ? ' · idman başlar' : ''}${x.sure ? ` · ${x.sure} sn` : ''}`;
+  } else if (a.kind === 'bitti') {
+    label = 'BİTTİ';
+    sub = `${a.set}. set${a.set >= x.set ? ' · son set' : ''}`;
+  } else if (a.kind === 'mola') { label = 'MOLA'; sub = 'Devam etmek için DEVAM ET'; }
+  else { label = 'HAREKET TAMAM'; sub = 'Kaydırıp başka harekete geç'; }
+  const lab = $('sl-main-label');
+  if (lab.textContent !== label) { lab.textContent = label; fitText(lab, innerWidth <= 380 ? 34 : 40, 18); }
+  $('sl-main-sub').textContent = sub;
+  $('sl-main').classList.toggle('is-geldim', a.kind === 'bitti');
+  $('sl-main').classList.toggle('is-idle', a.kind === 'yok');
+  const on = prefs().ses;
+  $('sl-sound').innerHTML = `${on ? ICON_SES_ON : ICON_SES_OFF}<span>${on ? 'Ses açık' : 'Ses kapalı'}</span>`;
+  $('sl-sound').classList.toggle('is-off', !on);
+}
+
+function slPush(e) {
+  sl.ses.events.push({ ...e, ts: e.ts || Date.now() });
+  slPersist();
+}
+
+function onSlMain() {
+  if (!sl.ses || !sl.wheel) return;
+  const now = Date.now();
+  const st = slst();
+  if (st.last && now - st.last.ts < GUARD_MS) return;
+  audio.unlock();
+  const a = salon.mainAction(st, slH(), sl.wheel.index);
+  if (a.kind === 'set') slPush({ t: 'set', ts: now, h: a.h });
+  else if (a.kind === 'bitti') return slFinishSet(now);
+  else if (a.kind === 'yok' || a.kind === 'mola') return;
+  slRefreshAll();
+}
+
+/** Set biter; hareketin son setiyse hareket sonu girişi açılır. */
+function slFinishSet(ts) {
+  const h = slst().cur;
+  slPush({ t: 'bitti', ts });
+  if (prefs().ses) audio.ok();
+  const st = slst();
+  slRefreshAll();
+  if (salon.doneSets(st, h) >= slH()[h].set) openGiris(h);
+}
+
+function onSlUndo() {
+  const act = $('sl-undo').dataset.act;
+  if (act === 'mola') { slPush({ t: 'mola' }); return slRefreshAll(); }
+  if (act !== 'undo') return;
+  const e = sl.ses.events;
+  const popped = e.pop();
+  if (popped && popped.t === 'set') {
+    // Geri alınan setin girilmiş tekrarı da silinir.
+    const x = slH()[popped.h];
+    const r = sl.ses.reps[x._k];
+    if (r) r.length = Math.min(r.length, slst().per[popped.h].sets.length - 1);
+  }
+  slPersist();
+  slRefreshAll();
+  toast('Son dokunuş geri alındı', 1500);
+}
+
+/** Set tekrarı ± (yapılan / son biten set) ve ağırlık ±. */
+function onSlWheelClick(e) {
+  const t = e.target;
+  if (t.closest('a.sl-vid')) return; // video YouTube'da açılır
+  const st = slst();
+  const repBtn = t.closest('[data-sl-rep]');
+  if (repBtn) {
+    const h = st.cur;
+    const x = slH()[h];
+    const arr = sl.ses.reps[x._k] || (sl.ses.reps[x._k] = []);
+    const j = st.phase === 'work' ? st.per[h].sets.length - 1 : salon.doneSets(st, h) - 1;
+    if (j < 0) return;
+    const curV = arr[j] != null ? arr[j] : (x.sure || x.tekrar);
+    arr[j] = Math.max(0, curV + Number(repBtn.dataset.slRep) * (x.sure ? 5 : 1));
+    slPersist();
+    return slRefreshAll();
+  }
+  const wBtn = t.closest('[data-sl-w]');
+  if (wBtn) {
+    const x = slH()[sl.wheel.index];
+    x.agirlik = Math.max(0, (Number(x.agirlik) || 0) + Number(wBtn.dataset.slW) * 2.5);
+    slPersist();
+    return slRefreshAll();
+  }
+  if (t.closest('[data-sl-plus]')) return slPlusSet();
+  if (t.closest('[data-sl-giris]')) return openGiris(sl.wheel.index);
+  const card = t.closest('.w-item.is-active .w-card');
+  if (card) openSlDetail(sl.wheel.index);
+}
+
+function slTick() {
+  if (!sl.ses || state.screen !== 'salon') return;
+  const now = Date.now();
+  const st = slst();
+  const clock = $('sl-clock');
+  const ct = st.basla == null ? '0:00' : fmtClock(salon.idmanMs(st, now));
+  if (clock.textContent !== ct) clock.textContent = ct;
+  clock.classList.toggle('is-idle', st.basla == null);
+  // Sol düğme: son basıştan 5 sn "Geri al"; dinlenirken "Mola".
+  const undoable = Boolean(st.last && ['set', 'bitti'].includes(st.last.t) && st.phase !== 'done' && st.mola == null && now - st.last.ts < UNDO_MS);
+  const act = undoable ? 'undo' : (st.phase === 'rest' && st.mola == null ? 'mola' : '');
+  const lb = $('sl-undo');
+  if (lb.dataset.act !== act) {
+    lb.dataset.act = act;
+    lb.innerHTML = act === 'mola' ? `${ICON_MOLA}<span>Mola</span>` : `${ICON_UNDO}<span>Geri al</span>`;
+    lb.classList.toggle('is-on', act === 'undo');
+    lb.classList.toggle('is-mola', act === 'mola');
+  }
+  $('sl-mola').hidden = st.mola == null;
+  if (st.mola != null) $('sl-mola-time').textContent = fmtDur(Math.floor((now - st.mola) / 1000));
+  if (!sl.wheel || st.cur == null) return;
+  const node = sl.wheel.items[st.cur];
+  const box = node && node.querySelector('.w-timer');
+  const x = slH()[st.cur];
+  if (st.phase === 'work') {
+    const set = st.per[st.cur].sets[st.per[st.cur].sets.length - 1];
+    const el = (now - set.bas) / 1000;
+    if (x.sure) {
+      const rem = x.sure - el;
+      if (rem <= 0) { slFinishSet(set.bas + x.sure * 1000); return; } // süreli set kendiliğinden biter
+      if (box) setTimer(box, `${st.per[st.cur].sets.length}. SET · SÜRE`, 'y', fmtDur(Math.ceil(rem)), rem <= 3 ? 'y' : '', `${x.sure} sn · bitince set biter`);
+      checkBeep(set.bas, rem);
+    } else if (box) {
+      setTimer(box, `${st.per[st.cur].sets.length}. SET · YAPILIYOR`, 'y', fmtDur(Math.floor(el)), '', st.per[st.cur].sets.length >= x.set ? 'son set · bitince hareket biter' : `${x.set} setin ${st.per[st.cur].sets.length}.`);
+    }
+  } else if (st.phase === 'rest' && box) {
+    const el = salon.restMs(st, now) / 1000;
+    const rem = x.dinlen - el;
+    const next = `${salon.doneSets(st, st.cur) + 1}. SETE`;
+    if (!x.dinlen) setTimer(box, `DİNLENME · ${next}`, 'b', fmtDur(Math.floor(el)), '', `hareket ${fmtShort(now - st.per[st.cur].sets[0].bas)}`);
+    else {
+      setTimer(box, rem < 0 ? 'DİNLENME UZADI' : `DİNLENME · ${next}`, rem < 0 ? 'r' : 'b', rem >= 0 ? fmtDur(Math.ceil(rem)) : `−${fmtDur(Math.floor(-rem))}`, rem < 0 ? 'r' : (rem <= 3 ? 'y' : ''), `plan ${fmtDur(x.dinlen)} · hareket ${fmtShort(now - st.per[st.cur].sets[0].bas)}`);
+      if (st.mola == null) checkBeep(`s${st.lastBitti}`, rem);
+    }
+  }
+}
+
+/** Dinlenirken "+1 set" (5 sn Geri al). */
+function slPlusSet() {
+  const st = slst();
+  if (st.phase !== 'rest' || st.cur == null) return;
+  const x = slH()[st.cur];
+  x.set += 1;
+  slPersist();
+  slRefreshAll();
+  toastAction(`${x.ad}: ${x.set - 1} → ${x.set} set`, 'Geri al', () => {
+    if (!sl.ses || x.set <= Math.max(1, salon.doneSets(slst(), slH().indexOf(x)))) return;
+    x.set -= 1;
+    slPersist();
+    slRefreshAll();
+  });
+}
+
+// --- Ayrıntı paneli ve düzenleme --------------------------------------------------
+
+function openSlDetail(h) {
+  const x = slH()[h];
+  const st = slst();
+  const k = katalogOf(x.ad);
+  const etki = (salonData() ? salonData().etki : []).filter((e) => e.ad === x.ad).sort((a, b) => b.oran - a.oran);
+  const started = st.per[h].sets.length > 0;
+  const working = st.phase === 'work';
+  const stat = salon.status(st, slH(), h);
+  const b = (act, icon, label, on, cls = '') => `<button class="dt-act ${cls}" data-sact="${act}"${on ? '' : ' disabled'}><i>${icon}</i>${label}</button>`;
+  const box = $('sl-detail');
+  box.style.setProperty('--c', grupInfo(x.ad).renk);
+  box.dataset.h = String(h);
+  $('sl-detail-body').innerHTML = `
+    <div class="dt-tag">${esc(grupInfo(x.ad).ad)} · ${h + 1}/${slH().length}</div>
+    <div class="dt-title sl-dt">${esc(x.ad)}</div>
+    <p class="dt-row">Hedef <b>${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}</b> · ${esc(fmtKg(x.agirlik))} · Dinlen <b>${fmtDur(x.dinlen)}</b></p>
+    ${k ? `<p class="dt-row">${esc([k.amac, k.ekipman].filter(Boolean).join(' · '))}${k.stc != null ? ` · Yüzme katsayısı ${fmtDec(k.stc)}` : ''}</p>` : '<p class="dt-why">Katalogda (H) yok: v2 formülü bu hareketi hesaplamaz.</p>'}
+    ${etki.length ? `<p class="dt-row sl-etki">${etki.slice(0, 4).map((e) => `${esc(e.kas || e.grup)} <b>${fmtDec(e.oran)}</b>`).join(' · ')}</p>` : ''}
+    ${k && k.video ? `<p class="dt-row"><a class="sl-vid is-inline" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer">▶ Videoyu YouTube'da aç</a></p>` : ''}
+    <div class="dt-acts sl-acts">${b('edit', '✎', 'Düzenle', !working && stat !== 'tamam')}${b('swap', '⇄', 'Değiştir', !working && !started)}${b('add', '＋', 'Sonrasına ekle', !working)}${b('del', '🗑', 'Sil', !working && !started && slH().length > 1, 'del')}</div>
+    ${working ? '<p class="dt-why">Set sürerken düzenlenemez</p>' : started ? '<p class="dt-why">Başlanan hareket silinemez ya da değiştirilemez</p>' : ''}
+    <p class="dt-hint">Boşluğa dokun: kapat</p>`;
+  paint($('sl-detail-body'));
+  box.hidden = false;
+}
+
+function onSlDetailClick(e) {
+  if (e.target.closest('a')) return;
+  const btn = e.target.closest('[data-sact]');
+  if (btn && btn.disabled) return;
+  const box = $('sl-detail');
+  const h = Number(box.dataset.h);
+  box.hidden = true;
+  if (!btn || !sl.ses) return;
+  const act = btn.dataset.sact;
+  if (act === 'edit') openSlEdit(h);
+  else if (act === 'del') slDelete(h);
+  else if (act === 'swap') pickHareket({ mode: 'swap', h });
+  else if (act === 'add') pickHareket({ mode: 'add', h });
+}
+
+function openSlEdit(h) {
+  const x = slH()[h];
+  const done = salon.doneSets(slst(), h);
+  sl.edit = { h, d: { set: x.set, tekrar: x.tekrar, sure: x.sure, agirlik: x.agirlik, dinlen: x.dinlen }, min: Math.max(1, done) };
+  renderSlEdit();
+  $('sl-edit').hidden = false;
+}
+
+function renderSlEdit() {
+  const E = sl.edit;
+  const x = slH()[E.h];
+  const d = E.d;
+  $('sl-edit').style.setProperty('--c', grupInfo(x.ad).renk);
+  $('se-tag').textContent = `${grupInfo(x.ad).ad} · ${E.h + 1}/${slH().length} · DÜZENLE`;
+  $('se-title').textContent = x.ad;
+  const stp = (key, label, value, note = '') => `<div class="es-row"><div class="es-l">${label}${note ? `<small>${note}</small>` : ''}</div>
+    <div class="es-stp"><button data-se="${key}:-1" aria-label="${label} azalt">−</button><b class="n">${value}</b><button data-se="${key}:1" aria-label="${label} artır">+</button></div></div>`;
+  $('se-body').innerHTML = `
+    ${stp('set', 'SET', d.set, E.min > 1 ? `en az ${E.min} (yapıldı)` : '')}
+    ${d.sure ? stp('sure', 'SÜRE (SN)', d.sure) : stp('tekrar', 'TEKRAR', d.tekrar)}
+    ${d.agirlik === salon.VUCUT ? '' : stp('agirlik', 'AĞIRLIK', esc(fmtKg(d.agirlik)))}
+    ${stp('dinlen', 'DİNLEN', fmtDur(d.dinlen))}
+    <div class="es-blk"><div class="es-l">TÜR</div><div class="es-chips">
+      <button data-se-chip="tekrar" class="${d.sure ? '' : 'is-on'}">Tekrar</button><button data-se-chip="sure" class="${d.sure ? 'is-on' : ''}">Süreli</button>
+      <button data-se-chip="vucut" class="${d.agirlik === salon.VUCUT ? 'is-on' : ''}">Vücut ağırlığı</button></div></div>`;
+}
+
+function onSlEditClick(e) {
+  const E = sl.edit;
+  const t = e.target.closest('button');
+  if (!E || !t) return;
+  const d = E.d;
+  if (t.id === 'se-back' || t.id === 'se-cancel') { $('sl-edit').hidden = true; sl.edit = null; return; }
+  if (t.id === 'se-save') {
+    Object.assign(slH()[E.h], d);
+    $('sl-edit').hidden = true;
+    sl.edit = null;
+    slPersist();
+    slRefreshAll();
+    return toast('Hareket güncellendi');
+  }
+  if (t.dataset.se) {
+    const [key, dir] = t.dataset.se.split(':');
+    const k = Number(dir);
+    if (key === 'set') d.set = Math.max(E.min, Math.min(20, d.set + k));
+    else if (key === 'tekrar') d.tekrar = Math.max(1, Math.min(100, d.tekrar + k));
+    else if (key === 'sure') d.sure = Math.max(5, Math.min(600, d.sure + k * 5));
+    else if (key === 'agirlik') d.agirlik = Math.max(0, (Number(d.agirlik) || 0) + k * 2.5);
+    else if (key === 'dinlen') d.dinlen = Math.max(0, Math.min(600, d.dinlen + k * 15));
+  } else if (t.dataset.seChip === 'sure') { d.sure = d.sure || 30; }
+  else if (t.dataset.seChip === 'tekrar') { d.sure = 0; }
+  else if (t.dataset.seChip === 'vucut') { d.agirlik = d.agirlik === salon.VUCUT ? '' : salon.VUCUT; }
+  renderSlEdit();
+}
+
+/** Olaylardaki hareket indekslerini kaydırır (ekleme/silme). */
+const slShift = (events, at, dlt) => events.map((e) => (e.h != null && e.h >= at ? { ...e, h: e.h + dlt } : e));
+
+function slDelete(h) {
+  if (slst().per[h].sets.length || slH().length < 2) return;
+  const removed = slH()[h];
+  sl.ses.hareketler.splice(h, 1);
+  sl.ses.events = slShift(sl.ses.events, h + 1, -1);
+  slPersist();
+  openSalon();
+  toastAction(`${removed.ad} silindi`, 'Geri al', () => {
+    if (!sl.ses) return;
+    sl.ses.hareketler.splice(h, 0, removed);
+    sl.ses.events = slShift(sl.ses.events, h, 1);
+    slPersist();
+    openSalon();
+  });
+}
+
+/** Değiştir: h. hareketin yerine; Ekle: h. hareketin arkasına. */
+function slApplyPick({ mode, h }, ad) {
+  const base = mode === 'swap' ? slH()[h] : null;
+  const o = salonData() ? salon.oneri(salonData().gecmis, ad) : null;
+  const last = salonData() ? salon.historyOf(salonData().gecmis, ad)[0] : null;
+  const nx = last ? salon.fromHistory(last) : salon.hareket({ ad, set: base ? base.set : 3, tekrar: base ? base.tekrar : 10, agirlik: (katalogOf(ad) || {}).ekipman === 'Bodyweight' ? salon.VUCUT : '', sure: salon.isTimed(ad) ? 30 : 0 });
+  if (o && !o.warn) { nx.tekrar = o.tekrar; nx.agirlik = o.agirlik; nx.sure = o.sure || nx.sure; }
+  if (mode === 'swap') {
+    sl.ses.hareketler[h] = nx;
+    sl.ses.pos = h;
+  } else {
+    sl.ses.hareketler.splice(h + 1, 0, nx);
+    sl.ses.events = slShift(sl.ses.events, h + 1, 1);
+    sl.ses.pos = h + 1;
+  }
+  slPersist();
+  openSalon();
+  toast(mode === 'swap' ? `${base.ad} → ${ad}` : `${ad} eklendi`);
+}
+
+// --- Hareket sonu girişi -----------------------------------------------------------
+
+function openGiris(h) {
+  const x = slH()[h];
+  const st = slst();
+  const reps = salon.repsOf(sl.ses, st, h);
+  const prev = sl.ses.giris[x._k];
+  const lastSes = Object.values(sl.ses.giris).filter((g) => g.nabiz != null).pop();
+  const hist = salonData() ? salon.historyOf(salonData().gecmis, x.ad).find((r) => r.nabiz != null) : null;
+  const gecen = hist ? hist.nabiz : null;
+  sl.giris = { h, nabiz: prev ? prev.nabiz : (lastSes ? lastSes.nabiz : (gecen != null ? gecen : 120)), rpe: prev ? prev.rpe : null, msi: prev ? prev.msi : null, not: prev ? prev.not || '' : '', gecen };
+  $('sl-giris').style.setProperty('--c', grupInfo(x.ad).renk);
+  $('sg-tag').textContent = `${grupInfo(x.ad).ad} · ${h + 1}/${slH().length} · HAREKET BİTTİ`;
+  $('sg-title').textContent = x.ad;
+  const avg = reps.length ? reps.reduce((a, b) => a + b, 0) / reps.length : 0;
+  sl.giris.sum = `<div class="sg-sum"><div><small>SETLER</small><b class="n">${esc(reps.map(fmtDec).join('-'))}${x.sure ? ' sn' : ''}</b></div><div><small>ORT.</small><b class="n">${fmtDec(Math.round(avg * 100) / 100)}</b></div><div><small>SÜRE</small><b class="n">${fmtShort(salon.hareketMs(st, h))}</b></div></div>`;
+  renderGiris();
+  $('sl-giris').hidden = false;
+}
+
+function renderGiris() {
+  const G = sl.giris;
+  const rr = sporRef();
+  const grid = (key, vals, cur, extra = '') => `<div class="sg-grid sg-${key}">${vals.map((v) => `<button data-sg="${key}" data-v="${v}" class="${cur === v ? 'is-on' : ''}">${fmtDec(v)}</button>`).join('')}${extra}</div>`;
+  const msiText = rr && G.msi != null ? ref.scaleText(rr.msi, G.msi) : '';
+  const rpeText = rr && G.rpe != null ? ref.scaleText(rr.rpe, G.rpe) : '';
+  $('sg-body').innerHTML = `${G.sum}
+    <p class="sg-lb">NABIZ</p>
+    <div class="es-row sg-hr"><div><b class="n">${G.nabiz == null ? '—' : G.nabiz}</b><small> atım/dk${G.gecen != null ? ` · geçen ${G.gecen}` : ''}</small></div>
+      <div class="es-stp"><button data-sg-hr="-5" aria-label="Nabız 5 azalt">−5</button><button data-sg-hr="-1" aria-label="Nabız azalt">−</button><button data-sg-hr="1" aria-label="Nabız artır">+</button></div></div>
+    <p class="sg-lb">RPE</p>${grid('rpe', salon.RPE_DEGERLER, G.rpe, `<button data-sg="rpe" data-v="" class="${G.rpe == null ? 'is-on' : ''}">—</button>`)}
+    ${rpeText ? `<p class="sg-desc">${esc(rpeText)} <span>(sporRef)</span></p>` : ''}
+    <p class="sg-lb">MSI</p>${grid('msi', salon.MSI_DEGERLER, G.msi)}
+    ${msiText ? `<p class="sg-desc">${esc(msiText)} <span>(sporRef)</span></p>` : ''}
+    <label class="es-blk"><span class="es-l">NOT</span><textarea id="sg-not" rows="2" autocomplete="off">${esc(G.not)}</textarea></label>`;
+  const next = slNextOpen(G.h);
+  $('sg-save-sub').textContent = next >= 0 ? `sıradaki: ${slH()[next].ad}` : 'idman biter · özet';
+}
+
+function onGirisClick(e) {
+  const G = sl.giris;
+  const t = e.target.closest('button');
+  if (!G || !t) return;
+  if (t.id === 'sg-save') return saveGiris();
+  G.not = $('sg-not') ? $('sg-not').value : G.not;
+  if (t.dataset.sgHr) G.nabiz = Math.max(40, Math.min(220, (G.nabiz == null ? 120 : G.nabiz) + Number(t.dataset.sgHr)));
+  else if (t.dataset.sg) {
+    const v = t.dataset.v === '' ? null : Number(t.dataset.v);
+    G[t.dataset.sg] = v;
+  } else return;
+  renderGiris();
+}
+
+/** h'den sonraki ilk başlanmamış hareket; yoksa -1. */
+function slNextOpen(h) {
+  const st = slst();
+  const n = slH().length;
+  for (let k = 1; k < n; k++) {
+    const j = (h + k) % n;
+    if (!st.per[j].sets.length) return j;
+  }
+  return -1;
+}
+
+function saveGiris() {
+  const G = sl.giris;
+  const x = slH()[G.h];
+  sl.ses.giris[x._k] = { nabiz: G.nabiz, rpe: G.rpe, msi: G.msi, not: ($('sg-not') ? $('sg-not').value : G.not).trim() };
+  $('sl-giris').hidden = true;
+  sl.giris = null;
+  slPersist();
+  const next = slNextOpen(G.h);
+  if (next < 0 && slst().phase !== 'work') {
+    slPush({ t: 'son' });
+    return showSalonOzet();
+  }
+  slRefreshAll();
+  if (next >= 0 && slst().phase !== 'work') sl.wheel.scrollTo(next);
+}
+
+// --- Geri, özet, kayıt -------------------------------------------------------------
+
+async function onSlBack() {
+  const st = slst();
+  const choice = await modal({
+    title: 'Salon idmanı',
+    body: st.basla == null ? '<p>İdman henüz başlamadı.</p>' : `<p>Süre ${fmtClock(salon.idmanMs(st, Date.now()))} · ${slH().filter((_, h) => st.per[h].sets.length).length} hareket başladı.</p>`,
+    actions: [
+      { label: 'Devam et', value: '', cls: 'btn-primary' },
+      ...(st.basla != null ? [{ label: 'İdmanı bitir ve kaydet', value: 'end' }] : []),
+      { label: 'Ana sayfaya dön', value: 'home' },
+      { label: 'İdmanı sil', value: 'del', cls: 'btn-danger' },
+    ],
+  });
+  if (choice === 'end') {
+    if (st.phase === 'work') slPush({ t: 'bitti' });
+    slPush({ t: 'son' });
+    showSalonOzet();
+  } else if (choice === 'home') {
+    clearInterval(sl.ticker);
+    showHome();
+  } else if (choice === 'del') {
+    const ok = await modal({ title: 'İdman silinsin mi?', body: '<p>Bu salon idmanı telefondan silinir, tabloya yazılmaz.</p>', actions: [{ label: 'Evet, sil', value: true, cls: 'btn-danger' }, { label: 'Vazgeç', value: false }] });
+    if (ok) { slEnd(); showHome(); }
+  }
+}
+
+function slEnd() {
+  clearInterval(sl.ticker);
+  data.clearSalonSession();
+  sl.ses = null;
+  sl.st = null;
+}
+
+function showSalonOzet() {
+  clearInterval(sl.ticker);
+  sl.ses.screen = 'ozet';
+  slPersist();
+  show('salon-ozet');
+  const st = slst();
+  const p = salon.payload(sl.ses, st);
+  const missing = p.hareketler.filter((x) => x.rpe === '' && x.msi === '').length;
+  $('so-body').innerHTML = `
+    <div class="sg-sum so-top"><div><small>SÜRE</small><b class="n">${fmtClock(salon.idmanMs(st, Date.now()))}</b></div><div><small>HAREKET</small><b class="n">${p.hareketler.length}</b></div><div><small>SET</small><b class="n">${p.hareketler.reduce((a, x) => a + x.set, 0)}</b></div></div>
+    ${p.hareketler.length ? p.hareketler.map((x) => `<div class="ss-row"><i data-bg="${grupInfo(x.hareket).renk}"></i><span><b>${esc(x.hareket)}</b>
+      <small>${x.set} × ${esc(fmtDec(x.tekrar))} · ${esc(fmtKg(x.agirlik))} · ${esc(x.sure)}${x.nabiz !== '' ? ` · ${x.nabiz} atım` : ''}${x.rpe !== '' ? ` · RPE ${fmtDec(x.rpe)}` : ''}${x.msi !== '' ? ` · MSI ${fmtDec(x.msi)}` : ''}</small>
+      <small>${esc(x.aciklama)}</small></span></div>`).join('') : '<p class="empty">Biten set yok: kaydedilecek hareket yok.</p>'}
+    ${missing ? `<p class="dt-why">${missing} harekette RPE/MSI girilmedi; boş yazılır.</p>` : ''}`;
+  paint($('so-body'));
+  $('so-save').disabled = !p.hareketler.length;
+}
+
+function onSoBack() {
+  const e = sl.ses.events;
+  if (e.length && e[e.length - 1].t === 'son') e.pop();
+  slPersist();
+  openSalon();
+}
+
+/** Telefonda saklanan kopya (Yapılmış idmanlar). */
+function keepSalonHistory(payload, status) {
+  const st = slst();
+  data.addHistory({ id: `s${payload.tarih}-${Date.now()}`, tur: 'salon', tarih: payload.tarih, savedAt: Date.now(), status, startedAt: st.basla, endedAt: st.son, sure: fmtHMS(salon.idmanMs(st, Date.now())), hareketler: payload.hareketler });
+}
+
+async function saveSalonForm() {
+  if (sl.saving || !sl.ses) return;
+  const payload = salon.payload(sl.ses, slst());
+  if (!payload.hareketler.length) return;
+  sl.saving = true;
+  $('so-save').disabled = true;
+  $('so-save').textContent = 'Kaydediliyor…';
+  try {
+    await data.saveSalon(payload);
+    keepSalonHistory(payload, 'sent');
+    slEnd();
+    showHome();
+    toast(`Salon idmanı kaydedildi: ${payload.hareketler.length} hareket`, 3500);
+  } catch (err) {
+    if (err.code === 'DUPLICATE') {
+      const close = await modal({ title: 'Bu gün zaten kayıtlı', body: `<p>${esc(fmtDateTR(payload.tarih))} için idman sayfasında kayıt var; ikinci kez yazılmadı.</p>`, actions: [{ label: 'İdmanı kapat', value: true, cls: 'btn-primary' }, { label: 'Özete dön', value: false }] });
+      if (close) { keepSalonHistory(payload, 'duplicate'); slEnd(); showHome(); }
+    } else if (err.transient || err.code === 'NO_CONFIG') {
+      data.enqueue(payload, { code: err.code, message: err.message }, 'salon');
+      keepSalonHistory(payload, 'queued');
+      slEnd();
+      showHome();
+      toast('Bağlantı yok: kayıt kuyruğa alındı, bağlantı gelince gönderilecek.', 4500);
+    } else {
+      const c = await modal({ title: 'Kaydedilemedi', body: `<p>${esc(err.message)}</p><p class="muted">Hata kodu: ${esc(err.code)}</p>`, actions: [{ label: 'Tekrar dene', value: 'retry', cls: 'btn-primary' }, { label: 'Kuyruğa al, sonra dene', value: 'queue' }, { label: 'Özete dön', value: '' }] });
+      if (c === 'queue') { data.enqueue(payload, { code: err.code, message: err.message }, 'salon'); keepSalonHistory(payload, 'queued'); slEnd(); showHome(); }
+      else if (c === 'retry') { sl.saving = false; return saveSalonForm(); }
+    }
+  } finally {
+    sl.saving = false;
+    $('so-save').disabled = false;
+    $('so-save').textContent = 'Kaydet';
+  }
+}
+
+// --- Salon planlama (salon.puanla) ---------------------------------------------------
+// 1) Hedef: kas grubu dağılımı (son 4 hafta / tüm zaman) gösterilir, önceliğe sen karar
+//    verirsin (dokun: öncelik, ×2, kapalı); amaç, ekipman ve yüzme aktarım süzgeci.
+// 2) Hareket seç: puan = Σ(öncelik × etki) × aktarım; ağrılı hareket ⚠ ve yarım puan.
+// 3) Plan: sıra, set × tekrar (son yapılan + öneri), süre tahmini → İdmana başla.
+
+const STC_ADIM = [0, 0.5, 0.7, 0.85];
+
+function showSalonPlan() {
+  const d = salonData();
+  if (!d) { toast('Salon verisi yok. Bağlantıyı kontrol et.'); loadSalon(); return; }
+  sl.plan = { step: 0, oncelik: {}, amac: [], ekipman: [], stcMin: 0, secili: [], liste: [] };
+  show('salon-plan');
+  renderSalonPlan();
+}
+
+const grupAd = (g) => (GRUP[g] ? GRUP[g][0].charAt(0) + GRUP[g][0].slice(1).toLocaleLowerCase('tr') : g);
+const grupRenk = (g) => (GRUP[g] ? GRUP[g][1] : '#94A3B8');
+const planOpts = () => ({ oncelik: sl.plan.oncelik, amac: sl.plan.amac, ekipman: sl.plan.ekipman, stcMin: sl.plan.stcMin });
+
+function payBar(pay) {
+  return `<div class="sp-stk">${Object.entries(pay).sort((a, b) => b[1] - a[1]).map(([g, p]) => `<i data-bg="${grupRenk(g)}" data-grow="${Math.round(p * 100)}"></i>`).join('')}</div>`;
+}
+
+function sonText(r) {
+  if (!r) return 'Daha önce yapılmadı';
+  const reps = salon.parseSetler(r.aciklama);
+  return `Son: ${r.tarih.slice(8, 10)}.${r.tarih.slice(5, 7)} · ${r.set}×${reps ? Math.max(...reps) : fmtDec(r.tekrar)} @${r.agirlik === salon.VUCUT ? 'vücut' : fmtDec(r.agirlik)}${r.rpe != null ? ` · RPE ${fmtDec(r.rpe)}` : ''}${r.msi != null ? ` · MSI ${fmtDec(r.msi)}` : ''}`;
+}
+
+function renderSalonPlan() {
+  const P = sl.plan;
+  const d = salonData();
+  [...$('sp-steps').children].forEach((el, i) => el.classList.toggle('on', i <= P.step));
+  const body = $('sp-body');
+  const next = $('sp-next');
+  if (P.step === 0) {
+    $('sp-title').textContent = 'Salon idmanı planla';
+    const son4 = salon.dagilim(d.gecmis, d.etki, addDays(todayKey(), -28));
+    const tum = salon.dagilim(d.gecmis, d.etki);
+    const chips = (key, vals, fmt = (v) => v) => `<div class="es-chips">${vals.map((v) => `<button data-sp-chip="${key}" data-v="${esc(v)}" class="${(key === 'stc' ? P.stcMin === v : P[key].includes(v)) ? 'is-on' : ''}">${esc(fmt(v))}</button>`).join('')}</div>`;
+    const amaclar = [...new Set(d.katalog.map((k) => k.amac).filter(Boolean))].sort();
+    const ekipmanlar = [...new Set(d.katalog.map((k) => k.ekipman).filter(Boolean))].sort();
+    body.innerHTML = `
+      <p class="sp-lb">KAS GRUBU DAĞILIMI · dokun: öncelik ver</p>
+      <p class="sp-note">Çubuk son 4 hafta, çizgi tüm zaman ortalaması. Önceliğe sen karar verirsin.</p>
+      <div class="sp-kas">${salon.gruplar(d.etki).map((g) => {
+        const o = P.oncelik[g] || 0;
+        return `<button class="sp-k${o ? ' is-on' : ''}" data-sp-grup="${esc(g)}"><b>${esc(grupAd(g))}<em>${o === 2 ? 'ÖNCELİK ×2' : o ? 'ÖNCELİK' : ''}</em></b>
+          <span class="sp-bar"><i data-bg="${grupRenk(g)}" data-w="${Math.min(100, (son4[g] || 0) * 2.5)}"></i><s data-l="${Math.min(100, (tum[g] || 0) * 2.5)}"></s></span>
+          <small>son 4 hafta %${fmtDec(son4[g] || 0)} · tümü %${fmtDec(tum[g] || 0)}</small></button>`;
+      }).join('')}</div>
+      <p class="sp-lb">AMAÇ</p>${chips('amac', amaclar)}
+      <p class="sp-lb">YÜZMEYE ETKİ (en az)</p>${chips('stc', STC_ADIM, (v) => (v ? `≥ ${fmtDec(v)}` : 'Hepsi'))}
+      <p class="sp-lb">EKİPMAN</p>${chips('ekipman', ekipmanlar)}`;
+    next.textContent = `Hareketleri getir · ${salon.puanla(d, planOpts()).length} uygun`;
+  } else if (P.step === 1) {
+    $('sp-title').textContent = 'Hareket seç';
+    const rows = salon.puanla(d, planOpts());
+    body.innerHTML = `<p class="sp-note">Sıralama: öncelikli kas × hareketin etkisi × yüzme aktarımı. ⚠: son iki idmanda ağrı (MSI ≥ 1,5).</p>
+      ${rows.map((r) => `<button class="sp-ex${P.secili.includes(r.ad) ? ' is-on' : ''}" data-sp-ex="${esc(r.ad)}">
+        <span class="sp-sc"><b class="n">${r.puan}</b><small>PUAN</small></span>
+        <span class="sp-m"><b>${esc(r.ad)}${r.amac ? `<span class="sp-tag">${esc(r.amac.toLocaleUpperCase('tr'))}</span>` : ''}${r.oneri && r.oneri.warn ? ' <span class="warn">⚠</span>' : ''}</b>
+          ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))}</small></span>
+        ${r.video ? `<a class="sp-vid" href="${esc(r.video)}" target="_blank" rel="noopener noreferrer" aria-label="Video">▶</a>` : ''}
+        <span class="sp-add">${P.secili.includes(r.ad) ? '✓' : '+'}</span></button>`).join('') || '<p class="empty">Süzgeçlere uyan hareket yok.</p>'}`;
+    next.textContent = `Plana geç · ${P.secili.length} hareket`;
+    next.disabled = !P.secili.length;
+  } else {
+    $('sp-title').textContent = 'Plan';
+    if (P.liste.length !== P.secili.length || P.liste.some((x, i) => x.ad !== P.secili[i])) {
+      P.liste = P.secili.map((ad) => P.liste.find((x) => x.ad === ad) || salon.planHareket(d, ad, { bodyweight: (katalogOf(ad) || {}).ekipman === 'Bodyweight' }));
+    }
+    body.innerHTML = `<p class="sp-sum">${P.liste.length} hareket · ~${fmtDur(salon.tahminSn(P.liste))} <small>(set × (tekrar × 3 sn + 60 sn))</small></p>
+      ${P.liste.map((x, i) => {
+        const o = salon.oneri(d.gecmis, x.ad);
+        return `<div class="sp-pl"><span class="sp-n n">${i + 1}</span>
+          <span class="sp-m"><b>${esc(x.ad)}</b><small>${esc(grupAd(grupOf(x.ad)))}${o ? ` · öneri: <em class="${o.warn ? 'warn' : ''}">${esc(o.text)}</em>` : ''}</small></span>
+          <span class="sp-v n">${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}<small>${esc(fmtKg(x.agirlik))}</small></span>
+          <span class="sp-mv"><button data-sp-mv="${i}:-1" aria-label="Yukarı" ${i ? '' : 'disabled'}>↑</button><button data-sp-mv="${i}:1" aria-label="Aşağı" ${i < P.liste.length - 1 ? '' : 'disabled'}>↓</button><button data-sp-rm="${i}" aria-label="Çıkar">✕</button></span></div>`;
+      }).join('')}
+      <p class="sp-note">Set, tekrar ve ağırlık idmanda karta dokunup Düzenle ile değişir. Plan yalnızca telefonda tutulur.</p>`;
+    next.textContent = 'İdmana başla';
+    next.disabled = !P.liste.length;
+  }
+  if (P.step === 0) next.disabled = false;
+  paint(body);
+  for (const el of body.querySelectorAll('[data-w]')) el.style.width = `${el.dataset.w}%`;
+  for (const el of body.querySelectorAll('[data-l]')) el.style.left = `${el.dataset.l}%`;
+}
+
+function onSalonPlanClick(e) {
+  const P = sl.plan;
+  if (!P || e.target.closest('a')) return;
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.dataset.spGrup) {
+    const g = t.dataset.spGrup;
+    P.oncelik[g] = ((P.oncelik[g] || 0) + 1) % 3;
+  } else if (t.dataset.spChip) {
+    const key = t.dataset.spChip;
+    if (key === 'stc') P.stcMin = Number(t.dataset.v);
+    else P[key] = P[key].includes(t.dataset.v) ? P[key].filter((v) => v !== t.dataset.v) : [...P[key], t.dataset.v];
+  } else if (t.dataset.spEx) {
+    const ad = t.dataset.spEx;
+    P.secili = P.secili.includes(ad) ? P.secili.filter((x) => x !== ad) : [...P.secili, ad];
+  } else if (t.dataset.spMv) {
+    const [i, k] = t.dataset.spMv.split(':').map(Number);
+    const j = i + k;
+    [P.liste[i], P.liste[j]] = [P.liste[j], P.liste[i]];
+    P.secili = P.liste.map((x) => x.ad);
+  } else if (t.dataset.spRm) {
+    P.liste.splice(Number(t.dataset.spRm), 1);
+    P.secili = P.liste.map((x) => x.ad);
+  } else return;
+  const y = $('sp-body').scrollTop;
+  renderSalonPlan();
+  $('sp-body').scrollTop = y;
+}
+
+function onSalonPlanNext() {
+  const P = sl.plan;
+  if (P.step < 2) { P.step += 1; renderSalonPlan(); $('sp-body').scrollTop = 0; return; }
+  sl.ses = salon.newSession(todayKey(), P.liste.map((x) => ({ ...x })));
+  sl.ses.oncelik = { ...P.oncelik };
+  sl.plan = null;
+  slPersist();
+  openSalon();
+}
+
+function onSalonPlanBack() {
+  const P = sl.plan;
+  if (P && P.step > 0) { P.step -= 1; return renderSalonPlan(); }
+  showSalonStart();
+}
+
+/** İdmanda Değiştir (aynı kas grubundan) / Sonrasına ekle: puanlı liste. */
+async function pickHareket(ctx) {
+  const d = salonData();
+  if (!d) return toast('Salon verisi yok.');
+  const cur = slH()[ctx.h];
+  const g = grupOf(cur.ad);
+  const oncelik = ctx.mode === 'swap' ? (g ? { [g]: 1 } : {}) : (sl.ses.oncelik || {});
+  const rows = salon.puanla(d, { oncelik, haric: slH().map((x) => x.ad) }).slice(0, 20);
+  const body = document.createElement('div');
+  body.className = 'pick-list sp-pick';
+  body.innerHTML = rows.map((r) => `<button class="pick" data-value="${esc(r.ad)}"><b>${r.puan} · ${esc(r.ad)}${r.oneri && r.oneri.warn ? ' ⚠' : ''}</b><small>${esc(Object.keys(r.pay).map(grupAd).join(', '))} · ${esc(sonText(r.son))}</small></button>`).join('') || '<p class="empty">Uygun hareket yok.</p>';
+  const ad = await modal({
+    title: ctx.mode === 'swap' ? `${cur.ad} yerine (${grupAd(g) || 'aynı grup'})` : `${cur.ad} sonrasına ekle`,
+    body,
+    actions: [{ label: 'Vazgeç', value: '' }],
+  });
+  if (ad && sl.ses) slApplyPick(ctx, ad);
+}
+
+function wireSalon() {
+  $('home-gym').addEventListener('click', onHomeGym);
+  $('ss-back').addEventListener('click', showHome);
+  $('ss-body').addEventListener('click', onSalonStartClick);
+  $('sl-main').addEventListener('click', onSlMain);
+  $('sl-undo').addEventListener('click', onSlUndo);
+  $('sl-sound').addEventListener('click', () => { data.setPrefs({ ses: !prefs().ses }); refreshPrefs(); if (prefs().ses) audio.unlock(); slUpdate(); });
+  $('sl-back').addEventListener('click', onSlBack);
+  $('sl-devam').addEventListener('click', () => { slPush({ t: 'devam' }); slRefreshAll(); slTick(); });
+  $('sl-wheel').addEventListener('click', onSlWheelClick);
+  $('sl-detail').addEventListener('click', onSlDetailClick);
+  $('sl-edit').addEventListener('click', onSlEditClick);
+  $('sl-giris').addEventListener('click', onGirisClick);
+  $('so-back').addEventListener('click', onSoBack);
+  $('so-save').addEventListener('click', saveSalonForm);
+  $('sp-back').addEventListener('click', onSalonPlanBack);
+  $('sp-body').addEventListener('click', onSalonPlanClick);
+  $('sp-next').addEventListener('click', onSalonPlanNext);
+}
+
 function wire() {
   $('setup-save').addEventListener('click', saveSetup);
   $('setup-back').addEventListener('click', () => showHome());
@@ -2758,7 +3686,7 @@ function wire() {
     if (state.session) resumeSession();
     else if (state.homeNext) openDate(state.homeNext);
   });
-  $('home-gym').addEventListener('click', () => toast('Salon bölümü yakında.'));
+  wireSalon();
   $('home-history').addEventListener('click', showHistory);
   $('hist-back').addEventListener('click', () => showHome());
   $('hist-list').addEventListener('click', onHistoryClick);

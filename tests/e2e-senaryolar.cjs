@@ -676,8 +676,8 @@ sc('Gezinme: tüm geri tuşları, seanssız ve seanslı dönüş', async ({ laun
   await p.click('#home-settings'); await s.waitScreen('setup');
   assert.strictEqual(await p.textContent('#setup-title'), 'Ayarlar');
   await p.click('#setup-back'); await s.waitScreen('home');
-  await p.click('#home-gym', { force: true });
-  assert.strictEqual(await s.screen(), 'home');
+  await p.click('#home-gym'); await s.waitScreen('setup'); // salon kurulmadı → Ayarlar
+  await p.click('#setup-back'); await s.waitScreen('home');
   await s.openToday();
   await p.click('#prog-back'); await s.waitScreen('days');
   assert.strictEqual(await s.session(), null, 'başlanmamış seans silinir');
@@ -897,6 +897,172 @@ sc('Metin boyu alana uyar: kısa açıklama büyür, uzun açıklama küçülür
   }
 });
 
+// --- Salon (salon.js) ---------------------------------------------------------------------------
+const slText = (s, sel) => s.page.$eval(sel, (e) => e.textContent.replace(/\s+/g, ' ').trim());
+const slTitle = (s) => s.page.$eval('#sl-wheel .w-item.is-active .sl-ad', (e) => e.textContent.trim());
+const slPress = (s) => s.page.$eval('#sl-main', (b) => b.click());
+const slTap = async (s, sec) => { await slPress(s); if (sec) await s.adv(sec); };
+
+sc('Salon: kurulmadıysa Ayarlar; son idmanı tekrarla → BAŞLA/BİTTİ, tekrar ±, hareket sonu nabız·RPE·MSI, özet, idman sayfasına yazılır', async ({ launch }) => {
+  let s = await launch(); let p = s.page;
+  await s.waitScreen('home');
+  assert.strictEqual(await slText(s, '#home-gym-badge'), 'KURULMADI');
+  await p.click('#home-gym'); await s.waitScreen('setup');
+  await s.close();
+  s = await launch({ salon: true, ref: true }); p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
+  await p.waitForFunction(() => /Son idman/.test(document.getElementById('home-gym-desc').textContent));
+  await p.click('#home-gym'); await s.waitScreen('salon-start');
+  assert.match(await slText(s, '#ss-body'), /SON İDMAN · 20 EYLÜL.*Band Bent Over Row.*4 × 20 · 15 kg · RPE 7,5.*Standard Pull-up.*3 × 11-9-9 · Vücut · RPE 9,5 · MSI 1/);
+  await p.click('[data-ss="repeat"]'); await s.waitScreen('salon');
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  assert.strictEqual(await slTitle(s), 'Band Bent Over Row');
+  // Önerinin ağırlığı değil son yapılan gösterilir; öneri satırı +2,5 kg
+  assert.match(await slText(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 4 × 20 · 15 kg · Dinlen 1:30.*öneri: \+2,5 kg/);
+  assert.strictEqual(await p.getAttribute('#sl-wheel .w-item.is-active .sl-vid', 'href'), 'https://youtu.be/row1');
+  assert.strictEqual(await slText(s, '#sl-main-label'), 'BAŞLA');
+  assert.match(await slText(s, '#sl-main-sub'), /1\. set · idman başlar/);
+  for (let k = 0; k < 4; k++) {
+    await slTap(s, 30);
+    assert.strictEqual(await slText(s, '#sl-main-label'), 'BİTTİ');
+    if (k === 1) { await p.click('#sl-wheel .w-item.is-active [data-sl-rep="-1"]'); await p.click('#sl-wheel .w-item.is-active [data-sl-rep="-1"]'); }
+    await slPress(s);
+    if (k < 3) {
+      await s.adv(3);
+      assert.match(await slText(s, '#sl-wheel .w-item.is-active .w-timer'), new RegExp(`DİNLENME · ${k + 2}\\. SETE`));
+      await s.adv(60);
+    }
+  }
+  await p.waitForSelector('#sl-giris:not([hidden])');
+  assert.match(await slText(s, '#sg-body'), /SETLER\s*20-18-20-20\s*ORT\.\s*19,5/);
+  assert.match(await slText(s, '#sg-body'), /123 atım\/dk · geçen 123/);
+  await p.click('[data-sg-hr="1"]'); await p.click('[data-sg-hr="1"]');
+  await p.click('[data-sg="rpe"][data-v="8"]');
+  assert.match(await slText(s, '#sg-body'), /Zor, set sonlarında zorlanma\. \(sporRef\)/);
+  await p.click('[data-sg="msi"][data-v="0.5"]');
+  assert.match(await slText(s, '#sg-body'), /Hafif his\./);
+  await p.fill('#sg-not', 'Band yeşil');
+  assert.match(await slText(s, '#sg-save-sub'), /sıradaki: Standard Pull-up/);
+  await p.click('#sg-save');
+  await p.waitForFunction(() => document.querySelector('#sl-wheel .w-item.is-active .sl-ad').textContent.trim() === 'Standard Pull-up');
+  assert.match(await slText(s, '#sl-wheel .w-item.is-active .w-card'), /öneri: aynı ⚠/);
+  await p.waitForFunction(() => /^1\. set/.test(document.getElementById('sl-main-sub').textContent)); // kaydırma bitti
+  await s.adv(3); // çift dokunma koruması (2 sn) son BİTTİ'den sayılır
+  // Pull-up: 1 set yapılır, sonra idman ‹ ile bitirilir (giriş yapılmadı → boş yazılır)
+  await slTap(s, 40); await slPress(s); await s.adv(5);
+  await p.click('#sl-back'); await s.waitModal('Salon idmanı');
+  await s.modalClick('İdmanı bitir ve kaydet');
+  await s.waitScreen('salon-ozet');
+  assert.match(await slText(s, '#so-body'), /HAREKET\s*2\s*SET\s*5/);
+  assert.match(await slText(s, '#so-body'), /1 harekette RPE\/MSI girilmedi/);
+  await p.click('#so-save');
+  await s.waitScreen('home');
+  const I = s.envs.SALON.sheets.idman;
+  assert.strictEqual(I.data[0][10], 'Süre');
+  const rows = I.data.slice(1, 3).map((r) => r.slice(1, 10));
+  assert.deepStrictEqual(rows, [
+    [1, 'Band Bent Over Row', 4, 19.5, 15, 125, 8, 0.5, 'Setler: 20-18-20-20. Band yeşil'],
+    [2, 'Standard Pull-up', 1, 11, 'Vücut', '', '', '', 'Setler: 11'],
+  ]);
+  assert.ok(I.data[1][0] instanceof s.envs.SALON.CDate && I.data[1][0].toISOString().startsWith('2026-09-23'));
+  const sure = Math.round(I.data[1][10] * 86400);
+  assert.ok(sure >= 4 * 30 + 3 * 63 && sure < 4 * 31 + 3 * 64 + 3, `Row süresi ${sure}`);
+  assert.strictEqual(await s.ls('ysk.salonSession'), null);
+  const h = (await s.ls('ysk.history'))[0];
+  assert.strictEqual(h.tur, 'salon'); assert.strictEqual(h.status, 'sent');
+  await p.click('#home-history'); await s.waitScreen('history');
+  assert.match(await slText(s, '.hist-row.is-salon'), /Salon · Çarşamba Tabloda 2 hareket · 5 set/);
+});
+
+sc('Salon planlama: dağılım, öncelik, puanlı liste (⚠ ağrı), sıra, plan → idman; Değiştir aynı gruptan; Sil + Geri al; süreli hareket kendiliğinden biter', async ({ launch }) => {
+  const s = await launch({ salon: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
+  await p.click('#home-gym'); await s.waitScreen('salon-start');
+  await p.click('[data-ss="plan"]'); await s.waitScreen('salon-plan');
+  // Son 4 hafta (26.08 sonrası): Sırt = (4×0,8 + 3×0,6) / 10 set
+  assert.match(await slText(s, '[data-sp-grup="Back"]'), /Sırt.*son 4 hafta %50/);
+  await p.click('[data-sp-grup="Back"]');
+  assert.match(await slText(s, '[data-sp-grup="Back"]'), /ÖNCELİK/);
+  await p.click('[data-sp-grup="Core"]'); await p.click('[data-sp-grup="Core"]');
+  assert.match(await slText(s, '[data-sp-grup="Core"]'), /ÖNCELİK ×2/);
+  assert.match(await slText(s, '#sp-next'), /Hareketleri getir · 4 uygun/);
+  await p.click('#sp-next');
+  const names = await p.$$eval('.sp-ex', (e) => e.map((x) => x.querySelector('.sp-m b').firstChild.textContent.trim()));
+  // Plank: Core 1 × 2 × 0,9 · Lat: 0,9 × 0,85 · Row: 0,8 × 0,75 · Pull-up: 0,6 × 0,95
+  assert.deepStrictEqual(names, ['Front Plank', 'Band Lat Pulldown', 'Band Bent Over Row', 'Standard Pull-up']);
+  assert.match(await slText(s, '.sp-ex >> nth=3'), /⚠/, 'son seferde RPE 9,5');
+  assert.match(await slText(s, '.sp-ex >> nth=0'), /^100\s*PUAN/);
+  await p.click('[data-sp-ex="Band Bent Over Row"]'); await p.click('[data-sp-ex="Front Plank"]'); await p.click('[data-sp-ex="Band Lat Pulldown"]');
+  await p.click('#sp-next');
+  assert.match(await slText(s, '#sp-body'), /3 hareket · ~/);
+  assert.match(await slText(s, '.sp-pl >> nth=0'), /Band Bent Over Row.*4 × 20.*17,5 kg/, 'öneri uygulanır (+2,5 kg)');
+  assert.match(await slText(s, '.sp-pl >> nth=1'), /Front Plank.*3 × 30 sn.*Vücut/);
+  await p.click('[data-sp-mv="1:-1"]');
+  await p.click('#sp-next'); await s.waitScreen('salon');
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  let ses = await s.ls('ysk.salonSession');
+  assert.deepStrictEqual(ses.hareketler.map((x) => x.ad), ['Front Plank', 'Band Bent Over Row', 'Band Lat Pulldown']);
+  // Değiştir: Lat Pulldown yerine aynı gruptan (Sırt) puanlı liste
+  await s.goTo(2, '#sl-wheel');
+  await p.click('#sl-wheel .w-item.is-active .w-card');
+  await p.waitForSelector('#sl-detail:not([hidden])');
+  await p.click('#sl-detail [data-sact="swap"]');
+  await s.waitModal('Band Lat Pulldown yerine');
+  const opts = await p.$$eval('#modal-body .pick b', (e) => e.map((x) => x.textContent));
+  assert.ok(opts.length === 1 && /Standard Pull-up/.test(opts[0]), JSON.stringify(opts));
+  await p.click('#modal-body .pick');
+  await p.waitForFunction(() => document.querySelector('#sl-wheel .w-item.is-active .sl-ad').textContent.trim() === 'Standard Pull-up');
+  // Sil + Geri al
+  await p.click('#sl-wheel .w-item.is-active .w-card');
+  await p.click('#sl-detail [data-sact="del"]');
+  await p.waitForFunction(() => document.querySelectorAll('#sl-wheel .w-item').length === 2);
+  await p.click('#toast .toast-act');
+  await p.waitForFunction(() => document.querySelectorAll('#sl-wheel .w-item').length === 3);
+  // Süreli hareket (Plank 30 sn): BAŞLA → geri sayım → kendiliğinden biter
+  await s.goTo(0, '#sl-wheel');
+  await slTap(s, 10);
+  assert.match(await slText(s, '#sl-wheel .w-item.is-active .w-timer'), /1\. SET · SÜRE\s*0:2\d/);
+  await s.adv(21);
+  assert.strictEqual(await slText(s, '#sl-main-label'), 'BAŞLA', 'set kendiliğinden bitti');
+  ses = await s.ls('ysk.salonSession');
+  const ev = ses.events.filter((e) => e.t !== 'mola');
+  assert.deepStrictEqual(ev.map((e) => e.t), ['set', 'bitti']);
+  assert.strictEqual(ev[1].ts - ev[0].ts, 30000, 'bitiş = başlangıç + 30 sn');
+  // Başlanan hareket silinemez / değiştirilemez
+  await p.click('#sl-wheel .w-item.is-active .w-card');
+  assert.ok(await p.isDisabled('#sl-detail [data-sact="del"]'));
+  assert.ok(await p.isDisabled('#sl-detail [data-sact="swap"]'));
+});
+
+sc('Salon: bağlantı yokken kayıt kuyruğa alınır, bağlantı gelince saveSalon ile gönderilir', async ({ launch }) => {
+  const s = await launch({ salon: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
+  await p.click('#home-gym'); await s.waitScreen('salon-start');
+  await p.click('[data-ss="repeat"]'); await s.waitScreen('salon');
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  await slTap(s, 20); await slPress(s); await s.adv(3);
+  await p.click('#sl-back'); await s.modalClick('İdmanı bitir ve kaydet');
+  await s.waitScreen('salon-ozet');
+  s.net.offline = true;
+  await p.click('#so-save');
+  await s.waitScreen('home');
+  assert.match(await slText(s, '#toast'), /kuyruğa alındı/);
+  const q = await s.ls('ysk.queue');
+  assert.strictEqual(q.length, 1); assert.strictEqual(q[0].tur, 'salon');
+  assert.match(await slText(s, '#home-history-meta'), /1 gönderilmeyi bekliyor/);
+  s.net.offline = false;
+  await p.evaluate(() => window.dispatchEvent(new Event('online')));
+  await p.waitForFunction(() => JSON.parse(localStorage.getItem('ysk.queue') || '[]').length === 0, null, { timeout: 8000 });
+  assert.ok(s.net.calls.includes('saveSalon'));
+  assert.strictEqual(s.envs.SALON.sheets.idman.data[1][2], 'Band Bent Over Row');
+  assert.strictEqual((await s.ls('ysk.history'))[0].status, 'sent');
+});
+
+
+
 // --- İdman anında düzenleme (duzen.js) ------------------------------------------------------
 const openDet = async (s) => { await s.page.click('.w-item.is-active .w-card'); await s.page.waitForSelector('#detail:not([hidden])'); };
 const dact = async (s, act) => { await openDet(s); await s.page.click(`#detail [data-dact="${act}"]`); };
@@ -1062,6 +1228,43 @@ sc('Tek basışla başlangıç: ilk YÜZ idmanı başlatır; geri al ikisini bir
   assert.strictEqual(await s.sub(), 'Son tekrar · set biter');
 });
 
+sc('Düzen (salon): 320–430 px başlangıç, planlama, idman, giriş, özet; yatay taşma yok, kart içeriği karta sığar', async ({ launch }) => {
+  for (const vp of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 430, height: 932 }]) {
+    const s = await launch({ viewport: vp, salon: true }); const p = s.page;
+    const check = async (name) => {
+      await p.waitForTimeout(250);
+      const r = await p.evaluate(() => {
+        const W = document.documentElement.clientWidth; const bad = [];
+        for (const el of document.querySelectorAll('.screen:not([hidden]) *')) {
+          const b = el.getBoundingClientRect(); if (!b.width || el.closest('[hidden]')) continue;
+          if (el.closest('.w-item:not(.is-active)')) continue;
+          if (b.right > W + 1 || b.left < -1) bad.push(`${el.tagName}#${el.id}.${String(el.className).slice(0, 30)} ${Math.round(b.left)}-${Math.round(b.right)}`);
+        }
+        const card = document.querySelector('.screen:not([hidden]) .w-item.is-active .w-card');
+        return { sw: document.documentElement.scrollWidth, bad: bad.slice(0, 3), over: card ? card.scrollHeight - card.clientHeight : 0 };
+      });
+      assert.ok(r.sw <= vp.width && !r.bad.length && r.over <= 1, `${vp.width}px ${name}: ${JSON.stringify(r)}`);
+    };
+    await s.waitScreen('home');
+    await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
+    await p.click('#home-gym'); await s.waitScreen('salon-start'); await check('salon başlangıç');
+    await p.click('[data-ss="plan"]'); await s.waitScreen('salon-plan'); await check('planlama hedef');
+    await p.click('#sp-next'); await check('planlama liste');
+    await p.click('[data-sp-ex="Standard Pull-up"]'); await p.click('[data-sp-ex="Front Plank"]');
+    await p.click('#sp-next'); await check('plan');
+    await p.click('#sp-next'); await s.waitScreen('salon'); await p.waitForSelector('#sl-wheel .w-item.is-active'); await check('salon hazır');
+    await slTap(s, 20); await check('salon set');
+    await slPress(s); await s.adv(5); await check('salon dinlenme');
+    await p.click('#sl-wheel .w-item.is-active .w-tag'); await p.waitForSelector('#sl-detail:not([hidden])'); await check('salon ayrıntı');
+    await p.click('#sl-detail .dt-hint');
+    for (let k = 0; k < 2; k++) { await s.adv(60); await slTap(s, 20); await slPress(s); }
+    await p.waitForSelector('#sl-giris:not([hidden])'); await check('hareket sonu');
+    await p.click('#sg-save');
+    await p.click('#sl-back'); await s.modalClick('İdmanı bitir ve kaydet'); await s.waitScreen('salon-ozet'); await check('salon özet');
+    await s.close();
+  }
+});
+
 sc('Düzen: 320, 375 ve 430 px genişlikte tüm ekranlarda yatay taşma yok, düğmeler büyük', async ({ launch }) => {
   for (const vp of [{ width: 320, height: 568 }, { width: 375, height: 667 }, { width: 430, height: 932 }]) {
     const s = await launch({ viewport: vp }); const p = s.page;
@@ -1090,8 +1293,10 @@ sc('Düzen: 320, 375 ve 430 px genişlikte tüm ekranlarda yatay taşma yok, dü
       return { t: e.textContent, sw: e.scrollWidth, cw: e.clientWidth, in: b.left >= o.left && b.right <= o.right, fs: parseFloat(getComputedStyle(e).fontSize) };
     });
     assert.ok(fit.t === 'YÜZ' && fit.sw <= fit.cw + 1 && fit.in && fit.fs >= 18, `${vp.width}px düğme yazısı sığmalı: ${JSON.stringify(fit)}`);
-    await s.press(); await s.adv(70); await check('program yüzerken');
-    await s.press(); await s.adv(30); await check('program dinlenme (eksi)');
+    await s.press(); await p.waitForFunction(() => document.getElementById('btn-main-label').textContent === 'DUR');
+    await s.adv(70); await check('program yüzerken');
+    await s.press(); await p.waitForFunction(() => document.getElementById('btn-main-label').textContent !== 'DUR');
+    await s.adv(30); await check('program dinlenme (eksi)');
     await p.click('#prog-back'); await s.modalClick('İdmanı bitir ve kaydet'); await s.waitScreen('rpe'); await check('RPE');
     await p.click('#rpe-grid button[data-v="7"]'); await s.waitScreen('msi'); await check('MSI');
     await p.click('#msi-body button[data-bolge="sag omuz"]'); await p.click('#msi-next'); await s.waitScreen('ozet'); await check('özet');

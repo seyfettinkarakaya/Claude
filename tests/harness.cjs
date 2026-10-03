@@ -54,10 +54,38 @@ function sampleRef() {
   };
 }
 
+/** Örnek SalonTakip: 4 hareket (Plank süreli), son idman 20 Eylül (Row + Pull-up). */
+function sampleSalon(extraIdman = []) {
+  const IDMAN_H = ['Tarih', 'No', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Nabız', 'RPE', 'MSI', 'Açıklama'];
+  return {
+    idman: new Sheet('idman', IDMAN_H, [
+      ...extraIdman,
+      [D('2026-09-20'), 1, 'Band Bent Over Row', 4, 20, 15, 123, 7.5, 0, ''],
+      [D('2026-09-20'), 2, 'Standard Pull-up', 3, 9.666666667, 'Vücut', 142, 9.5, 1, 'Setler: 11-9-9'],
+      [D('2026-09-01'), 1, 'Band Chest Fly', 3, 15, 10, '', 7, 0, ''],
+    ]),
+    H: new Sheet('H', ['Exercise', 'Goal Tag', 'Equipment', 'BW Coefficient', 'Swim Transfer Coefficient', 'Video'], [
+      ['Band Bent Over Row', 'Rehab', 'Band', '—', 0.75, 'https://youtu.be/row1'],
+      ['Standard Pull-up', 'Strength', 'Bodyweight', 0.95, 0.95, ''],
+      ['Band Chest Fly', 'Rehab', 'Band', '—', 0.7, ''],
+      ['Front Plank', 'Strength', 'Bodyweight', 0.6, 0.9, ''],
+      ['Band Lat Pulldown', 'Rehab', 'Band', '—', 0.85, ''],
+    ]),
+    hkEtki: new Sheet('hkEtki', ['Exercise', 'Muscle Group', 'Muscle', 'Kinetic Chain', 'Yük Etki Oranı'], [
+      ['Band Bent Over Row', 'Back', 'Rhomboids', 'Upper Pull', 0.8], ['Band Bent Over Row', 'Arms', 'Biceps', 'Upper Pull', 0.2],
+      ['Standard Pull-up', 'Back', 'Latissimus Dorsi', 'Upper Pull', 0.6], ['Standard Pull-up', 'Arms', 'Biceps', 'Upper Pull', 0.4],
+      ['Band Chest Fly', 'Chest', 'Pectoralis', 'Upper Push', 1], ['Front Plank', 'Core', 'Rectus Abdominis', 'Stability', 1],
+      ['Band Lat Pulldown', 'Back', 'Latissimus Dorsi', 'Upper Pull', 0.9], ['Band Lat Pulldown', 'Arms', 'Biceps', 'Upper Pull', 0.1],
+    ]),
+    ref: new Sheet('ref', ['Parametre', 'Değer -1', 'Değer - 2', 'Değer - 3'], [['BW', D('2025-01-01'), D('2026-12-31'), 90]]),
+  };
+}
+
 async function launch(opts = {}) {
   const env = makeEnv({ Plan: new Sheet('Plan', PLAN_H, opts.rows || samplePlan()), eski: new Sheet('eski', ESKI_H), seans: new Sheet('seans', SEANS_H) });
   const envs = { TEST: env, REF: makeEnv(opts.refSheets || sampleRef(), 'refkey', 'SporRef.gs') };
-  if (opts.salonSheets) envs.SALON = makeEnv(opts.salonSheets, 'salonkey', 'Salon.gs');
+  const salonSheets = opts.salonSheets || (opts.salon ? sampleSalon() : null);
+  if (salonSheets) envs.SALON = makeEnv(salonSheets, 'salonkey', 'Salon.gs');
   const net = { offline: Boolean(opts.offline), delay: {}, override: null, calls: [], external: [] };
   const browser = opts.browser;
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 440, height: 956 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
@@ -94,7 +122,7 @@ async function launch(opts = {}) {
   if (opts.configured !== false) {
     const cfg = { apiUrl: API, token: 'secret' };
     if (opts.ref) cfg.ref = { apiUrl: REF_API, token: 'refkey' };
-    if (opts.salonSheets) cfg.salon = { apiUrl: SALON_API, token: 'salonkey' };
+    if (salonSheets) cfg.salon = { apiUrl: SALON_API, token: 'salonkey' };
     await page.evaluate((c) => localStorage.setItem('ysk.config', JSON.stringify(c)), cfg);
     if (opts.storage) await page.evaluate((s) => { for (const [k, v] of Object.entries(s)) localStorage.setItem(k, JSON.stringify(v)); }, opts.storage);
     await page.reload();
@@ -147,7 +175,7 @@ function helpers(page) {
       await page.click('#msi-none');
       await h.waitScreen('ozet');
     },
-    activeIdx: () => page.evaluate(() => [...document.querySelectorAll('.w-item')].findIndex((e) => e.classList.contains('is-active'))),
+    activeIdx: (sel = '#wheel') => page.evaluate((w) => [...document.querySelectorAll(`${w} .w-item`)].findIndex((e) => e.classList.contains('is-active')), sel),
     center: (sel) => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }),
     async tapAt(p) { await page.mouse.click(p.x, p.y); },
     async modalClick(label) { await page.click(`#modal-actions button:has-text("${label}")`); },
@@ -161,15 +189,15 @@ function helpers(page) {
       await h.waitScreen('program');
       await page.waitForSelector('.w-item.is-active');
     },
-    async goTo(target) {
-      const r = await h.center('#wheel');
+    async goTo(target, sel = '#wheel') {
+      const r = await h.center(sel);
       await page.mouse.move(r.x, r.y);
-      for (let k = 0; k < 20 && (await h.activeIdx()) !== target; k++) {
-        await page.mouse.wheel(0, (await h.activeIdx()) > target ? -60 : 60);
+      for (let k = 0; k < 20 && (await h.activeIdx(sel)) !== target; k++) {
+        await page.mouse.wheel(0, (await h.activeIdx(sel)) > target ? -60 : 60);
         await page.waitForTimeout(420);
       }
       await page.waitForTimeout(350);
-      if ((await h.activeIdx()) !== target) throw new Error(`tekerlek ${target}. sete gelmedi`);
+      if ((await h.activeIdx(sel)) !== target) throw new Error(`tekerlek ${target}. sete gelmedi`);
     },
     async hold(sel, ms) {
       const p = await h.center(sel);
@@ -206,4 +234,4 @@ async function runScenarios(title, scenarios, port) {
   if (failed) process.exit(1);
 }
 
-module.exports = { launch, runScenarios, prow, samplePlan, sampleRef, API, REF_API, SALON_API, D };
+module.exports = { launch, runScenarios, prow, samplePlan, sampleRef, sampleSalon, API, REF_API, SALON_API, D };
