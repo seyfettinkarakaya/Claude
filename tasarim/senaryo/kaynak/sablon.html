@@ -1,0 +1,162 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Salon senaryosu</title><style>/*FONTS*/
+/*MB*/
+:root{--bg:#0B0F14;--panel:#12181F;--p2:#141B23;--line:#1E2731;--tx:#EDEFF2;--mu:#7A8694;--acc:#FFD23F;--amb:#F5A524;--teal:#2DD4BF;--blue:#60A5FA;--ok:#3DDC84;--warn:#ffb020;--red:#F87171}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:Archivo,system-ui,sans-serif;line-height:1.45}
+.n{font-family:'Barlow Condensed',Archivo,sans-serif;font-weight:700;font-variant-numeric:tabular-nums}
+main{max-width:1180px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:30px;font-weight:800;letter-spacing:-.4px;line-height:1.15}
+.lead{color:var(--mu);font-size:16px;margin-top:8px;max-width:760px}
+.key{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.key span{font-size:12px;font-weight:800;letter-spacing:1px;padding:5px 10px;border-radius:8px}
+.k-y{background:rgba(245,165,36,.15);color:var(--amb)} .k-m{background:#1C252F;color:#AEB8C4} .k-g{background:rgba(96,165,250,.14);color:var(--blue)}
+h2.sec{font-size:22px;font-weight:800;margin:44px 0 6px} .sec-sub{color:var(--mu);font-size:15px;margin-bottom:16px;max-width:780px}
+h3.when{grid-column:1/-1;font-size:14px;font-weight:800;letter-spacing:1.6px;color:var(--mu);text-transform:uppercase;margin:18px 0 -4px;display:flex;align-items:center;gap:10px}
+h3.when::after{content:'';flex:1;height:1px;background:var(--line)}
+.flow{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:26px 22px;margin-top:18px;justify-items:center}
+.st{width:320px;display:flex;flex-direction:column;gap:12px}
+.frame{width:300px;height:626px;border-radius:30px;overflow:hidden;border:10px solid #1A2129;box-shadow:0 0 0 1px #2A333D,0 18px 40px rgba(0,0,0,.45);background:var(--bg);margin:0 auto;position:relative}
+.frame>img{display:block;width:280px;height:auto}
+.st.yeni .frame{border-color:#3A2A10;box-shadow:0 0 0 1px rgba(245,165,36,.55),0 18px 40px rgba(0,0,0,.45)}
+.st.guncel .frame{border-color:#16263A}
+figcaption>b{display:flex;align-items:center;gap:8px;font-size:17px;margin-top:4px}
+figcaption p{font-size:14px;color:#B5BFCA;margin-top:4px}
+.num{width:24px;height:24px;border-radius:12px;background:#222C37;font-size:13px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.lab{font-size:11px;font-weight:800;letter-spacing:1.2px;padding:3px 8px;border-radius:6px;background:#1C252F;color:#AEB8C4}
+.yeni .lab{background:rgba(245,165,36,.15);color:var(--amb)} .guncel .lab{background:rgba(96,165,250,.14);color:var(--blue)}
+.nw{color:var(--amb);font-weight:800} .fx{color:var(--red);font-weight:800}
+/* --- telefon taslakları (390 × 844, çerçevede ölçekli) --- */
+.ph{width:390px;height:844px;transform:scale(.71795);transform-origin:0 0;padding:18px 16px;overflow:hidden;position:relative;font-size:15px}
+.ph .top{display:flex;justify-content:space-between;align-items:center}.logo{font-size:24px;font-weight:800}.gear{width:44px;height:44px;border-radius:14px;background:var(--p2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--mu);font-size:20px}
+.date{color:var(--mu);font-weight:700;margin-top:18px}.hero{font-size:34px;line-height:1.08;font-weight:800;margin:4px 0 16px}
+.hc{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:14px 16px;margin-bottom:12px;position:relative}
+.hc.gym{border-left:4px solid var(--amb)}.hc.swim{border-left:4px solid var(--teal)}
+.hc-hd{display:flex;align-items:center;gap:10px}.hc-hd b{font-size:22px;font-weight:800}.hc-hd .meta{margin-left:auto;color:var(--mu);font-size:13px;font-weight:700}
+.ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900}.ic.t{background:rgba(45,212,191,.15);color:var(--teal)}.ic.a{background:rgba(245,165,36,.15);color:var(--amb);font-size:13px}
+.badge{margin-left:auto;font-size:11px;font-weight:900;letter-spacing:1px;padding:4px 8px;border-radius:7px;background:rgba(245,165,36,.16);color:var(--amb)}.badge.ok{background:rgba(61,220,132,.14);color:var(--ok)}
+.gym-row{display:flex;gap:12px;margin-top:12px;align-items:center}.gym-tx{flex:1;min-width:0}
+.pri{font-weight:800;font-size:14px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.big{font-size:24px;margin-top:4px}.mu{color:var(--mu);font-size:13px;font-weight:600}.sm{font-size:12px}
+.segbar{display:flex;gap:3px;height:6px;margin-top:12px}.segbar i{border-radius:3px}
+.hc-btns{display:flex;gap:10px;margin-top:14px}
+button{font:inherit;border:0;cursor:default}
+.go{flex:1.4;height:54px;border-radius:16px;background:var(--amb);color:#1A0E04;font-size:18px;font-weight:800}.go.t{background:var(--teal);color:#062a26}
+.ghost{flex:1;height:54px;border-radius:16px;background:var(--p2);border:1px solid var(--line);color:var(--tx);font-size:17px;font-weight:800}.ghost.w{flex:1}
+.alt{font-size:12px;color:var(--mu);margin-top:10px;font-weight:600}.alt.c{text-align:center}
+.hist{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;font-weight:800;font-size:17px;display:flex;justify-content:space-between}
+.hist span{color:var(--mu)}
+.gd{width:10px;height:10px;border-radius:5px;display:inline-block;flex:none;margin-right:2px}
+.hd{display:flex;align-items:center;gap:12px}.hd b{font-size:24px;font-weight:800}.bk{width:46px;height:46px;border-radius:14px;background:var(--p2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:24px}
+.hd .vid{margin-left:auto;font-size:13px;color:var(--mu);font-weight:800}
+.steps{display:flex;gap:6px;margin:14px 0 12px}.steps i{flex:1;height:4px;border-radius:2px;background:#232C37}.steps i.on{background:var(--amb)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.ch{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 11px;border-radius:16px;background:var(--p2);border:1.5px solid var(--line);font-size:13px;font-weight:800}.ch.on{border-color:var(--amb)}
+.note{font-size:12px;color:var(--mu);font-weight:600;margin:10px 0}
+.ex{display:flex;gap:10px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:8px 10px 8px 8px;margin-bottom:8px}.ex.on{border-color:rgba(245,165,36,.7)}
+.ex-m{flex:1;min-width:0}.ex-m b{font-size:15px;display:block;line-height:1.2}.tag{font-size:10px;font-weight:900;letter-spacing:1px;color:var(--mu)}
+.pay{display:flex;gap:2px;height:5px;margin:5px 0}.pay i{border-radius:3px}
+.ex-m small{display:block;font-size:11.5px;color:var(--mu);font-weight:600;line-height:1.3}.ex-m small.ok{color:var(--ok)}.ex-m small.warn{color:var(--warn)}
+.ex-r{display:flex;flex-direction:column;align-items:center;gap:2px;width:52px}.sc{font-size:28px;line-height:1}.ex-r small{font-size:9px;font-weight:900;color:var(--mu);letter-spacing:1px}
+.add{width:34px;height:34px;border-radius:17px;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:900;margin-top:4px}.ex.on .add{background:var(--amb);border-color:var(--amb);color:#1A0E04}
+.tray{position:absolute;left:12px;right:12px;bottom:14px;display:flex;align-items:center;gap:10px;background:#1A2230;border:1px solid #2A3644;border-radius:20px;padding:8px 8px 8px 10px;box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+.tray b{font-size:15px;display:block}.tray small{font-size:11px;color:var(--mu);font-weight:700}.tray>div:nth-child(2){flex:1}.tray .go{flex:none;height:46px;padding:0 14px;font-size:15px}
+.cover,.heat{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:10px 12px;margin-bottom:8px}
+.cv-tx p{font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}.cv-tx b{margin-left:auto}.lb{font-size:11px!important;font-weight:900!important;letter-spacing:1.4px;color:var(--mu)}
+.cover .cv-tx,.heat .cv-tx{flex:1}
+.pl{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px 10px;margin-bottom:7px}
+.grip{color:#4A5563;font-size:18px}.pn{font-size:20px;width:16px;color:var(--mu)}.pl-m{flex:1;min-width:0}.pl-m b{font-size:14.5px;display:block;line-height:1.2}.pl-m small{font-size:11.5px;color:var(--mu);font-weight:600;display:flex;align-items:center;gap:3px;flex-wrap:wrap}.pl-m em{font-style:normal;color:var(--ok)}
+.pl-v{text-align:right;font-size:20px;line-height:1.05}.pl-v small{display:block;font-size:12px;color:var(--mu)}
+.foot2{position:absolute;left:16px;right:16px;bottom:38px;display:flex;gap:10px}.foot1{position:absolute;left:16px;right:16px;bottom:18px;display:flex}
+.foot2+.alt{position:absolute;left:0;right:0;bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 8px}.stats div{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 10px}
+.stats small{font-size:10px;font-weight:900;letter-spacing:1px;color:var(--mu)}.stats b{display:block;font-size:24px}.stats b span{font-size:13px;color:var(--mu);margin-left:2px}
+.pr{background:linear-gradient(135deg,rgba(255,210,63,.14),rgba(245,165,36,.06));border:1px solid rgba(255,210,63,.35);border-radius:16px;padding:10px 12px;margin-bottom:8px}
+.pr>b{font-size:15px}.pr p{font-size:13.5px;margin-top:3px}.pr p span{color:var(--mu);font-size:12px;margin-left:6px}
+.cmp{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin-bottom:8px}.cmp p{font-size:13.5px}.up{color:var(--ok)}
+.list p{font-size:12.5px;color:#C2CBD5;display:flex;align-items:center;gap:5px;padding:3px 2px}.list b{color:var(--tx)}
+/* mini vücut */
+.mb{position:relative;background-size:100% 100%;flex:none}
+.mb i{position:absolute;inset:0;background-size:100% 100%;-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.b2{display:flex;gap:2px;flex:none}.b2 .mb{height:150px}.b2.sm .mb{height:112px}.b2.tiny .mb{height:46px}
+.mb.xs{height:92px}.mb.xxs{height:56px}
+/* öneri ve eksik bölümleri */
+.rec{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.rc{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.rc h4{font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.rc .app{font-size:11px;font-weight:900;letter-spacing:1px;color:var(--teal);background:rgba(45,212,191,.1);padding:3px 7px;border-radius:6px}
+.rc .pri{margin-left:auto;font-size:11px;font-weight:900;letter-spacing:1px;padding:3px 7px;border-radius:6px}.p1{background:rgba(245,165,36,.16);color:var(--amb)}.p2{background:rgba(96,165,250,.14);color:var(--blue)}.p3{background:#1C252F;color:#AEB8C4}
+.rc p{font-size:14px;color:#B5BFCA;margin-top:6px}.rc p b{color:var(--tx)}
+.gaps{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+.gaps ol{padding-left:22px}.gaps li{margin-bottom:12px;font-size:15px;color:#C2CBD5}.gaps li b{color:var(--tx)}
+.ev{position:sticky;top:12px}.ev img{width:100%;border-radius:18px;border:1px solid var(--line)}.ev p{font-size:12px;color:var(--mu);margin-top:6px}
+.safe{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:16px;padding:16px 18px}
+.safe li{margin:0 0 8px 20px;font-size:15px;color:#C2CBD5}.safe li b{color:var(--tx)}
+.tests{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 14px}.tests span{font-size:12.5px;font-weight:700;padding:5px 9px;border-radius:8px;background:rgba(61,220,132,.1);color:var(--ok)}
+.q{background:var(--panel);border:1px solid rgba(245,165,36,.4);border-radius:16px;padding:14px 16px;margin-bottom:10px;font-size:15px}.q b{color:var(--amb)}.q p{color:#B5BFCA;font-size:14px;margin-top:4px}
+.src{font-size:13px;color:var(--mu);margin-top:30px}.src a{color:#9FB3C8}
+@media (max-width:700px){.gaps{grid-template-columns:1fr}.ev{position:static;max-width:300px}h1{font-size:25px}.rec{grid-template-columns:1fr}}
+</style></head><body><main>
+<h1>Salon · baştan sona senaryo</h1>
+<p class="lead">Salı akşamı ertesi günün salon idmanını planlıyorsun, Çarşamba sabahı salonda tek dokunuşla başlıyorsun. Konuştuğumuz yeni ekranlar mevcut uygulamanın yanına, onu bozmadan ekleniyor.</p>
+<div class="key"><span class="k-m">MEVCUT · bugünkü uygulama, gerçek ekran</span><span class="k-g">MEVCUT + EK · küçük ekleme/düzeltme</span><span class="k-y">YENİ · konuştuklarımız, taslak</span></div>
+
+<h2 class="sec">Akış</h2>
+<p class="sec-sub">Mevcut ekranlar sahte Apps Script verisiyle çalışan uygulamadan alındı; yeni ekranlar aynı görsel dille çizilmiş taslaklar. Kas haritası v27 prototipinin kendisi.</p>
+<div class="flow">
+<!--AKIS-->
+</div>
+
+<h2 class="sec">Popüler uygulamalardan öneriler</h2>
+<p class="sec-sub">Hevy, Strong ve Fitbod'da öne çıkan ve bize uyan özellikler. Sıralama: önce konuştuklarımızı tamamlayanlar.</p>
+<div class="rec">
+  <div class="rc"><h4><span class="app">FITBOD</span>Kas toparlanma haritası<span class="pri p1">YÜKSEK</span></h4>
+    <p>Fitbod her kası %0–100 toparlanmış sayar, sıradaki idmanı hazır kaslara yönlendirir. <b>Bizde:</b> kas dağılımı (4 hafta / tümü) var, toparlanma yok. <b>Öneri:</b> kas haritasında "dinleniyor" durumu (son çalışmadan geçen süre + yük); öneri listesinde yorgun kas geride; ana ekranda "sıradaki öneri". Karar yine sende (öncelik).</p></div>
+  <div class="rc"><h4><span class="app">HEVY · STRONG</span>Kayıtlı rutin, tek dokunuşla başlat<span class="pri p1">YÜKSEK</span></h4>
+    <p>Rutin kaydedilir, salonda doğrudan başlatılır. <b>Bizde:</b> plan yalnızca planlama sırasında yaşıyor. <b>Öneri:</b> Planda <b>Kaydet</b> → ana sayfada "Hazır plan" + <b>İdmana başla</b> (adım 6). Sonra: adlandırılmış birkaç rutin ("Omuz-Core A").</p></div>
+  <div class="rc"><h4><span class="app">FITBOD</span>Otomatik ilerleme<span class="pri p1">YÜKSEK</span></h4>
+    <p>Fitbod ağırlığı/tekrarı geçmişe göre kendisi artırır. <b>Bizde:</b> öneri hesaplanıyor (+2,5 kg / +1 tekrar / ⚠ ağrıda aynı kal) ama son idman tekrarında uygulanmıyor. <b>Öneri:</b> tekrar edilen idmanda da uygula, kartta "öneri uygulandı · geri al"; ⚠ varsa uygulama.</p></div>
+  <div class="rc"><h4><span class="app">HEVY · STRONG</span>Rekor (PR) bildirimi<span class="pri p2">ORTA</span></h4>
+    <p>Hevy set bittiği anda rekoru gösterir. <b>Bizde:</b> yok. <b>Öneri:</b> en ağır, en çok tekrar, en uzun süre, tahmini 1RM; hareket sonunda 🏆 rozeti, özette rekor listesi. Veri zaten idman sayfasında.</p></div>
+  <div class="rc"><h4><span class="app">FITBOD</span>İdman sonrası kas ısı haritası<span class="pri p2">ORTA</span></h4>
+    <p>Özet ekranında bugün çalışan kaslar yük oranında renklenir (adım 12). Toplam hacim ve geçen benzer idmanla kıyas.</p></div>
+  <div class="rc"><h4><span class="app">STRONG · HEVY</span>Hareket ilerleme grafiği<span class="pri p2">ORTA</span></h4>
+    <p>Hareketin geçmişi grafikle. <b>Bizde:</b> yalnızca "Son" satırı. <b>Öneri:</b> kart ayrıntısında son 8 idmanın ağırlık × tekrar mini grafiği ve RPE/MSI noktaları.</p></div>
+  <div class="rc"><h4><span class="app">HEVY</span>Kilit ekranında dinlenme<span class="pri p3">SONRA</span></h4>
+    <p>Hevy'de Live Activity widget'ı var. Web uygulaması (PWA) bunu yapamaz. <b>Yakın karşılığı:</b> dinlenme bitince bildirim (Android ve ana ekrana eklenmiş iOS 16.4+). Bizde ses + titreşim zaten var.</p></div>
+  <div class="rc"><h4><span class="app">HEVY</span>Süperset<span class="pri p3">SONRA</span></h4>
+    <p>İki hareket art arda, dinlenme turun sonunda. Bant çalışmalarında işe yarar; çark ve kayıt mantığına dokunduğu için ayrı sürüm.</p></div>
+  <div class="rc"><h4><span class="app">STRONG</span>Isınma seti<span class="pri p3">SONRA</span></h4>
+    <p>Kayda sayılmayan ısınma setleri. İdman sayfasının sütunları değişmeden, yalnızca telefonda işaretlenir.</p></div>
+</div>
+
+<h2 class="sec">Eksiklerimiz</h2>
+<p class="sec-sub">Senaryo uygulamada çalıştırılırken görülenler ve konuşulup henüz yapılmayanlar.</p>
+<div class="gaps"><ol>
+  <li><b>10 kas grubu uygulamada tanınmıyor.</b> Renk/ad tablosu yalnızca Back, Chest, Core, Abs, Legs, Glutes, Shoulders, Arms'ı biliyor. Biceps, Triceps, Forearms, Hip gri ve İngilizce görünüyor (yandaki ekran; kart ayrıntısında "Legs 0,7 · Glutes 0,3"). Renkler v27 kas haritasıyla aynı olacak, eski adlar da çalışmaya devam edecek.</li>
+  <li><b>Ana sayfadan doğrudan giriş yok;</b> plan kaydedilemiyor (adım 1, 5, 6).</li>
+  <li><b>Planlamanın 1. adımı çubuk listesi;</b> kas haritası (v27) bekliyor. Puanlama, süzgeçler, sıralama aynen kalır; yalnızca görünüm değişir.</li>
+  <li><b>Öneri kartlarında kas bilgisi yalnızca çubuk;</b> mini vücut ve plan tepsisi yok (adım 4).</li>
+  <li><b>Hareket sonunda "SETLER 10-10-/10" kırılıyor</b> (adım 10): metin boyu uyumu bu kutuya da uygulanacak.</li>
+  <li><b>Özet sade:</b> hacim, çalışan kaslar, rekor, kıyas yok (adım 12).</li>
+  <li><b>Kas görselinin lisans/kaynak notu</b> Ayarlar'da yok (görsel senin; react-native-body-highlighter kullanılmayacaksa not yalnızca görsel için).</li>
+</ol><div class="ev"><!--KANIT--><p>Bugünkü planlama: Biceps, Forearms, Hip, Triceps gri ve İngilizce.</p></div></div>
+
+<h2 class="sec">Mevcudu bozmadan</h2>
+<div class="safe">
+  <p class="lb" style="margin-bottom:6px">BUGÜNKÜ DURUM · 03.10.2026 · hepsi geçti</p>
+  <div class="tests"><span>Code.gs ✓</span><span>Code.gs uç durum 21 ✓</span><span>Salon/sporRef betik 6 ✓</span><span>data.js 25 ✓</span><span>ref.js 6 ✓</span><span>duzen.js 5 ✓</span><span>salon.js 5 ✓</span><span>zaman.js 20 ✓</span><span>Uçtan uca 52/52 ✓</span><span>Ana E2E ✓</span></div>
+  <ul>
+    <li><b>Yeni yanına eklenir:</b> "Son idmanı tekrarla", idman ekranı, hareket sonu girişi, kayıt ve kuyruk aynen kalır. Yeni ekranlar ayrı.</li>
+    <li><b>Tablolara yazım değişmez:</b> idman sayfası aynı sütunlarla yazılır; Salon.gs, Code.gs, SporRef.gs'e dokunulmaz. Kayıtlı plan yalnızca telefonda, yeni bir anahtarda tutulur.</li>
+    <li><b>Puanlama aynı:</b> salon.puanla, öneri, dağılım hesapları değişmez; harita bunların üstüne bir görünüm.</li>
+    <li><b>Kas grubu tablosu genişler, değişmez:</b> eski 7 ad çalışmaya devam eder, 10 grup eklenir.</li>
+    <li><b>Her adımda bütün testler:</b> yukarıdaki takım her değişiklikten önce ve sonra; her yeni özellik için yeni uçtan uca senaryo; bu senaryonun ekranları otomatik yeniden çekilir (<code>tasarim/senaryo/kaynak/cek.cjs</code>).</li>
+    <li><b>Yayın:</b> önce dal, testler yeşilse main'e. Sorun olursa önceki sürüme tek adımda dönülür.</li>
+  </ul>
+</div>
+
+<h2 class="sec">Karar bekleyenler</h2>
+<div class="q"><b>1. Son idman tekrarında öneri uygulansın mı?</b><p>Önerim: evet. Kartta "öneri uygulandı · geri al"; ağrı (⚠) varsa uygulanmaz.</p></div>
+<div class="q"><b>2. Hangi öneriler bu sürüme?</b><p>Önerim: YÜKSEK olanlar + eksikler (1–7). ORTA'lar (rekor, ısı haritası, grafik) aynı sürüm ya da bir sonraki; SONRA'lar ayrı.</p></div>
+<div class="q"><b>3. Planlamanın eski 1. adımı (çubuk listesi)</b><p>Önerim: harita gelince haritanın altındaki "Liste" görünümü olarak kalsın (aynı bilgi, sayılarla).</p></div>
+<p class="src">Kaynaklar: <a href="https://www.jefit.com/blog/fitbod-vs-strong-vs-jefit-vs-hevy">Fitbod vs Strong vs Jefit vs Hevy (2026)</a> · <a href="https://help.fitbod.me/hc/en-us/articles/360006269014-Muscle-Recovery">Fitbod: Muscle Recovery</a> · <a href="https://fitbod.me/blog/muscle-recovery/">Fitbod blog: muscle recovery</a> · <a href="https://www.hevyapp.com/features/workout-settings/">Hevy: workout settings</a> · <a href="https://www.hevyapp.com/features/live-activity/">Hevy: live activity</a> · <a href="https://www.sensai.fit/blog/hevy-vs-strong-vs-fitbod">Hevy vs Strong vs Fitbod</a></p>
+</main></body></html>

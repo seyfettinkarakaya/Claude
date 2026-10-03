@@ -66,6 +66,29 @@ Talep (03.10.2026, karar bekliyor):
     listesi (şu an 7) bu 10'a göre güncellenecek; sporRef/salon hareket eşlemesi de.
   Onay ("uygula") bekliyor.
 
+- [ ] **Salon baştan sona senaryo ve sürüm 12 önerisi** (talep 03.10.2026) → `tasarim/senaryo/senaryo.html`
+  (14 adım: Salı planla → Çarşamba ana ekrandan başla → idman → özet; mevcut ekranlar gerçek uygulamadan,
+  yeniler taslak). Kaynak: `tasarim/senaryo/kaynak/` (cek.cjs: uygulamadan ekran görüntüleri, sahte veriyle).
+  Eksikler (senaryoda görülen):
+  - [ ] Kas grubu renk/ad tablosu 10 grubu tanımıyor: Biceps, Triceps, Forearms, Hip gri ve İngilizce
+    (planlama, kart ayrıntısı "Legs 0,7 · Glutes 0,3"). v27 renkleriyle Türkçe; eski 7 ad çalışmaya devam.
+  - [ ] Hareket sonu "SETLER 10-10-/10" satır kırılıyor → metin boyu uyumu.
+  - [ ] Kayıtlı plan + ana sayfadan doğrudan giriş (yukarıdaki talep).
+  - [ ] Planlama 1. adımı kas haritası (v27); eski çubuk listesi haritanın altında "Liste" görünümü.
+  - [ ] Öneri kartlarında mini vücut + plan tepsisi; planda kapsam haritası, Kaydet / İdmana başla.
+  - [ ] Özet: toplam hacim, çalışan kaslar haritası, rekorlar, geçen benzer idmanla kıyas.
+  - [ ] Ayarlar'da kas görseli kaynak notu.
+  Popüler uygulamalardan öneriler (Hevy, Strong, Fitbod):
+  - [ ] YÜKSEK: kas toparlanma (son çalışmadan geçen süre + yük) haritada ve öneri sıralamasında; ana
+    ekranda "sıradaki öneri". Kayıtlı rutin, tek dokunuşla başlat. Otomatik ilerleme (son idman tekrarında
+    da öneri uygulanır, "geri al"; ⚠ varsa uygulanmaz).
+  - [ ] ORTA: rekor (PR) rozeti ve listesi; özet kas ısı haritası; kart ayrıntısında son 8 idman grafiği.
+  - [ ] SONRA: dinlenme bitti bildirimi (kilitliyken), süperset, ısınma seti.
+  Bozmama kuralı: idman sayfası sütunları, Salon.gs/Code.gs/SporRef.gs, puanlama değişmez; mevcut akışlar
+  (son idmanı tekrarla, idman, giriş, kayıt, kuyruk) aynen kalır; her adımda tüm testler (03.10.2026: hepsi
+  geçti, uçtan uca 52/52) + yeni özelliğe yeni senaryo.
+  Karar bekliyor: (1) son idman tekrarında öneri, (2) bu sürüme hangi öneriler, (3) eski 1. adımın yeri.
+
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
 Sürüm 10.5 (sürüm 11 ile yayında):
