@@ -28,6 +28,9 @@ Talep (03.10.2026, karar bekliyor):
   varsa **Devam et**. Planlama sonunda "Kaydet, sonra başla" ile plan ana sayfada bekler.
   Açık soru: son idman tekrarlanırken ilerleme önerisi (+2,5 kg / +1 tekrar) uygulansın mı?
 
+- [ ] **Salon planlama ekranı yeniden tasarım** (talep 03.10.2026: "çok basit, alanlar okunaksız").
+  Seçenekler `tasarim/v19/` (a: büyük kartlar, b: gövde haritası, c: tek ekran + plan tepsisi); karar bekliyor.
+
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
 Sürüm 10.5 (sürüm 11 ile yayında):
