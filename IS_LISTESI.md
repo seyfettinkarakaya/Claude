@@ -46,7 +46,10 @@ Talep (03.10.2026, karar bekliyor):
   Karar (03.10.2026): kullanıcının Gemini görseli (siyah zemin, ön/arka, renkli kas grupları) kullanılacak,
   dokunmatik olacak. → `tasarim/v25/prototip.html`: renk bölütleme (OpenCV, `kaynak/ayikla.py`) ile 7 grup
   SVG yol olarak görselin üstünde; kasa dokun → ★ öncelik → ★★ çift → kapalı; seçilen grup amber çerçeve
-  + ★ rozet; üst kutuda 4 hafta / tüm zaman yüzdesi. Görsel kullanıcıya ait. Onay ("uygula") bekliyor.
+  + ★ rozet; üst kutuda 4 hafta / tüm zaman yüzdesi. Görsel kullanıcıya ait.
+  Karar (03.10.2026): yeni görsel (gri zemin, etiketli, ön/arka) kullanılacak → `tasarim/v26/prototip.html`:
+  vücut grabCut ile zeminden ayrıldı (`kaynak/govde.py`), gruplar renk ∩ bölge (`kaynak/ayikla.py`); bacak
+  renksiz olduğundan konumla, arka Bel bölgesi Gövde'ye. Onay ("uygula") bekliyor.
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
