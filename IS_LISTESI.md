@@ -36,7 +36,10 @@ Talep (03.10.2026, karar bekliyor):
   Vücut çizimi beğenilmedi → `tasarim/v21/`: react-native-body-highlighter (MIT, © 2022 ELABBASSI Hicham)
   anatomik çizimleri; lisans metni uygulamaya eklenecek.
   `tasarim/v22/`: aynı çizim SVG ışıklandırmasıyla hacimli (3B), kaslar arası ten dolgusu, öncelik ★ rozeti.
-  (wger çizimi denendi: gerçekçi ama kas katmanları kaba ve lisansı AGPL → kullanılmadı.) Onay bekliyor.
+  (wger çizimi denendi: gerçekçi ama kas katmanları kaba ve lisansı AGPL → kullanılmadı.)
+  `tasarim/v23/`: Z-Anatomy 3B kas modeli (CC BY-SA 4.0, BodyParts3D tabanlı) Blender Cycles ile ön/arka
+  render + 7 kas grubu maskesi (~1 MB); uygulamada maskeler grup renginde "color" karışımıyla boyanır,
+  yük → renk doygunluğu. Kaynak betikler `tasarim/v23/kaynak/`. Onay bekliyor.
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
