@@ -179,7 +179,13 @@ const server = http.createServer((req, res) => {
     }
     await page.clock.runFor(250);
   };
-  const tap = async (sec) => { await page.$eval('#btn-main', b => b.click()); if (sec) await adv(sec); };
+  // Yük altında basış geç işlenebilir: düğme yazısı değişene dek (en çok 1,5 sn) beklenir.
+  const tap = async (sec) => {
+    const before = await label();
+    await page.$eval('#btn-main', b => b.click());
+    await page.waitForFunction((t) => document.getElementById('btn-main-label').textContent !== t, before, { timeout: 1500 }).catch(() => {});
+    if (sec) await adv(sec);
+  };
   const activeTitle = () => page.$eval('.w-item.is-active .w-title', e => e.firstChild.textContent.trim());
   // İdman başlamadan tekerlek serbest: sürükleyerek 3 set aşağı kaydır (atalet dahil)
   const wb = await page.$eval('#wheel', e => { const r = e.getBoundingClientRect(); return { x: r.x + r.width/2, y: r.y + r.height/2 }; });
