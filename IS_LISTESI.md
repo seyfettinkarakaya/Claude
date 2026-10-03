@@ -87,7 +87,22 @@ Talep (03.10.2026, karar bekliyor):
   Bozmama kuralı: idman sayfası sütunları, Salon.gs/Code.gs/SporRef.gs, puanlama değişmez; mevcut akışlar
   (son idmanı tekrarla, idman, giriş, kayıt, kuyruk) aynen kalır; her adımda tüm testler (03.10.2026: hepsi
   geçti, uçtan uca 52/52) + yeni özelliğe yeni senaryo.
-  Karar bekliyor: (1) son idman tekrarında öneri, (2) bu sürüme hangi öneriler, (3) eski 1. adımın yeri.
+  Karar (03.10.2026): **tüm öneriler kabul** → (1) son idman tekrarında öneri uygulanır ("geri al"; ⚠ varsa
+  uygulanmaz), (2) YÜKSEK + ORTA + SONRA ve eksiklerin hepsi, (3) eski 1. adım haritanın altında "Liste".
+  Ana sayfadan doğrudan giriş de bu kapsamda. Uygulamadan önce yüzmeye taşınacak fikirler soruldu (aşağıda).
+
+- [ ] **Salondan yüzmeye taşınabilecek fikirler** (soru 03.10.2026, seçim bekliyor):
+  1. MSI (ağrı) girişi kas haritasıyla: aynı görsel, sağ/sol omuz-diz vb. bölgeye dokun → 0,5/1/2; tabloya
+     yazılan anahtarlar aynı (sag omuz, …). Son 4 haftanın ağrı haritası; salonda ⚠ ve rehab önerisini besler.
+  2. Ortak yük ve toparlanma: yüzme de kas yüküne sayılır (stil × mesafe × RPE → omuz, sırt, triseps, karın,
+     bacak; katsayılar tahmini, sporRef'te düzenlenebilir). Salon önerisi "dün 3 km yüzdün, omuz dinleniyor".
+  3. Yüzme özeti salon özeti diliyle: bölge dağılımı (7 bölgede süre), geçen aynı setle kıyas
+     (4×100 ort. 1:31, geçen 1:33 ↑), rekor rozetleri (en hızlı 100 tekrar, CSS altı set).
+  4. Ana ekran kartları ortak dil: "✓ Bugün yapıldı" durumu, sıradaki, haftalık özet; takvimde salon günleri
+     ve günlük yük çubuğu.
+  5. Set ilerleme grafiği: aynı set türünün (ör. 4×100 FR) son 8 seferi; ayrıntı panelinde.
+  6. Haftalık bölge dengesi (salondaki kas dağılımı gibi): 4 hafta / tüm zaman, kolay–eşik–sprint oranı.
+  7. CSS güncelleme önerisi: eşik setleri sürekli hedefin altında ve RPE düşükse "CSS testi zamanı".
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
