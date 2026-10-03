@@ -39,7 +39,10 @@ Talep (03.10.2026, karar bekliyor):
   (wger çizimi denendi: gerçekçi ama kas katmanları kaba ve lisansı AGPL → kullanılmadı.)
   `tasarim/v23/`: Z-Anatomy 3B kas modeli (CC BY-SA 4.0, BodyParts3D tabanlı) Blender Cycles ile ön/arka
   render + 7 kas grubu maskesi (~1 MB); uygulamada maskeler grup renginde "color" karışımıyla boyanır,
-  yük → renk doygunluğu. Kaynak betikler `tasarim/v23/kaynak/`. Onay bekliyor.
+  yük → renk doygunluğu. Kaynak betikler `tasarim/v23/kaynak/`.
+  Karar (03.10.2026): anatomi görselleri istenmedi ("korkunç"); sade ikon dili isteniyor (örnek: yuvarlak
+  ikonlar, gri siluet, çalışan bölge tek renk). → `tasarim/v24/`: MIT çizimi düz stilde; harita gri→turuncu,
+  kas grubu seçimi 8 yuvarlak ikon (★/★★ öncelik). Onay bekliyor.
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
