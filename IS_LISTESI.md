@@ -49,7 +49,18 @@ Talep (03.10.2026, karar bekliyor):
   + ★ rozet; üst kutuda 4 hafta / tüm zaman yüzdesi. Görsel kullanıcıya ait.
   Karar (03.10.2026): yeni görsel (gri zemin, etiketli, ön/arka) kullanılacak → `tasarim/v26/prototip.html`:
   vücut grabCut ile zeminden ayrıldı (`kaynak/govde.py`), gruplar renk ∩ bölge (`kaynak/ayikla.py`); bacak
-  renksiz olduğundan konumla, arka Bel bölgesi Gövde'ye. Onay ("uygula") bekliyor.
+  renksiz olduğundan konumla, arka Bel bölgesi Gövde'ye.
+  Karar (03.10.2026): v26 beğenilmedi (kas sınırları, dokunma yapısı). Yeni görsel (siyah zemin, gri vücut,
+  renkli kaslar) → `tasarim/v27/prototip.html`:
+  - Sınırlar çizimin kendi kas renklerinden, piksel maskesi (2× yumuşak kenar); sırttaki aynı yeşil
+    (sırt / triseps) watershed ile koltuk altı çizgisinden ayrılır. Kaynak: `kaynak/ayikla.py`.
+  - Katmanlar: gri figür + grup başına maskeli renkli figür (CSS mask). Seçim varken seçilmeyenler gri,
+    seçilen renkli + amber parıltı, odaktaki beyaz parıltı; ★/★★ rozet.
+  - Dokunma: piksel haritası (`_hit.png`), kasın 9 px çevresi de sayılır.
+  - Tek büyük figür, Ön/Arka düğmesi (seçim sayısıyla), yatay kaydırma, köşede diğer yüzün küçüğü.
+  - Kasa dokun → ★ seçilir + alt panel: 4 hafta / tüm zaman çubukları, denge notu, öncelik
+    (Yok / ★ / ★★), örnek hareketler. Öncelik çipleri; "Hareketleri getir".
+  Onay ("uygula") bekliyor.
 
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 

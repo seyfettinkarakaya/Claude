@@ -1,0 +1,206 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kas haritası</title><style>/*FONTS*/
+:root{--bg:#0B0F14;--card:#141B23;--line:#222C37;--tx:#EDEFF2;--mu:#8B97A5;--amb:#F5A524}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{color:var(--tx);font-family:Archivo,system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.ph{width:100%;max-width:430px;padding:18px 16px 112px}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.3px}
+.sub{font-size:14px;color:var(--mu);font-weight:600;margin-top:3px}
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:3px;flex:none}
+.seg button{min-width:64px;height:38px;border-radius:11px;font-size:15px;font-weight:800;color:var(--mu);display:flex;align-items:center;justify-content:center;gap:5px}
+.seg button.on{background:#232E3A;color:var(--tx)}
+.seg i{font-style:normal;min-width:18px;height:18px;border-radius:9px;background:var(--amb);color:#1A0E04;font-size:11px;font-weight:900;display:none;align-items:center;justify-content:center;padding:0 5px}
+.seg i.n{display:inline-flex}
+/* sahne */
+.wrap{position:relative;margin-top:8px;height:min(62vh,500px);display:flex;justify-content:center;touch-action:pan-y}
+.stage{position:relative;height:100%;transition:opacity .18s,transform .18s}
+.stage.out{opacity:0;transform:scale(.97)}
+.stage img,.lay,.col{position:absolute;inset:0;width:100%;height:100%}
+.stage img{user-select:none;-webkit-user-drag:none;pointer-events:none}
+.lay{transition:opacity .2s,filter .2s;pointer-events:none}
+.col{background-size:100% 100%;-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.act .lay{opacity:0}
+.act .lay.sel,.act .lay.foc{opacity:1}
+.lay.sel{filter:drop-shadow(0 0 1px var(--amb)) drop-shadow(0 0 5px rgba(245,165,36,.55))}
+.lay.foc{filter:drop-shadow(0 0 1px #fff) drop-shadow(0 0 9px rgba(255,255,255,.6))}
+.lay.flash .col{animation:fl .35s ease-out}
+@keyframes fl{0%{filter:brightness(1.7)}100%{filter:none}}
+.bdg{position:absolute;transform:translate(-50%,-50%) scale(.6);opacity:0;transition:.18s;pointer-events:none;
+  min-width:24px;height:24px;border-radius:12px;padding:0 6px;background:var(--amb);color:#1A0E04;border:2px solid var(--bg);
+  font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.bdg.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.mini{position:absolute;right:0;bottom:4px;width:62px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.mini .stage{height:128px;opacity:.9}
+.mini span{font-size:11px;font-weight:800;letter-spacing:1px;color:var(--mu)}
+.mini .bdg{min-width:12px;height:12px;border-width:1px;font-size:0;padding:0}
+.hint{position:absolute;left:0;bottom:6px;font-size:12px;color:#5F6B78;font-weight:700;line-height:1.35}
+/* öncelikler */
+.lb{font-size:12px;font-weight:800;letter-spacing:1.6px;color:var(--mu);margin:14px 0 8px;text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:8px;min-height:42px}
+.chip{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 10px;border-radius:20px;background:var(--card);border:1.5px solid var(--line);font-size:15px;font-weight:800}
+.chip .d{width:12px;height:12px;border-radius:6px}
+.chip em{font-style:normal;color:var(--amb);font-size:13px}
+.none{font-size:14px;color:#5F6B78;font-weight:600;line-height:40px}
+.cta{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));width:calc(100% - 32px);max-width:398px;height:62px;border-radius:20px;
+  background:var(--amb);color:#1A0E04;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:19px;font-weight:800;z-index:5;transition:transform .25s}
+.cta small{font-size:14px;font-weight:700;opacity:.7}
+.cta.hide{transform:translate(-50%,120px)}
+/* alt panel */
+.sheet{position:fixed;left:50%;bottom:0;width:100%;max-width:430px;transform:translate(-50%,105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
+  background:#121922;border-top:1px solid var(--line);border-radius:24px 24px 0 0;padding:8px 18px calc(18px + env(safe-area-inset-bottom));z-index:10;box-shadow:0 -12px 40px rgba(0,0,0,.55)}
+.sheet.open{transform:translate(-50%,0)}
+.grab{width:40px;height:5px;border-radius:3px;background:#2C3744;margin:0 auto 12px}
+.sh{display:flex;align-items:center;gap:12px}
+.sh .d{width:16px;height:16px;border-radius:8px;flex:none;box-shadow:0 0 0 4px rgba(255,255,255,.06)}
+.sh h2{font-size:23px;font-weight:800;line-height:1.1}
+.sh p{font-size:13px;color:var(--mu);font-weight:600;margin-top:2px}
+.sh .x{margin-left:auto;width:40px;height:40px;border-radius:20px;background:var(--card);font-size:22px;color:var(--mu);flex:none}
+.bars{margin-top:14px;display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center;font-size:13px;font-weight:700;color:var(--mu)}
+.bars b{color:var(--tx);font-size:15px;min-width:40px;text-align:right}
+.tr{height:10px;border-radius:5px;background:#1C2530;overflow:hidden}
+.tr i{display:block;height:100%;border-radius:5px;transition:width .3s}
+.note{margin-top:10px;font-size:13px;font-weight:700;padding:8px 10px;border-radius:10px;background:var(--card)}
+.prio{display:grid;grid-template-columns:1fr 1.3fr 1.3fr;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px}
+.prio button{height:44px;border-radius:11px;font-size:15px;font-weight:800;color:var(--mu)}
+.prio button.on{background:var(--amb);color:#1A0E04}
+.prio button[data-p="0"].on{background:#2A3542;color:var(--tx)}
+.ex{display:flex;flex-wrap:wrap;gap:6px;list-style:none}
+.ex li{padding:7px 11px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:14px;font-weight:700}
+.ok{margin-top:16px;width:100%;height:52px;border-radius:16px;background:#E9EDF1;color:#0B0F14;font-size:17px;font-weight:800}
+</style></head><body>
+<div class="ph">
+  <div class="top">
+    <div><h1>Neyi çalışalım?</h1><p class="sub">Kasa dokun, önceliği seç</p></div>
+    <div class="seg" id="seg"><button data-v="front">Ön<i></i></button><button data-v="back">Arka<i></i></button></div>
+  </div>
+  <div class="wrap" id="wrap">
+    <div class="stage" id="stage"></div>
+    <p class="hint" id="hint">Dokun: seç<br>Kaydır: ön/arka</p>
+    <button class="mini" id="mini" aria-label="Diğer yüz"><div class="stage" id="ministage"></div><span id="minilb"></span></button>
+  </div>
+  <p class="lb">Öncelikler</p>
+  <div class="chips" id="chips"></div>
+</div>
+<button class="cta" id="cta"><span>Hareketleri getir</span><small id="cnt"></small></button>
+<section class="sheet" id="sheet" aria-live="polite">
+  <div class="grab"></div>
+  <div class="sh"><span class="d" id="sDot"></span><div><h2 id="sName"></h2><p id="sKas"></p></div><button class="x" id="sX" aria-label="Kapat">×</button></div>
+  <div class="bars" id="bars"></div>
+  <p class="note" id="note"></p>
+  <p class="lb">Öncelik</p>
+  <div class="prio" id="prio"><button data-p="0">Yok</button><button data-p="1">★ Öncelik</button><button data-p="2">★★ Yüksek</button></div>
+  <p class="lb">Örnek hareketler</p>
+  <ul class="ex" id="ex"></ul>
+  <button class="ok" id="ok">Tamam</button>
+</section>
+<script>
+const D = /*DATA*/;
+const $ = (id) => document.getElementById(id);
+const P = {};            // grup → 0/1/2
+let view = 'front', focus = null;
+const other = (v) => (v === 'front' ? 'back' : 'front');
+const stars = (p) => (p === 2 ? '★★' : '★');
+
+// dokunma haritaları
+const HIT = {};
+for (const v of ['front', 'back']) {
+  const im = new Image();
+  im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(im, 0, 0); HIT[v] = { w: im.width, h: im.height, d: x.getImageData(0, 0, im.width, im.height).data }; };
+  im.src = D.a[v].hit;
+}
+function hitAt(v, fx, fy) {
+  const h = HIT[v]; if (!h) return null;
+  const x = Math.floor(fx * h.w), y = Math.floor(fy * h.h);
+  if (x < 0 || y < 0 || x >= h.w || y >= h.h) return null;
+  const n = Math.round(h.d[(y * h.w + x) * 4] / 30);
+  return n ? D.grup[n - 1] : null;
+}
+
+function build(el, v) {
+  const a = D.a[v];
+  el.style.aspectRatio = `${a.w} / ${a.h}`;
+  el.innerHTML = '';
+  const g = new Image(); g.src = a.gri; g.alt = ''; el.append(g);
+  for (const [grp, m] of Object.entries(a.mask)) {
+    const lay = document.createElement('div'); lay.className = 'lay'; lay.dataset.g = grp;
+    const col = document.createElement('div'); col.className = 'col';
+    col.style.backgroundImage = `url(${a.col})`; col.style.webkitMaskImage = col.style.maskImage = `url(${m})`;
+    lay.append(col); el.append(lay);
+  }
+  for (const [grp, [x, y]] of Object.entries(a.merkez)) {
+    const b = document.createElement('span'); b.className = 'bdg'; b.dataset.g = grp;
+    b.style.left = `${(x / a.w) * 100}%`; b.style.top = `${(y / a.h) * 100}%`; el.append(b);
+  }
+}
+
+function draw() {
+  const sel = D.grup.filter((g) => P[g]);
+  for (const [el, isMain] of [[$('stage'), true], [$('ministage'), false]]) {
+    el.classList.toggle('act', sel.length > 0 || (isMain && focus));
+    el.querySelectorAll('.lay').forEach((l) => { l.classList.toggle('sel', !!P[l.dataset.g]); l.classList.toggle('foc', isMain && l.dataset.g === focus); });
+    el.querySelectorAll('.bdg').forEach((b) => { const p = P[b.dataset.g] || 0; b.classList.toggle('on', p > 0); b.textContent = p ? stars(p) : ''; });
+  }
+  document.querySelectorAll('#seg button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.v === view);
+    const n = sel.filter((g) => D.a[b.dataset.v].mask[g]).length; const i = b.querySelector('i'); i.textContent = n; i.classList.toggle('n', n > 0);
+  });
+  $('minilb').textContent = view === 'front' ? 'ARKA ↻' : 'ÖN ↻';
+  $('chips').innerHTML = sel.length
+    ? sel.map((g) => `<button class="chip" data-g="${g}"><span class="d" style="background:${D.renk[g]}"></span>${g}<em>${stars(P[g])}</em></button>`).join('')
+    : '<span class="none">Seçim yok: hareketler haftalık dengeye göre gelir</span>';
+  $('cnt').textContent = sel.length ? `${sel.length} öncelik ›` : 'denge ›';
+  $('hint').style.opacity = sel.length || focus ? 0 : 1;
+  if (focus) sheet(focus);
+}
+
+function sheet(g) {
+  const [s, t] = D.oran[g]; const p = P[g] || 0; const d = s - t;
+  $('sDot').style.background = D.renk[g]; $('sName').textContent = g; $('sKas').textContent = D.kas[g];
+  const max = Math.max(40, s, t);
+  $('bars').innerHTML = [['Son 4 hafta', s, D.renk[g]], ['Tüm zaman', t, '#5F6B78']]
+    .map(([l, v, c]) => `<span>${l}</span><div class="tr"><i style="width:${(v / max) * 100}%;background:${c}"></i></div><b>%${v}</b>`).join('');
+  const note = d >= 5 ? [`Son dönemde fazla çalışılmış (+${d} puan)`, '#F87171'] : d <= -5 ? [`Son dönemde geri kalmış (${d} puan) · öncelik önerilir`, '#3DDC84'] : ['Dengede', '#8B97A5'];
+  $('note').textContent = note[0]; $('note').style.color = note[1];
+  document.querySelectorAll('#prio button').forEach((b) => b.classList.toggle('on', +b.dataset.p === p));
+  $('ex').innerHTML = D.hareket[g].map((h) => `<li>${h}</li>`).join('');
+  $('sheet').classList.add('open'); $('cta').classList.add('hide');
+}
+function close() { focus = null; $('sheet').classList.remove('open'); $('cta').classList.remove('hide'); draw(); }
+
+function tapGroup(g) {
+  if (!P[g]) { P[g] = 1; navigator.vibrate?.(8); }
+  focus = g; draw();
+  const l = $('stage').querySelector(`.lay[data-g="${g}"]`);
+  if (l) { l.classList.remove('flash'); void l.offsetWidth; l.classList.add('flash'); }
+}
+function setView(v) {
+  if (v === view) return;
+  const st = $('stage'); st.classList.add('out');
+  setTimeout(() => { view = v; build(st, view); build($('ministage'), other(view));
+    if (focus && !D.a[view].mask[focus]) close(); draw(); st.classList.remove('out'); }, 160);
+}
+
+// sahne: dokun = seç, yatay kaydır = ön/arka
+let down = null;
+$('wrap').addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
+$('wrap').addEventListener('pointerup', (e) => {
+  if (!down) return; const dx = e.clientX - down.x, dy = e.clientY - down.y; down = null;
+  if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) return setView(other(view));
+  if (e.target.closest('#mini')) return;
+  const r = $('stage').getBoundingClientRect();
+  const g = hitAt(view, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+  if (g) tapGroup(g); else if (focus) close();
+});
+$('mini').addEventListener('click', () => setView(other(view)));
+$('seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); });
+$('chips').addEventListener('click', (e) => { const c = e.target.closest('.chip'); if (!c) return;
+  const g = c.dataset.g; if (!D.a[view].mask[g]) setView(other(view)); setTimeout(() => { focus = g; draw(); }, D.a[view].mask[g] ? 0 : 200); });
+$('prio').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || !focus) return;
+  P[focus] = +b.dataset.p; if (!P[focus]) delete P[focus]; draw(); });
+$('sX').addEventListener('click', close); $('ok').addEventListener('click', close);
+build($('stage'), view); build($('ministage'), other(view)); draw();
+</script></body></html>
