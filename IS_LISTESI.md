@@ -104,6 +104,64 @@ Talep (03.10.2026, karar bekliyor):
   6. Haftalık bölge dengesi (salondaki kas dağılımı gibi): 4 hafta / tüm zaman, kolay–eşik–sprint oranı.
   7. CSS güncelleme önerisi: eşik setleri sürekli hedefin altında ve RPE düşükse "CSS testi zamanı".
 
+- [ ] **Kapsamlı öneriler: yüzme + salon** (talep 03.10.2026: "hepsini iş listesine ekle"). Dayanak: yuzme-idman-modeli
+  kısıtları (Perthes sağ kalça, sağ omuz impingement, sağ diz kondromalazi, MSI skalası, seans süreleri,
+  kulaç normları, stil hiyerarşisi FR→BK→BF→BR), Hevy/Strong/Fitbod, MySwimPro/FORM/Garmin, TrainingPeaks.
+  Not: senaryo panosundaki Goblet Squat kısıtla çelişiyor (ağırlıklı squat >90° yasak) → kısıt koruması gelince
+  taslakta güvenli alternatifle (≤90° box squat / glute bridge) değiştirilecek.
+  **A. Sağlık kısıtı koruması (önce bu)**
+  - [ ] A1 Kısıt profili: sporRef'te `kisit` sayfası (tanı → kural); uygulama okur, Ayarlar'da gösterir.
+  - [ ] A2 Salonda yasaklı/riskli hareket: H'ye "Kısıt" ve "Alternatif" sütunları; planlamada gizlenir ya da
+    ⚠ "Perthes: ağırlıklı squat >90°" + güvenli alternatif önerilir; idmanda Değiştir de bunlara uyar.
+  - [ ] A3 Kurbağalama (BR) aylık sayaç: bu ayın BR metresi / toplam (sınır %10); BR set kartında "bu ay %7/10",
+    sınıra yaklaşınca uyarı (diz kısıtı da ayrıca not edilir).
+  - [ ] A4 Omuz rahatlatma: her aerobik blok sonunda dinlenme ekranında kısa omuz rahatlatma kartı; yapıldı
+    işareti seans notuna.
+  - [ ] A5 MSI kural motoru (yüzme + salon, idman içinde): 0,5 gözlem notu · 1–1,5 hafiflet (kalan tekrar/ağırlık
+    önerisi) · ≥2 seti durdur (set biter, not düşer) · 3+ tıbbi uyarı, seansı bitir önerisi.
+  - [ ] A6 Seans süresi bütçesi: Sal/Çar/Per sabah 75–80 dk, öğle 65 dk, Cuma akşam sınırsız; yüzme programı ve
+    salon planı ~süresi bütçeyle karşılaştırılır, aşarsa kırpma önerisi; haftada 3 gün sayacı.
+  **B. Yük ve toparlanma (ortak)**
+  - [ ] B1 Seans yükü (sRPE = RPE × dakika) yüzme ve salon için; günlük ve haftalık yük.
+  - [ ] B2 Form grafiği (TrainingPeaks PMC mantığı): 42 gün "kondisyon", 7 gün "yorgunluk", fark "form".
+  - [ ] B3 Yük artış uyarısı (akut/kronik oran > 1,5): omuz geçmişi için erken uyarı; deload haftası önerisi.
+  - [ ] B4 Kas yükü haritası: salon (hkEtki) + yüzme (stil × mesafe × RPE katsayıları, sporRef'te düzenlenebilir)
+    → toparlanma; salonda "dün 3 km FR: omuz dinleniyor".
+  - [ ] B5 Aynı gün çakışma uyarısı: ağır omuz salonu + uzun FR/kürek aynı gün ya da art arda.
+  **C. Yüzme: idman içi**
+  - [ ] C1 Kulaç sayısı girişi (dinlenirken ±, varsayılan türe göre: drill 10–11, yüzüş 13–15, race 14–15,
+    pull 11–12 /25 m); eski sayfasındaki Kulaç sütunu dolar (şu an boş yazılıyor). SWOLF ve kulaç başı mesafe.
+  - [ ] C2 Kulaç normu sapması: yüzüşte sürekli >15 ise "teknik bozuluyor / yorgunluk" notu.
+  - [ ] C3 Set sonu nabız (hızlı giriş; Nabız sütunu şu an boş yazılıyor).
+  - [ ] C4 Drill videosu: açıklamadaki drill adına göre bağlantı (sporRef `drill` sayfası; salondaki ▶ gibi).
+  - [ ] C5 MSI girişi kas haritasıyla (sağ/sol ayrımlı; tabloya yazılan anahtarlar aynı) + 4 haftalık ağrı haritası.
+  **D. Yüzme: analiz**
+  - [ ] D1 Özet: bölge dağılımı, geçen aynı setle kıyas, rekor rozetleri, SWOLF.
+  - [ ] D2 Set ilerleme grafiği (aynı set türünün son 8 seferi).
+  - [ ] D3 Haftalık denge: bölge oranları (kolay/eşik/sprint) ve stil dağılımı (hiyerarşi, BR %).
+  - [ ] D4 Rehberli CSS testi (400 + 200): uygulamada test seti, CSS hesaplanır, onayla sporRef `css`'e yeni satır
+    (SporRef.gs'e yalnızca ekleme işlemi). Eşik setleri sürekli hedef altında + RPE düşükse "CSS testi zamanı".
+  - [ ] D5 Derece tahmini: CSS ve set ortalamalarından 100/200/400 tahmini, zaman içinde.
+  **E. Salon: ek**
+  - [ ] E1 Yüzücü önleyici dozu: haftalık omuz prehab (rotator manşet), core, kalça stabilite minimumu; "borç"
+    ana ekranda ve planlamada öncelik önerisi olarak.
+  - [ ] E2 Kart üstü kısıt hatırlatması (ör. "derinlik ≤90°", "omuz ağrısızsa").
+  - [ ] E3 Isınma şablonu (bant omuz ısınması) idman başında, kayda sayılmaz.
+  - [ ] E4 Periyotlama: 4 haftalık blok (hacim → kuvvet → bakım) ve deload, yüzme yüküyle (B2–B3) eşgüdümlü.
+  - [ ] E5 (Önceki kabul edilenler: toparlanma, kayıtlı rutin, otomatik ilerleme, PR, ısı haritası, grafik,
+    bildirim, süperset, ısınma seti.)
+  **F. Ortak deneyim**
+  - [ ] F1 Ana ekran: haftalık 3 gün halkası, form durumu (taze/yorgun), bugünün önerisi (yüzme mi salon mu,
+    süre bütçesiyle), BR ve omuz prehab göstergeleri.
+  - [ ] F2 Takvim: salon günleri, günlük yük çubuğu, kısıt uyarıları.
+  - [ ] F3 Haftalık rapor (Pazar): km, salon set, bölge ve stil dengesi, BR %, ağrı haritası, form; antrenöre
+    paylaşılabilir sayfa.
+  - [ ] F4 Saat verisi içe aktarma (Garmin FIT dosyası seç): kulaç, nabız, SWOLF otomatik dolar.
+  - [ ] F5 Haftalık program iskeleti önerisi: kısıtlar + form + denge → 3 günün odağı (öneri, program sayfasına
+    yazmaz).
+  Bozmama kuralı aynı: tablo sütunları ve betikler yalnızca ekleme ile değişir (yeni sayfa/işlem), mevcut akışlar
+  aynen; her adımda tüm testler + yeni senaryolar.
+
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
 Sürüm 10.5 (sürüm 11 ile yayında):
