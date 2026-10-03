@@ -21,6 +21,13 @@ Varsayım (kontrol et): süreli hareket adına göre tanınır (Plank, Hold, Han
 Hollow, Side Bridge) ya da açıklamasında "Setler: … sn" varsa; planda/idmanda Düzenle → Tür:
 Süreli/Tekrar ile değiştirilebilir. Süreli harekette Tekrar sütununa ortalama saniye yazılır.
 
+Talep (03.10.2026, karar bekliyor):
+- [ ] **Ana sayfadan salon idmanına doğrudan giriş** (yüzmedeki "İdmanı aç" gibi). Öneri: salon kartında
+  hazır idman (önceden kaydedilmiş plan ya da son idman) tarih · hareket sayısı · ~süre ve kas grubu renk
+  çubuğuyla görünür; **İdmana başla** doğrudan idmana girer, **Planla** planlama ekranını açar; süren idman
+  varsa **Devam et**. Planlama sonunda "Kaydet, sonra başla" ile plan ana sayfada bekler.
+  Açık soru: son idman tekrarlanırken ilerleme önerisi (+2,5 kg / +1 tekrar) uygulansın mı?
+
 Sürüm 10 tamamlandı (bkz. Tamamlanan).
 
 Sürüm 10.5 (sürüm 11 ile yayında):
