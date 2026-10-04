@@ -1,0 +1,50 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hareket kartları</title><style>/*FONTS*/
+/*MB*/
+:root{--bg:#0B0F14;--panel:#12181F;--p2:#141B23;--line:#1E2731;--tx:#EDEFF2;--mu:#7A8694;--amb:#F5A524;--teal:#2DD4BF;--ok:#3DDC84;--warn:#ffb020;--red:#F87171}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:Archivo,system-ui,sans-serif;line-height:1.45}
+main{max-width:1260px;margin:0 auto;padding:26px 16px 60px}
+h1{font-size:28px;font-weight:800}.lead{color:var(--mu);margin-top:6px;max-width:760px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:24px;margin-top:22px;justify-items:center}
+.cw{width:100%;max-width:390px}
+.card{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--c);border-radius:24px;padding:16px;box-shadow:0 18px 40px rgba(0,0,0,.4)}
+.ttl small{font-size:11px;font-weight:900;letter-spacing:1.6px}.ttl h2{font-size:26px;font-weight:800;line-height:1.1;margin-top:2px}.en{font-size:12px;color:var(--mu);font-weight:600}
+.media{position:relative;margin:12px -4px 10px;border-radius:16px;overflow:hidden;aspect-ratio:3/2;background:#000}
+.media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .45s}
+.media img.b{opacity:0}.media.p1 img.b{opacity:1}
+.phase{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px}
+.phase button{font:inherit;font-size:12px;font-weight:800;border:0;border-radius:10px;padding:6px 10px;background:rgba(11,15,20,.78);color:#C2CBD5;cursor:pointer}
+.phase button.on{background:var(--c);color:#0B0F14}.phase .play{margin-left:auto}
+.row{display:flex;gap:12px;align-items:center;background:#0F151C;border-radius:16px;padding:10px}
+.bodies{display:flex;gap:2px;flex:none}.mb{position:relative;height:150px;background-size:100% 100%}
+.mb i{position:absolute;inset:0;background-size:100% 100%;-webkit-mask-size:100% 100%;mask-size:100% 100%}
+.mus{font-size:13.5px;min-width:0}.mus p{margin-top:2px}.mu{color:var(--mu);font-size:12.5px}
+.lb{font-size:11px;font-weight:900;letter-spacing:1.4px;color:var(--mu);margin:12px 0 4px}.mus .lb{margin:0 0 2px}.mus .lb.t{margin-top:8px}
+.gd{display:inline-block;width:10px;height:10px;border-radius:5px;margin-right:5px}
+.kis{margin-top:10px;display:grid;gap:5px}.k{font-size:13.5px;font-weight:700;padding:7px 10px;border-radius:10px;line-height:1.35}
+.k.warn{background:rgba(255,176,32,.1);color:#FFD08A}.k.red{background:rgba(248,113,113,.12);color:#FCA5A5}.k.ok{background:rgba(61,220,132,.1);color:#86EFAC}
+ol{padding-left:22px;font-size:14.5px}ol li{margin-bottom:5px}ol li::marker{color:var(--c);font-weight:900}
+.err{list-style:none;font-size:13.5px;color:#C2CBD5}.err li::before{content:'✕ ';color:var(--red);font-weight:900}
+.swim{margin-top:12px;background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.35);border-radius:14px;padding:9px 12px}.swim b{color:var(--teal);font-size:13px}.swim p{font-size:13.5px}
+.foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px}.vid{padding:9px 14px;border-radius:12px;background:var(--p2);border:1px solid var(--line);font-weight:800;font-size:14px}
+.src{font-size:11px;color:var(--mu)}
+.note{color:var(--mu);font-size:13px;margin-top:26px;max-width:860px}
+</style></head><body><main>
+<h1>Hareket kartları · 3 örnek</h1>
+<p class="lead">İdmanda karta dokununca açılan bilgi kartı. Fotoğraflar kendiliğinden başlangıç ↔ bitiş arasında geçer; 1 / 2 ile sabitlenir. Kas haritası seçtiğin görsel; kısıt notları senin modelinden.</p>
+<div class="grid">
+<!--KARTLAR-->
+</div>
+<p class="note">Fotoğraflar ve İngilizce anlatımlar: free-exercise-db (yuhonas), Unlicense (kamu malı). Türkçe adımlar, kısıt notları ve yüzmeye katkı uygulamaya özel yazıldı. Uygulamada yalnızca senin hareketlerinin fotoğrafları gömülür; çevrimdışı çalışır.</p>
+</main>
+<script>
+document.querySelectorAll('[data-anim]').forEach((m) => {
+  let auto = true, ph = 0;
+  const set = (p) => { ph = p; m.classList.toggle('p1', p === 1); m.querySelectorAll('[data-p]').forEach((b) => b.classList.toggle('on', b.dataset.p === String(p) || (b.dataset.p === 'a' && auto))); };
+  setInterval(() => { if (auto) set(ph ? 0 : 1); }, 1500);
+  m.querySelector('.phase').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (!b) return;
+    if (b.dataset.p === 'a') { auto = !auto; b.textContent = auto ? '⏸ durdur' : '⏵ oynat'; } else { auto = false; m.querySelector('.play').textContent = '⏵ oynat'; set(Number(b.dataset.p)); } });
+  set(0); m.querySelector('.play').textContent = '⏸ durdur';
+});
+</script></body></html>

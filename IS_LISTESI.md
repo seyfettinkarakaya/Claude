@@ -38,6 +38,7 @@ maddelerde (A1–F5, salon senaryosu, hareket bilgi kartları). Garmin (F4) sonr
   - Kart: başlangıç ↔ bitiş geçişi (animasyon), Türkçe adımlar, çalışan kaslar v27 mini vücutta, kısıt notu
     (A2/E2), sık hata, ▶ video. Eşleşmeyen harekette: mini vücut + adımlar + video.
   - Açılış: idmanda karta dokun → ayrıntı paneli; planlamada öneri kartında ⓘ.
+  - Örnek 3 kart (04.10.2026): `tasarim/kartlar/kartlar.html` (dış rotasyon, kutuya squat, dead bug).
 
 
 **Sürüm 11 yayında (03.10.2026):** 3'lü dosya yapısı (YuzmeProgram · SalonTakip · sporRef, her birine
