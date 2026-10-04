@@ -11,7 +11,7 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 ### Sürüm 12 — tek seferde uygulanacak plan (04.10.2026)
 "uygula" denince aşağıdakilerin **hepsi tek sürümde** yapılır; sıra, bağımlılığa göre. Ayrıntılar alttaki
-maddelerde (A1–F5, salon senaryosu, hareket bilgi kartları). Garmin (F4) sonraya; antrenör raporu (F3) çıkarıldı.
+maddelerde (A1–F5, salon senaryosu, hareket bilgi kartları). Garmin (F4) sonraya; F3 antrenör raporu yerine kişisel "Haftanın özeti".
 - [ ] **0. Hazırlık:** tüm testler yeşil (03.10.2026: hepsi geçti, uçtan uca 52/52); dalda çalışılır.
 - [ ] **1. Veri ve betikler (yalnızca ekleme):** sporRef'e `kisit`, `yuzmeKas` (stil → kas katsayıları), `drill`
   (video) sayfaları; SporRef.gs bunları okur + CSS testi için yalnızca satır ekleyen işlem. SalonTakip `H`'ye
@@ -25,7 +25,8 @@ maddelerde (A1–F5, salon senaryosu, hareket bilgi kartları). Garmin (F4) sonr
   **hareket bilgi kartları (G)**.
 - [ ] **4. Yüzme:** omuz rahatlatma (A4) · kulaç + nabız girişi, SWOLF (C1–C3) · drill videosu (C4) · ağrı
   haritası (C5) · özet (D1) · set grafiği (D2) · denge (D3) · rehberli CSS testi (D4) · derece tahmini (D5).
-- [ ] **5. Ortak ekranlar:** ana ekran (F1) · takvim (F2) · haftanın iskeleti (F5) · form ekranı (B2–B3).
+- [ ] **5. Ortak ekranlar:** ana ekran (F1) · takvim (F2) · haftanın özeti (F3) · haftanın iskeleti (F5) · form
+  ekranı (B2–B3).
 - [ ] **6. Düzeltmeler:** hareket sonu "SETLER 10-10-/10" kırılması · İngilizce grup adları ("Legs 0,7") ·
   Ayarlar'da kaynak/lisans notu (kas görseli: kullanıcı; hareket fotoğrafları: free-exercise-db, Unlicense).
 - [ ] **7. Test ve yayın:** her adımda tüm testler; her yeni özelliğe uçtan uca senaryo; senaryo ve öneri
@@ -186,7 +187,10 @@ Talep (03.10.2026, karar bekliyor):
   - [ ] F1 Ana ekran: haftalık 3 gün halkası, form durumu (taze/yorgun), bugünün önerisi (yüzme mi salon mu,
     süre bütçesiyle), BR ve omuz prehab göstergeleri.
   - [ ] F2 Takvim: salon günleri, günlük yük çubuğu, kısıt uyarıları.
-  - ~~F3 Haftalık rapor (antrenöre paylaşılabilir)~~ — çıkarıldı (04.10.2026: antrenör yok).
+  - [ ] F3 **Haftanın özeti** (04.10.2026, kişisel; paylaşım yok): Pazar açılır, geçmiş haftalara kaydırılır.
+    Yüzme km · salon set · seans x/3 · form; bölge dengesi; stil + kurbağalama %; ağrı mini haritası; önceki haftayla
+    kıyas; haftanın notları (ör. "EN3 hedef altında → CSS testi önerildi", "omuz önleyici 2/2 ✓"). Ana ekrandan
+    ve Yapılmış idmanlar'dan açılır. Örnek görüntü: `tasarim/oneriler/rapor-eski.png` (paylaş düğmesi olmadan).
   - [ ] F4 Saat verisi içe aktarma (Garmin FIT) — **sonra** (04.10.2026), sürüm 12'de yok.
   - [ ] F5 Haftalık program iskeleti önerisi: kısıtlar + form + denge → 3 günün odağı (öneri, program sayfasına
     yazmaz).
