@@ -518,6 +518,8 @@ function renderPrefs() {
     $('pref-css').value = p.css ? fmtDur(p.css) : '';
   }
   const css = fromRef ? c && c.css : p.css;
+  const tah = css ? analiz.dereceTahmini(css) : null;
+  $('pref-tahmin').innerHTML = tah ? `Derece tahmini (kaba, CSS'ten): 100 FR <b>${fmtDur(tah[100])}</b> · 200 FR <b>${fmtDur(tah[200])}</b> · 400 FR <b>${fmtDur(tah[400])}</b>` : '';
   $('pref-zones').innerHTML = css
     ? zones().map((z) => {
       const lo = z.alt === -Infinity ? '' : fmtDur(css + z.alt);
@@ -2084,6 +2086,82 @@ function updateMola(st, now) {
 }
 
 /** Karta dokununca setin tüm bilgisi büyük yazıyla; dokununca kapanır, zamanlamayı etkilemez. */
+// --- Sürüm 12 (yüzme): rehberli CSS testi, derece tahmini, set ilerleme grafiği ------------------
+
+/** Şu anki aletsiz CSS (sn/100 m): sporRef, yoksa Ayarlar'daki değer. */
+function guncelCss() {
+  const r = data.isConfigured('ref') ? sporRef() : null;
+  const c = r && r.css.length ? ref.cssFor(r, { tarih: todayKey(), havuz: prefs().havuz, alet: '' }) : null;
+  return c ? c.css : prefs().css || null;
+}
+
+/** CSS testi: 400 m ve 200 m süreleri → CSS = (t400 − t200) / 2; sporRef'e yeni satır ya da yalnızca telefonda. */
+async function cssTestiAc() {
+  const eski = guncelCss() || 117;
+  const v = { t400: Math.round(eski * 4 + 8), t200: Math.round(eski * 2 - 6) };
+  const body = document.createElement('div');
+  body.className = 'kn-body';
+  const draw = () => {
+    const css = analiz.cssTesti(v.t400, v.t200);
+    const fark = css ? Math.round((css - eski) * 10) / 10 : null;
+    const t = css ? analiz.dereceTahmini(css) : null;
+    body.innerHTML = `<p class="mu">Isınmadan sonra 400 m ve 5 dk dinlenip 200 m, ikisi de en iyi temponla (aletsiz). Süreleri gir.</p>
+      ${[['t400', '400 M'], ['t200', '200 M']].map(([k, l]) => `<div class="kn-row"><div><small>${l}</small><b class="n">${fmtDur(v[k])}</b></div>
+        <div class="kn-pm"><button data-d="${k}:-5">−5</button><button data-d="${k}:-1">−</button><button data-d="${k}:1">+</button><button data-d="${k}:5">+5</button></div></div>`).join('')}
+      <div class="css-res">${css ? `<small>YENİ CSS</small><b class="n">${fmtDur(css)}</b><span>/100 m · şimdiki ${fmtDur(eski)}${fark ? ` (${fark > 0 ? '+' : ''}${fmtDec(fark)} sn)` : ''}</span>` : '<span class="warn">Süreler tutarsız: 400 m, 200 m\'nin 1,5–3 katı olmalı</span>'}</div>
+      ${t ? `<p class="mu">Derece tahmini (kaba): 100 FR ${fmtDur(t[100])} · 200 FR ${fmtDur(t[200])} · 400 FR ${fmtDur(t[400])}</p>` : ''}`;
+  };
+  draw();
+  body.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-d]');
+    if (!b) return;
+    const [k, d] = b.dataset.d.split(':');
+    v[k] = Math.max(30, Math.min(1200, v[k] + Number(d)));
+    draw();
+  });
+  const refVar = data.isConfigured('ref');
+  const sec = await modal({ title: 'CSS testi', body, actions: [
+    ...(refVar ? [{ label: "sporRef'e yaz", value: 'ref', cls: 'btn-primary' }] : []),
+    { label: refVar ? 'Yalnızca telefonda' : 'Telefonda kullan', value: 'tel', cls: refVar ? '' : 'btn-primary' },
+    { label: 'Vazgeç', value: '' },
+  ] });
+  const css = analiz.cssTesti(v.t400, v.t200);
+  if (!sec || !css) { if (sec && !css) toast('Süreler tutarsız: CSS hesaplanamadı', 2500); return; }
+  if (sec === 'tel') { data.setPrefs({ css: Math.round(css) }); renderPrefs(); return toast(`CSS ${fmtDur(css)} telefonda kaydedildi`, 2500); }
+  try {
+    await data.addCss({ tarih: todayKey(), css, havuz: prefs().havuz });
+    await refreshRef();
+    state.zones = null;
+    renderPrefs();
+    toast(`CSS ${fmtDur(css)} sporRef'e yazıldı (yeni satır; eskiler duruyor)`, 3000);
+  } catch (err) {
+    await modal({ title: 'sporRef\'e yazılamadı', body: `<p>${esc(err.message)}</p><p class="muted">SporRef.gs'in yeni sürümü dağıtıldı mı? (addCss)</p>`, actions: [{ label: 'Tamam', value: '' }] });
+  }
+}
+
+/** Aynı set türünün son 8 seferi: ortalama tempo /100 m (yukarı = hızlı), CSS çizgisi. */
+function tempoGrafik(s) {
+  const imza = analiz.setImza({ ...s, tekrar: tekrarOf(s) });
+  const g = analiz.setGecmisi(data.getHistory(), imza).slice(0, 8).reverse();
+  if (g.length < 2) return '';
+  const c = cssOf(s);
+  const v = g.map((x) => x.tempo);
+  const all = c ? [...v, c.css] : v;
+  const lo = Math.min(...all), hi = Math.max(...all);
+  const pad = (hi - lo) * 0.15 || 1;
+  const W = 300, H = 96, pl = 34, pr = 52, pt = 8, pb = 18;
+  const X = (i) => pl + ((W - pl - pr) * i) / (g.length - 1);
+  const Y = (y) => pt + (H - pt - pb) * ((y - (lo - pad)) / (hi - lo + 2 * pad)); // küçük tempo (hızlı) yukarıda
+  const pts = v.map((y, i) => `${X(i).toFixed(1)},${Y(y).toFixed(1)}`).join(' ');
+  const dots = g.map((x, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v[i]).toFixed(1)}" r="8" class="hit"><title>${esc(x.tarih.slice(8, 10))}.${esc(x.tarih.slice(5, 7))} · ort. ${fmtAvg(x.ortSn * 1000)} · ${fmtDur(Math.round(x.tempo))}/100</title></circle>`).join('');
+  const cssLn = c ? `<line x1="${pl}" x2="${W - pr}" y1="${Y(c.css).toFixed(1)}" y2="${Y(c.css).toFixed(1)}" class="ref"/><text x="${W - pr + 4}" y="${(Y(c.css) + 4).toFixed(1)}" class="ax">CSS</text>` : '';
+  return `<p class="dt-lb">SON ${g.length} KEZ · ORT. TEMPO /100 M (YUKARI = HIZLI)</p>
+    <svg class="hg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(imza)} son ${g.length} kez">
+      <text x="${pl - 5}" y="${(Y(lo) + 4).toFixed(1)}" text-anchor="end" class="ax">${fmtDur(Math.round(lo))}</text><text x="${pl - 5}" y="${(Y(hi) + 4).toFixed(1)}" text-anchor="end" class="ax">${fmtDur(Math.round(hi))}</text>
+      ${cssLn}<polyline points="${pts}" class="ln"/>${dots}<circle cx="${X(g.length - 1).toFixed(1)}" cy="${Y(v[v.length - 1]).toFixed(1)}" r="4" class="last"/>
+      <text x="${pl}" y="${H - 4}" class="ax">${esc(g[0].tarih.slice(8, 10))}.${esc(g[0].tarih.slice(5, 7))}</text><text x="${W - pr}" y="${H - 4}" text-anchor="end" class="ax">${esc(g[g.length - 1].tarih.slice(8, 10))}.${esc(g[g.length - 1].tarih.slice(5, 7))}</text></svg>`;
+}
+
 function openDetail(i) {
   const s = state.plan.setler[i];
   const b = blokOf(s);
@@ -2103,6 +2181,7 @@ function openDetail(i) {
     ${pace}
     ${s.alet ? `<p class="dt-row">Alet <b>${esc(s.alet)}</b></p>` : ''}
     <p class="dt-row">${fmtNum(setDist(s))} m${c.time ? ` · yığımlı hedef ${fmtDur(c.time)}` : ''}</p>
+    ${tempoGrafik(s)}
     ${detailActions(i)}
     <p class="dt-hint">Boşluğa dokun: kapat · süre işlemeye devam eder</p>`;
   box.dataset.i = String(i);
@@ -4358,6 +4437,7 @@ function wire() {
   $('setup-forget').addEventListener('click', forgetKey);
   $('setup-prefs').addEventListener('click', onPrefsClick);
   $('pref-css').addEventListener('change', onCssChange);
+  $('pref-css-test').addEventListener('click', cssTestiAc);
   $('pref-ses-test').addEventListener('click', () => {
     audio.unlock();
     audio.short();

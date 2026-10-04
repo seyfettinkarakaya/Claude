@@ -354,5 +354,39 @@ sc('Yüzme: ağrı ekranında kas haritası — omuza dokun → kişinin sağı/
   assert.match(await txt(s, '#oz-msi'), /sağ omuz 0,5, sol omuz 1/);
 });
 
+sc('CSS testi: 400 + 200 → yeni CSS, sporRef css sayfasına yeni satır (eskiler durur), Ayarlar yeni değeri gösterir; derece tahmini', async ({ launch }) => {
+  const s = await launch({ ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.ref'));
+  await p.click('#home-settings'); await s.waitScreen('setup');
+  assert.match(await txt(s, '#pref-css-ref'), /sporRef'ten: 2:00/);
+  assert.match(await txt(s, '#pref-tahmin'), /Derece tahmini \(kaba, CSS'ten\): 100 FR 1:48 · 200 FR 3:48 · 400 FR 7:52/);
+  const once = s.envs.REF.sheets.css.data.length;
+  await p.click('#pref-css-test'); await s.waitModal('CSS testi');
+  // varsayılan: 400 = 8:08, 200 = 3:54 → CSS 2:07; 400'ü 7:46'ya indir → (466 − 234) / 2 = 116 = 1:56
+  for (let k = 0; k < 4; k++) await p.click('#modal-body [data-d="t400:-5"]');
+  await p.click('#modal-body [data-d="t400:-1"]'); await p.click('#modal-body [data-d="t400:-1"]');
+  assert.match(await txt(s, '#modal-body'), /400 M\s*7:46.*200 M\s*3:54.*YENİ CSS\s*1:56/);
+  await s.modalClick("sporRef'e yaz");
+  await p.waitForFunction(() => /sporRef'e yazıldı/.test(document.getElementById('toast').textContent));
+  const css = s.envs.REF.sheets.css;
+  assert.equal(css.data.length, once + 1, 'yalnızca bir satır eklendi');
+  assert.equal(css.data[css.data.length - 1][2], 116);
+  await p.waitForFunction(() => /sporRef'ten: 1:56/.test(document.getElementById('pref-css-ref').textContent));
+  assert.ok(s.net.calls.includes('addCss'));
+});
+
+sc('Yüzme ayrıntısı: aynı setin son seferleri tempo grafiği (CSS çizgisiyle)', async ({ launch }) => {
+  const set = (tarih, gercek) => ({ id: tarih, tarih, seans: { sure: '00:40:00', rpe: 6, msi: '' }, setler: [{ blok: 'MS', tekrar: 4, mesafe: 100, stil: 'FR', tur: 'Swim', tamamlandi: true, gercek, yapilan: 4 }] });
+  const s = await launch({ ref: true, storage: { 'ysk.history': [set('2026-09-16', '1:58.0'), set('2026-09-09', '2:01.0'), set('2026-09-02', '2:03.5')] } }); const p = s.page;
+  await s.openToday();
+  await s.goTo(2);
+  await p.click('.w-item.is-active .w-card'); await p.waitForSelector('#detail:not([hidden])');
+  assert.match(await txt(s, '#detail-body'), /SON 3 KEZ · ORT\. TEMPO \/100 M/);
+  const t = await p.$$eval('#detail-body svg.hg circle.hit title', (e) => e.map((x) => x.textContent));
+  assert.deepEqual(t.map((x) => x.slice(0, 5)), ['02.09', '09.09', '16.09']);
+  assert.equal(await p.$$eval('#detail-body svg.hg line.ref', (e) => e.length), 1, 'CSS çizgisi');
+});
+
 const only = process.argv[2];
 if (require.main === module) runScenarios('Sürüm 12 senaryoları', only ? S.filter(([n]) => n.toLowerCase().includes(only.toLowerCase())) : S, 8150);

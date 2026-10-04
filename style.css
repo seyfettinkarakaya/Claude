@@ -1499,3 +1499,14 @@ svg.hg .dl { font-size: 11px; font-weight: 700; fill: #C2CBD5; }
 .msi-pin.r { background: #F87171; }
 .msi-gecmis { font-size: 13.5px; color: #C2CBD5; margin-bottom: 8px; }
 .msi-gecmis p { margin: 2px 0; }
+
+/* Sürüm 12 (yüzme): CSS testi, tahmin, set grafiği */
+.css-res { display: flex; align-items: baseline; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(45, 212, 191, 0.1); border: 1px solid rgba(45, 212, 191, 0.4); }
+.css-res small { font-size: 11px; font-weight: 900; color: #2DD4BF; letter-spacing: 1px; }
+.css-res b { font-size: 40px; line-height: 1; }
+.css-res span { font-size: 13px; color: #8B97A5; font-weight: 700; }
+.css-res .warn { color: var(--warn); }
+.pref-tahmin { margin: 8px 0; }
+.pref-tahmin b { color: var(--text); }
+.dt-lb { margin: 10px 0 2px; font-size: 11px; font-weight: 800; letter-spacing: 1.4px; color: #8B97A5; }
+svg.hg .ref { stroke: #7A8694; stroke-dasharray: 3 3; }
