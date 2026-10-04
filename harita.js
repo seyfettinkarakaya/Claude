@@ -17,7 +17,7 @@ export const yuzu = (g) => (gorunumde('front', g) ? 'front' : 'back');
 /**
  * Figür öğesi. opts: { yogunluk: {grup: 0..1} (renkli katman opaklığı; verilmeyen gruplar gizli),
  *   tumu: true (yogunluk yoksa tüm gruplar renkli), secili: {grup: 1|2} (rozet + amber parıltı), odak: grup,
- *   rozet: true, yan: 'sag'|'sol' (yalnızca kişinin o yarısı; ağrı haritası), cls }
+ *   rozet: true, yan: 'sag'|'sol' (yalnızca kişinin o yarısı; ağrı haritası), sabit: true (seçimde renkler kalır, rozet ✓), cls }
  */
 export function figur(view, opts = {}) {
   const m = META[view];
@@ -49,12 +49,13 @@ export function guncelle(el, opts = {}) {
   const y = opts.yogunluk || null;
   const sec = opts.secili || {};
   const aktif = Boolean(y) || Object.values(sec).some(Boolean) || Boolean(opts.odak);
-  el.classList.toggle('is-akt', aktif);
+  el.classList.toggle('is-akt', aktif && !opts.sabit);
   el.classList.toggle('yan-sag', opts.yan === 'sag');
   el.classList.toggle('yan-sol', opts.yan === 'sol');
   for (const l of el.querySelectorAll('.kl')) {
     const g = l.dataset.g;
-    const v = y ? y[g] || 0 : (sec[g] || g === opts.odak ? 1 : aktif ? 0 : 1);
+    // sabit: seçim ekranı — tüm gruplar kendi renginde kalır, seçilen yalnızca vurgulanır
+    const v = y ? y[g] || 0 : opts.sabit ? 1 : (sec[g] || g === opts.odak ? 1 : aktif ? 0 : 1);
     l.style.opacity = String(Math.max(0, Math.min(1, v)));
     l.classList.toggle('is-sel', Boolean(sec[g]));
     l.classList.toggle('is-odak', g === opts.odak);
@@ -62,7 +63,8 @@ export function guncelle(el, opts = {}) {
   for (const b of el.querySelectorAll('.kb')) {
     const p = sec[b.dataset.g] || 0;
     b.classList.toggle('is-on', p > 0);
-    b.textContent = p === 2 ? '★★' : p ? '★' : '';
+    b.textContent = opts.sabit ? (p ? '✓' : '') : p === 2 ? '★★' : p ? '★' : '';
+    b.classList.toggle('is-ok', Boolean(opts.sabit && p));
   }
 }
 

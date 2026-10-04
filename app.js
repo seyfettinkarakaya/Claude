@@ -1,20 +1,20 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=12.0.0';
-import { Wheel } from './wheel.js?v=12.0.0';
-import * as zaman from './zaman.js?v=12.0.0';
-import * as ref from './ref.js?v=12.0.0';
-import * as duzen from './duzen.js?v=12.0.0';
-import * as salon from './salon.js?v=12.0.0';
-import * as grup from './grup.js?v=12.0.0';
-import * as kisit from './kisit.js?v=12.0.0';
-import * as yuk from './yuk.js?v=12.0.0';
-import * as harita from './harita.js?v=12.0.0';
-import * as bilgi from './bilgi.js?v=12.0.0';
-import * as analiz from './analiz.js?v=12.0.0';
+import * as data from './data.js?v=12.1.0';
+import { Wheel } from './wheel.js?v=12.1.0';
+import * as zaman from './zaman.js?v=12.1.0';
+import * as ref from './ref.js?v=12.1.0';
+import * as duzen from './duzen.js?v=12.1.0';
+import * as salon from './salon.js?v=12.1.0';
+import * as grup from './grup.js?v=12.1.0';
+import * as kisit from './kisit.js?v=12.1.0';
+import * as yuk from './yuk.js?v=12.1.0';
+import * as harita from './harita.js?v=12.1.0';
+import * as bilgi from './bilgi.js?v=12.1.0';
+import * as analiz from './analiz.js?v=12.1.0';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '12.0.0';
+export const APP_VERSION = '12.1.0';
 
 const $ = (id) => document.getElementById(id);
 
@@ -82,6 +82,8 @@ function fmtDateTR(key) {
 }
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('tr-TR');
+/** Tahmini süre: "~45 dk" / "~1 sa 47 dk". */
+const fmtSure = (sn) => { const dk = Math.round((Number(sn) || 0) / 60); return dk >= 60 ? `~${Math.floor(dk / 60)} sa${dk % 60 ? ` ${dk % 60} dk` : ''}` : `~${dk} dk`; };
 
 function fmtHMS(ms) {
   const t = Math.max(0, Math.floor(ms / 1000));
@@ -1049,57 +1051,23 @@ function renderHome() {
 // Sürüm 12 — ortak ekranlar: ana sayfa haftalık şeridi, Form ve denge, Haftanın özeti
 // ===========================================================================
 
-/** Çizgi grafiği (tek eksen, 2 px, doğrudan etiket, noktada başlık). series: [{ ad, cls, v: [] }] */
-function cizgiGrafik(series, { xl = [], yfmt = (v) => fmtDec(Math.round(v)), w = 320, h = 140, ref: rf = null } = {}) {
-  const all = series.flatMap((s) => s.v).concat(rf ? [rf.v] : []);
-  const lo = Math.min(...all), hi = Math.max(...all);
-  const pad = (hi - lo) * 0.12 || 1;
-  const pl = 30, pr = 100, pt = 8, pb = 18;
-  const n = series[0].v.length;
-  const X = (i) => pl + ((w - pl - pr) * i) / Math.max(1, n - 1);
-  const Y = (v) => pt + (h - pt - pb) * (1 - (v - (lo - pad)) / (hi - lo + 2 * pad));
-  const o = [`<svg class="hg cg" viewBox="0 0 ${w} ${h}" role="img">`];
-  for (const t of [lo, (lo + hi) / 2, hi]) o.push(`<line x1="${pl}" x2="${w - pr}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}" class="gl"/><text x="${pl - 5}" y="${(Y(t) + 4).toFixed(1)}" text-anchor="end" class="ax">${esc(yfmt(t))}</text>`);
-  if (rf) o.push(`<line x1="${pl}" x2="${w - pr}" y1="${Y(rf.v).toFixed(1)}" y2="${Y(rf.v).toFixed(1)}" class="ref"/><text x="${w - pr + 4}" y="${(Y(rf.v) + 4).toFixed(1)}" class="ax">${esc(rf.ad)}</text>`);
-  xl.forEach((l, i) => { if (l) o.push(`<text x="${X(i).toFixed(1)}" y="${h - 4}" text-anchor="middle" class="ax">${esc(l)}</text>`); });
-  for (const s of series) {
-    o.push(`<polyline points="${s.v.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')}" class="ln ${s.cls}"/>`);
-    o.push(s.v.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="6" class="hit"><title>${esc(s.ad)} ${esc(xl[i] || '')}: ${esc(yfmt(v))}</title></circle>`).join(''));
-    const lv = s.v[n - 1];
-    o.push(`<circle cx="${X(n - 1).toFixed(1)}" cy="${Y(lv).toFixed(1)}" r="4" class="last ${s.cls}"/><text x="${(X(n - 1) + 8).toFixed(1)}" y="${(Y(lv) + 4).toFixed(1)}" class="dl">${esc(s.ad)} ${esc(yfmt(lv))}</text>`);
-  }
-  o.push('</svg>');
-  return o.join('');
-}
-
-/** Çubuk grafiği (sıfır çizgili; + ve − değerler). */
-function cubukGrafik(v, { xl = [], ad = '', w = 320, h = 70 } = {}) {
-  const m = Math.max(1, ...v.map(Math.abs));
-  const pl = 30, pr = 100, pt = 6, pb = 16;
-  const bw = (w - pl - pr) / v.length;
-  const Y0 = pt + (h - pt - pb) / 2, sc = (h - pt - pb) / 2 / m;
-  const o = [`<svg class="hg cb" viewBox="0 0 ${w} ${h}" role="img"><line x1="${pl}" x2="${w - pr}" y1="${Y0}" y2="${Y0}" class="gl"/><text x="${pl - 5}" y="${Y0 + 4}" text-anchor="end" class="ax">0</text>`];
-  v.forEach((x, i) => {
-    const hh = Math.max(1, Math.abs(x) * sc);
-    o.push(`<rect x="${(pl + i * bw + 1).toFixed(1)}" y="${(x >= 0 ? Y0 - hh : Y0).toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${hh.toFixed(1)}" rx="1.5" class="br"><title>${esc(ad)} ${esc(xl[i] || '')}: ${x > 0 ? '+' : ''}${x}</title></rect>`);
-  });
-  const last = v[v.length - 1];
-  o.push(`<text x="${w - pr + 4}" y="${(Y0 - last * sc + 4).toFixed(1)}" class="dl">${esc(ad)} ${last > 0 ? '+' : ''}${last}</text></svg>`);
-  return o.join('');
-}
-
 /** Ortak durum: seanslar, günlük yük, form, oran, toparlanma, kurallar. */
 function genelDurum() {
   const L = seansListesi();
   const g = yuk.gunluk(L);
   const bugun = todayKey();
-  const f = yuk.formEgrisi(g, bugun, 56);
-  const son = f[f.length - 1] || { kondisyon: 0, yorgunluk: 0, form: 0 };
-  // Kondisyon 42 günlük ortalama: 6 haftadan kısa kayıtta form yanıltıcı derecede eksi çıkar
-  const az = !L.length || L[0].tarih > yuk.gunEkle(bugun, -42);
-  return { L, g, bugun, f, son, az, oran: yuk.yukOrani(g, bugun), tp: yuk.toparlanma(L), K: kurallar() };
+  const K = kurallar();
+  const normal = yuk.normalHafta(K);
+  const H = yuk.haftalar(L, bugun, 8);
+  const buHafta = H[H.length - 1];
+  // Kronik yük (son 4 hafta ortalaması) normal haftanın yarısından azsa: aradan dönüş
+  let son28 = 0;
+  for (const x of L) if (x.tarih > yuk.gunEkle(bugun, -28) && x.tarih <= bugun) son28 += x.yuk;
+  const donus = son28 / 4 < normal * 0.5;
+  const oran = yuk.yukOrani(g, bugun, normal);
+  return { L, g, bugun, K, normal, H, buHafta, hd: yuk.haftaDurumu(buHafta.top, normal), donus, oran, od: yuk.oranDurum(oran, { donus }), tp: yuk.toparlanma(L) };
 }
-const formDurum = (v) => (v >= 5 ? ['ok', 'taze'] : v <= -15 ? ['warn', 'yorgun'] : ['', 'dengeli']);
+const DURUM_CLS = { az: '', normal: 'ok', yuksek: 'warn' };
 
 /** Bugünün önerisi (süre bütçesi, program, toparlanma, önleyici borç). */
 function bugunOnerisi(G) {
@@ -1125,20 +1093,19 @@ function renderHafta() {
   const box = $('home-week');
   const G = genelDurum();
   const gun = yuk.haftaGunleri(G.L, G.bugun);
-  const [fc, ft] = G.az ? ['', 'veri birikiyor'] : formDurum(G.son.form);
   const ay = yuk.stilAy(G.L, G.bugun.slice(0, 7));
   const d = salonData();
   const omuz = d ? salon.onleyiciDurum(d.gecmis, G.bugun, hPay).find((o) => o.key === 'omuz') : null;
   const o = bugunOnerisi(G);
-  const od = yuk.oranDurum(G.oran);
+  const od = G.od;
   const testZ = analiz.cssTestiZamani(data.getHistory(), guncelCss(), G.bugun);
   const cak = yuk.cakisma(G.L, G.bugun, planliYuzme());
   const ring = (v, t, l, cls) => { const p = Math.min(1, v / t); const c = 2 * Math.PI * 20; return `<div class="hw-ring ${cls}"><svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="20" class="tr"/><circle cx="24" cy="24" r="20" class="fg" stroke-dasharray="${(c * p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 24 24)"/><text x="24" y="29" text-anchor="middle">${v}/${t}</text></svg><small>${l}</small></div>`; };
   box.innerHTML = `<div class="hw-top">${ring(gun, G.K.gunHafta, 'bu hafta gün', 'a')}${omuz ? ring(omuz.yapilan, omuz.hedef, 'omuz önleyici', 't') : ''}
-      <button class="hw-form" data-hw="form"><small>FORM</small><b class="n ${fc}">${G.son.form > 0 ? '+' : ''}${G.son.form}</b><span class="${fc}">${ft}</span><small>kondisyon ${G.son.kondisyon} · yorgunluk ${G.son.yorgunluk}</small></button></div>
+      <button class="hw-form" data-hw="form"><small>BU HAFTA YÜK</small><b class="n ${DURUM_CLS[G.hd.durum]}">%${G.hd.pay}</b><span class="${DURUM_CLS[G.hd.durum]}">${esc(G.hd.metin.toLocaleLowerCase('tr'))}</span><small>normal haftaya göre ›</small></button></div>
     <div class="hw-today"><small>BUGÜN ÖNERİ${o.butce ? ` · ${esc(o.butce.toLocaleUpperCase('tr'))}` : ''}</small><b>${esc(o.metin)}</b></div>
     ${ay.toplam ? `<p class="hw-g ${ay.brOran >= G.K.brAyMax * 0.8 ? 'warn' : ''}">Kurbağalama bu ay <b>%${fmtDec(ay.brOran)}</b> / ${G.K.brAyMax}</p>` : ''}
-    ${od.durum === 'yuksek' || od.durum === 'sinirda' ? `<p class="hw-g warn">⚠ Yük artış oranı ${fmtDec(G.oran)}: ${esc(od.metin)}</p>` : ''}
+    ${od.durum === 'yuksek' || od.durum === 'sinirda' ? `<p class="hw-g warn">⚠ Yük hızlı artıyor (son 7 gün, önceki haftaların ${fmtDec(G.oran)} katı): ${esc(od.metin)}</p>` : ''}
     ${cak ? `<p class="hw-g warn">⚠ ${esc(cak.metin)}</p>` : ''}
     ${new Date().getDay() === 0 && gun ? '<button class="hw-g hw-oz" data-hw="hafta">📋 Haftanın özeti hazır ›</button>' : ''}
     ${testZ ? '<button class="hw-g hw-test" data-hw="css">💡 CSS testi zamanı: eşik setleri hedefin altında · testi yap ›</button>' : ''}`;
@@ -1148,64 +1115,106 @@ function renderHafta() {
 
 function showForm() { show('form'); renderForm(); }
 
+/** Haftalık yük çubukları (yüzme + salon üst üste), normal hafta kesikli çizgi. */
+function haftaGrafik(H, normal) {
+  const w = 320, h = 150, pl = 8, pr = 8, pt = 16, pb = 20;
+  const max = Math.max(normal * 1.4, ...H.map((x) => x.top)) || 1;
+  const bw = (w - pl - pr) / H.length;
+  const Y = (v) => pt + (h - pt - pb) * (1 - v / max);
+  const o = [`<svg class="hg hy" viewBox="0 0 ${w} ${h}" role="img" aria-label="Son ${H.length} hafta yük">`];
+  H.forEach((x, i) => {
+    const x0 = pl + i * bw + 4, bwi = Math.max(2, bw - 8);
+    const yY = Y(x.yuzme), yS = Y(x.yuzme + x.salon);
+    if (x.yuzme) o.push(`<rect x="${x0.toFixed(1)}" y="${yY.toFixed(1)}" width="${bwi.toFixed(1)}" height="${(h - pb - yY).toFixed(1)}" rx="2" class="by"><title>${esc(fmtDateTR(x.bas))} haftası · yüzme ${fmtNum(x.yuzme)}</title></rect>`);
+    if (x.salon) o.push(`<rect x="${x0.toFixed(1)}" y="${yS.toFixed(1)}" width="${bwi.toFixed(1)}" height="${(yY - yS).toFixed(1)}" rx="2" class="bs"><title>${esc(fmtDateTR(x.bas))} haftası · salon ${fmtNum(x.salon)}</title></rect>`);
+    if (i % 2 === (H.length - 1) % 2 || i === H.length - 1) o.push(`<text x="${(x0 + bwi / 2).toFixed(1)}" y="${h - 5}" text-anchor="middle" class="ax">${i === H.length - 1 ? 'bu hafta' : `${x.bas.slice(8, 10)}.${x.bas.slice(5, 7)}`}</text>`);
+  });
+  o.push(`<line x1="${pl}" x2="${w - pr}" y1="${Y(normal).toFixed(1)}" y2="${Y(normal).toFixed(1)}" class="ref"/><text x="${w - pr}" y="${(Y(normal) - 4).toFixed(1)}" text-anchor="end" class="ax">normal hafta ${fmtNum(normal)}</text>`);
+  o.push(`<line x1="${pl}" x2="${w - pr}" y1="${h - pb}" y2="${h - pb}" class="gl"/></svg>`);
+  return o.join('');
+}
+
 function renderForm() {
   const G = genelDurum();
-  const son = G.f.slice(-57);
-  const hafta = [];
-  for (let i = son.length - 1; i >= 0; i -= 7) hafta.unshift(son[i]);
-  const xl = hafta.map((x, i) => (i % 2 === hafta.length % 2 ? `${x.tarih.slice(8, 10)}.${x.tarih.slice(5, 7)}` : ''));
-  const od = yuk.oranDurum(G.oran);
-  const top = Object.entries(G.tp).sort((a, b) => a[1].toparlanma - b[1].toparlanma);
-  const yorgunluk = Object.fromEntries(top.map(([g, o]) => [g, Math.round(100 - o.toparlanma)]));
-  // Denge: son 4 hafta / tümü (yüzme setleri: set ortalaması × yapılan tekrar)
+  const B = G.buHafta;
+  const p = prefs();
+  // 1. Bu hafta
+  const bar = Math.min(100, Math.round((B.top / (G.normal * 1.5)) * 100));
+  const nrm = Math.round((G.normal / (G.normal * 1.5)) * 100);
+  // 2. Gidişat (yük artışı)
+  const gid = G.od.durum === 'yuksek' ? ['warn', 'Yük hızlı arttı: bu hafta hafif tut ya da dinlenme haftası yap.']
+    : G.od.durum === 'sinirda' ? ['warn', 'Yük artışı sınırda: bir sonraki haftayı artırma.']
+      : G.od.durum === 'donus' ? ['', 'Aradan dönüş döneminde: her hafta en çok %20 artır, 3–4 haftada normale çık.']
+        : G.od.durum === 'dusuk' ? ['', 'Yük son haftalara göre az: istersen kademeli artır.']
+          : G.od.durum === 'guvenli' ? ['ok', 'Yük dengeli artıyor (güvenli aralık).'] : ['', 'Değerlendirme için en az 2 haftalık kayıt gerekli.'];
+  // 3. Kas yorgunluğu: yalnızca toparlanması %90'ın altındaki gruplar
+  const yorgun = Object.entries(G.tp).filter(([, o]) => o.toparlanma < 90).sort((a, b) => a[1].toparlanma - b[1].toparlanma);
+  const yk = Object.fromEntries(yorgun.map(([g, o]) => [g, Math.min(100, Math.round((100 - o.toparlanma) * 2))]));
+  const kaynak = (o) => (o.yuzmePay >= 80 ? 'yüzmeden' : o.salonPay >= 80 ? 'salondan' : 'yüzme + salon');
+  // 4. Yoğunluk dengesi (yüzme setleri, süre ağırlıklı)
   const hist = data.getHistory();
-  const bas4 = yuk.gunEkle(G.bugun, -28);
   const reps = (from) => {
     const out = [];
     for (const r of hist) {
       if (!r || r.tur === 'salon' || r.tarih < from) continue;
-      for (const s of r.setler || []) {
-        const sn = analiz.lapSn(s.gercek);
-        if (!s.tamamlandi || sn == null) continue;
-        const z = zoneOf(pacePer100(sn, s.mesafe), s);
-        if (z) out.push({ ms: sn * 1000 * (Number(s.yapilan) || Number(s.tekrar) || 1), n: z.n, zone: z.zone });
+      for (const st of r.setler || []) {
+        const sn = analiz.lapSn(st.gercek);
+        if (!st.tamamlandi || sn == null) continue;
+        const z = zoneOf(pacePer100(sn, st.mesafe), st);
+        if (z) out.push({ ms: sn * 1000 * (Number(st.yapilan) || Number(st.tekrar) || 1), n: z.n, zone: z.zone });
       }
     }
     return analiz.denge(analiz.bolgeSureleri(out));
   };
-  const d4 = reps(bas4), dt = reps('');
+  const bas4 = yuk.gunEkle(G.bugun, -28);
+  const d4 = reps(bas4);
+  const dengeVar = d4.kolay + d4.esik + d4.hiz > 0;
+  const dengeSatir = (ad, a, hedef, cls) => `<div class="fd-r"><span>${ad}</span><div class="fd-t"><i class="${cls}" data-w="${a}"></i></div><b class="n">%${a}</b><small>${hedef}</small></div>`;
+  const dengeNot = !dengeVar ? '' : d4.kolay < 60 ? 'Kolay yüzme az: aerobik taban için kolay payını artır.' : d4.hiz > 20 ? 'Hız payı yüksek: omuz için hız setlerini sınırlı tut.' : 'Dağılım dengeli.';
+  // 5. Stil
   const st4 = {};
   let stTop = 0;
   for (const x of G.L) if (x.tur === 'yuzme' && x.tarih >= bas4) for (const [k, m] of Object.entries(x.stil || {})) { st4[k] = (st4[k] || 0) + m; stTop += m; }
   const ay = yuk.stilAy(G.L, G.bugun.slice(0, 7));
-  const dengeSatir = (ad, a, b, cls) => `<div class="fd-r"><span>${ad}</span><div class="fd-t"><i class="${cls}" data-w="${a}"></i><s data-l="${b}"></s></div><b class="n">%${a}</b></div>`;
-  // Blok (periyotlama): 4 haftalık döngü, başlangıç tercihte
-  const p = prefs();
-  const blokBas = p.blokBas || salon.haftaBasi(G.bugun);
-  const hf = Math.floor((Date.parse(salon.haftaBasi(G.bugun)) - Date.parse(blokBas)) / (7 * 86400000));
-  const bh = ((hf % 4) + 4) % 4;
-  const BLOK = [['Hacim', 'Salon 3 × 12–15, yüzmede aerobik hacim'], ['Hacim+', 'Salon 3–4 × 10–12, eşik setleri artar'], ['Kuvvet', 'Salon 3 × 6–8, dinlenme 2 dk; yüzmede hacim −%10'], ['Dinlenme', 'Hacim %40 az, yoğunluk aynı']];
-  const ondeDinlenme = od.durum === 'yuksek' && bh !== 3;
+  // 6. Döngü (blok): yalnızca başlatılınca
+  const BLOK = [['Hacim', 'Salon 3 × 12–15 · yüzmede aerobik hacim'], ['Hacim+', 'Salon 3–4 × 10–12 · eşik setleri artar'], ['Kuvvet', 'Salon 3 × 6–8, dinlenme 2 dk · yüzme hacmi −%10'], ['Dinlenme', 'Hacim %40 az, yoğunluk aynı']];
+  let blokHtml;
+  if (p.blokBas) {
+    const hf = Math.floor((Date.parse(salon.haftaBasi(G.bugun)) - Date.parse(p.blokBas)) / (7 * 86400000));
+    const bh = ((hf % 4) + 4) % 4;
+    blokHtml = `<div class="fm-blok">${BLOK.map(([a], i) => `<div class="${i === bh ? 'on' : ''}"><b>${i + 1}</b><small>${a}</small></div>`).join('')}</div>
+      <p class="fm-bt"><b>${bh + 1}. hafta · ${BLOK[bh][0]}</b> — ${esc(BLOK[bh][1])}</p>
+      ${G.od.durum === 'yuksek' && bh !== 3 ? '<p class="fm-bt warn">⚠ Yük hızlı arttı: dinlenme haftasını öne al.</p>' : ''}
+      <button class="btn btn-block" data-fm="blokbitir">Döngüyü durdur</button>`;
+  } else {
+    blokHtml = `<p class="fm-acik">İsteğe bağlı: 3 hafta artan yük + 1 hafta dinlenme. Başlatırsan hangi haftada olduğun ve o haftanın salon/yüzme ağırlığı burada görünür.</p>
+      <button class="btn btn-block" data-fm="blok">Döngüyü bu hafta başlat</button>`;
+  }
   $('fm-body').innerHTML = `
-    <p class="sp-lb">FORM · SON 8 HAFTA <small>(günlük yük = RPE × dakika; yüzme + salon)</small></p>
-    ${hafta.length >= 2 ? cizgiGrafik([{ ad: 'Kondisyon', cls: 's1', v: hafta.map((x) => x.kondisyon) }, { ad: 'Yorgunluk', cls: 's2', v: hafta.map((x) => x.yorgunluk) }], { xl })
-      + cubukGrafik(hafta.map((x) => x.form), { xl, ad: 'Form' }) : '<p class="empty">Grafik için en az iki haftalık kayıt gerekli.</p>'}
-    <div class="fm-kv"><div><small>YÜK ARTIŞ ORANI</small><b class="n ${od.durum === 'yuksek' ? 'warn' : od.durum === 'sinirda' ? 'warn' : ''}">${G.oran == null ? '—' : fmtDec(G.oran)}</b><span>${esc(od.metin)}</span></div>
-      <div><small>FORM</small><b class="n">${G.son.form > 0 ? '+' : ''}${G.son.form}</b><span>${G.az ? 'veri birikiyor: 6 hafta gerekli' : formDurum(G.son.form)[1]}</span></div></div>
-    <p class="sp-lb">KAS TOPARLANMASI · SON 4 GÜN <small>(tahmin)</small></p>
-    ${top.length ? `<div class="sp-kapsam"><span class="sp-mb big" data-mb data-mb-abs="1" data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(yorgunluk))}"></span><div>${top.slice(0, 5).map(([g, o]) => `<p class="sp-kp"><span class="gd" data-bg="${grup.grupRenk(g)}"></span>${esc(g)}<b class="${o.toparlanma < 60 ? 'warn' : 'ok'}">%${o.toparlanma}</b></p><p class="fm-src">yüzme %${o.yuzmePay} · salon %${o.salonPay}</p>`).join('')}</div></div>` : '<p class="empty">Son 4 günde idman yok: hepsi toparlanmış.</p>'}
-    <p class="sp-lb">DENGE · ÇUBUK SON 4 HAFTA, ÇİZGİ TÜM ZAMAN</p>
-    ${dengeSatir('Kolay', d4.kolay, dt.kolay, 'z3')}${dengeSatir('Eşik', d4.esik, dt.esik, 'z4')}${dengeSatir('Hız', d4.hiz, dt.hiz, 'z6')}
-    ${stTop ? `<p class="sp-lb">STİL · FR → BK → BF → BR</p><div class="fm-stil">${['FR', 'BK', 'BF', 'BR'].filter((k) => st4[k]).map((k) => `<i class="st-${k}" data-grow="${st4[k]}"></i>`).join('')}</div>
+    <p class="sp-lb">BU HAFTA</p>
+    <div class="fm-card">
+      <div class="fm-bh"><b class="n ${DURUM_CLS[G.hd.durum]}">%${G.hd.pay}</b><span><b>${esc(G.hd.metin)}</b><small>${B.seans}/${G.K.gunHafta} seans · ${B.dk} dk · yük ${fmtNum(B.top)} / ${fmtNum(G.normal)}</small></span></div>
+      <div class="fm-yb"><i data-w="${bar}" class="${DURUM_CLS[G.hd.durum]}"></i><s data-l="${nrm}"></s></div>
+      <p class="fm-acik">Yük = süre (dk) × zorluk (RPE). Normal hafta = ${G.K.gunHafta} seans × ${G.K.seansDk} dk × RPE ${G.K.seansRpe}.</p>
+    </div>
+    <p class="sp-lb">SON 8 HAFTA <small>(mavi yüzme · turuncu salon)</small></p>
+    ${haftaGrafik(G.H, G.normal)}
+    <p class="fm-sonuc ${gid[0]}">${esc(gid[1])}</p>
+    <p class="sp-lb">KAS YORGUNLUĞU · SON 4 GÜN <small>(tahmin)</small></p>
+    ${yorgun.length ? `<div class="sp-kapsam"><span class="sp-mb big" data-mb data-mb-abs="1" data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(yk))}"></span><div>
+        <p class="fm-acik">Renk koyulaştıkça kas daha yorgun; gri kaslar dinlenmiş.</p>
+        ${yorgun.slice(0, 5).map(([g, o]) => `<p class="sp-kp"><span class="gd" data-bg="${grup.grupRenk(g)}"></span>${esc(g)}<b class="${o.toparlanma < 60 ? 'warn' : ''}">%${o.toparlanma} hazır</b></p><p class="fm-src">${kaynak(o)}</p>`).join('')}</div></div>`
+      : '<p class="fm-sonuc ok">Tüm kaslar toparlanmış ✓</p>'}
+    ${dengeVar ? `<p class="sp-lb">YÜZME YOĞUNLUĞU · SON 4 HAFTA <small>(set süresine göre)</small></p>
+      ${dengeSatir('Kolay', d4.kolay, 'hedef ~%75', 'z3')}${dengeSatir('Eşik', d4.esik, '~%15', 'z4')}${dengeSatir('Hız', d4.hiz, '~%10', 'z6')}
+      <p class="fm-acik">${esc(dengeNot)}</p>` : ''}
+    ${stTop ? `<p class="sp-lb">STİL · SON 4 HAFTA</p><div class="fm-stil">${['FR', 'BK', 'BF', 'BR'].filter((k) => st4[k]).map((k) => `<i class="st-${k}" data-grow="${st4[k]}"></i>`).join('')}</div>
       <p class="oz-bl">${['FR', 'BK', 'BF', 'BR'].filter((k) => st4[k]).map((k) => `<span><i class="st-${k}"></i>${k} %${Math.round((st4[k] / stTop) * 100)}</span>`).join('')}</p>` : ''}
-    <p class="fd-br ${ay.brOran >= G.K.brAyMax * 0.8 ? 'warn' : ''}">Kurbağalama bu ay %${fmtDec(ay.brOran)} / sınır %${G.K.brAyMax}</p>
+    <p class="fd-br ${ay.brOran >= G.K.brAyMax * 0.8 ? 'warn' : ''}">Kurbağalama bu ay %${fmtDec(ay.brOran)} · sınır %${G.K.brAyMax} (kalça, diz)</p>
     <p class="sp-lb">HAFTANIN İSKELETİ <small>(öneri; program sayfasına yazmaz)</small></p>
     ${iskelet(G)}
-    <p class="sp-lb">BLOK · 4 HAFTA</p>
-    <div class="fm-blok">${BLOK.map(([a], i) => `<div class="${i === bh ? 'on' : ''}${i === 3 ? ' dl' : ''}"><b>${i + 1}</b><small>${a}</small></div>`).join('')}</div>
-    <p class="fm-bt"><b>${bh + 1}. hafta · ${BLOK[bh][0]}</b> — ${esc(BLOK[bh][1])}</p>
-    ${ondeDinlenme ? '<p class="fm-bt warn">⚠ Yük oranı yüksek: dinlenme haftasını öne al.</p>' : ''}
-    <button class="btn btn-block" data-fm="blok">Bloğu bu hafta başlat</button>`;
+    <p class="sp-lb">4 HAFTALIK DÖNGÜ</p>
+    ${blokHtml}`;
   paint($('fm-body'));
   yerlestirMini($('fm-body'));
   for (const el of $('fm-body').querySelectorAll('[data-w]')) el.style.width = `${el.dataset.w}%`;
@@ -1256,7 +1265,7 @@ function renderHaftaOzeti() {
   const bas = state.haftaBas;
   const H = haftaVeri(G.L, bas), O = haftaVeri(G.L, yuk.gunEkle(bas, -7));
   const son = yuk.gunEkle(bas, 6);
-  const fEnd = G.f.find((x) => x.tarih === (son < G.bugun ? son : G.bugun)) || G.son;
+  const hd = yuk.haftaDurumu(H.yk, G.normal);
   const ag = analiz.agriGecmisi(data.getHistory().filter((r) => r.tarih >= bas && r.tarih <= son));
   const salonAgri = H.w.filter((x) => x.tur === 'salon' && x.msiMax >= 1);
   const d = salonData();
@@ -1266,7 +1275,7 @@ function renderHaftaOzeti() {
   for (const o of od) notlar.push(`${o.ad} ${o.yapilan}/${o.hedef}${o.acik ? '' : ' ✓'}`);
   const testZ = analiz.cssTestiZamani(data.getHistory(), guncelCss(), son < G.bugun ? son : G.bugun);
   if (testZ) notlar.push('Eşik setleri hedefin altında → CSS testi önerilir');
-  const or = yuk.oranDurum(yuk.yukOrani(G.g, son < G.bugun ? son : G.bugun));
+  const or = yuk.oranDurum(yuk.yukOrani(G.g, son < G.bugun ? son : G.bugun, G.normal), { donus: G.donus });
   if (or.durum === 'yuksek' || or.durum === 'sinirda') notlar.push(`Yük artış oranı: ${or.metin}`);
   const sag = { 'sag omuz': 'Omuz', 'sol omuz': 'Omuz', 'sag diz': 'Bacak', 'sol diz': 'Bacak', kalca: 'Kalça', bel: 'Sırt', boyun: 'Sırt' };
   const agK = {};
@@ -1277,8 +1286,8 @@ function renderHaftaOzeti() {
     <div class="stats4"><div><small>YÜZME</small><b class="n">${fmtDec(Math.round(H.km * 10) / 10)}<span>km</span></b>${kiy(H.km, O.km, (v) => `${fmtDec(Math.round(v * 10) / 10)} km`)}</div>
       <div><small>SALON</small><b class="n">${H.set}<span>set</span></b>${kiy(H.set, O.set, (v) => `${v}`)}</div>
       <div><small>SEANS</small><b class="n">${H.gun}/${G.K.gunHafta}</b></div>
-      <div><small>FORM</small><b class="n">${fEnd.form > 0 ? '+' : ''}${fEnd.form}</b></div></div>
-    <p class="hz-yk">Haftalık yük <b>${fmtNum(H.yk)}</b>${O.yk ? ` · geçen hafta ${fmtNum(O.yk)} (${H.yk >= O.yk ? '+' : ''}${Math.round(((H.yk - O.yk) / O.yk) * 100)}%)` : ''}</p>
+      <div><small>YÜK</small><b class="n">%${hd.pay}</b><em class="mu">${esc(hd.metin.toLocaleLowerCase('tr'))}</em></div></div>
+    <p class="hz-yk">Haftalık yük <b>${fmtNum(H.yk)}</b>${O.yk ? ` · geçen hafta ${fmtNum(O.yk)} (${H.yk >= O.yk ? '+' : '−'}%${Math.abs(Math.round(((H.yk - O.yk) / O.yk) * 100))})` : ''}</p>
     ${H.top ? `<p class="sp-lb">STİL · KURBAĞALAMA %${fmtDec(Math.round(((H.st.BR || 0) / H.top) * 1000) / 10)}</p><div class="fm-stil">${['FR', 'BK', 'BF', 'BR'].filter((k) => H.st[k]).map((k) => `<i class="st-${k}" data-grow="${H.st[k]}"></i>`).join('')}</div>
       <p class="oz-bl">${['FR', 'BK', 'BF', 'BR'].filter((k) => H.st[k]).map((k) => `<span><i class="st-${k}"></i>${k} %${Math.round((H.st[k] / H.top) * 100)}</span>`).join('')}</p>` : ''}
     <p class="sp-lb">AĞRI</p>
@@ -3411,10 +3420,16 @@ function renderGymGo(hz) {
   const n = hz.hareketler.filter((x) => x._oneri).length;
   const pay = {};
   for (const x of hz.hareketler) { const g = grupOf(x.ad); if (g) pay[g] = (pay[g] || 0) + x.set; }
-  $('home-gym-info').innerHTML = `<span class="hgg-k">${hz.tur === 'plan' ? 'HAZIR PLAN' : `SON İDMAN · ${esc(fmtDateTR(hz.tarih).toLocaleUpperCase('tr'))}`}</span>
-    <span class="hgg-t">${esc(hz.hareketler.map((x) => x.ad).join(', '))}</span>
-    <span class="hgg-bar">${Object.entries(pay).map(([g, v]) => `<i data-bg="${grupRenk(g)}" data-grow="${v}"></i>`).join('')}</span>
-    <span class="hgg-m">${hz.hareketler.length} hareket · ~${fmtDur(salon.tahminSn(hz.hareketler))}${n ? ` · ${n} harekette öneri uygulandı` : ''}</span>`;
+  const k = kapsam(hz.hareketler);
+  const gk = Object.entries(k);
+  const N = 5;
+  const satir = (x) => `<li><i data-bg="${grupRenk(grupOf(x.ad))}"></i><span>${esc(x.ad)}</span><b class="n">${x.set}×${x.sure ? `${x.sure}sn` : fmtDec(x.tekrar)}</b></li>`;
+  $('home-gym-info').innerHTML = `<span class="hgg-hd"><span class="hgg-k">${hz.tur === 'plan' ? 'HAZIR PLAN' : `SON İDMAN · ${esc(fmtDateTR(hz.tarih).toLocaleUpperCase('tr'))}`}</span><button class="hgg-ed" id="home-gym-edit">Düzenle</button></span>
+    <span class="hgg-bar">${gk.map(([g, v]) => `<i data-bg="${grup.grupRenk(g)}" data-grow="${v}"></i>`).join('')}</span>
+    <span class="hgg-gr">${gk.slice(0, 4).map(([g, v]) => `<span><i data-bg="${grup.grupRenk(g)}"></i>${esc(g)} <b>%${v}</b></span>`).join('')}${gk.length > 4 ? `<span class="mu">+${gk.length - 4}</span>` : ''}</span>
+    <ul class="hgg-ls">${hz.hareketler.slice(0, N).map(satir).join('')}</ul>
+    ${hz.hareketler.length > N ? `<details class="hgg-more"><summary>+${hz.hareketler.length - N} hareket daha</summary><ul class="hgg-ls">${hz.hareketler.slice(N).map(satir).join('')}</ul></details>` : ''}
+    <span class="hgg-m">${hz.hareketler.length} hareket · ${fmtSure(salon.tahminSn(hz.hareketler))}${n ? ` · ${n} harekette ilerleme önerisi` : ''}</span>`;
   paint($('home-gym-info'));
   box.hidden = false;
 }
@@ -3441,6 +3456,7 @@ async function loadSalon() {
   if (sl.loading) return sl.loading;
   sl.loading = data.getSalon().then(() => { sl.err = null; }).catch((err) => { sl.err = err; }).finally(() => {
     sl.loading = null;
+    kimlikCache.clear(); // H'deki Görsel sütunu değişmiş olabilir
     if (state.screen === 'salon-start') renderSalonStart();
     if (state.screen === 'home') { renderHomeGym(); try { renderHafta(); } catch { /* şerit bir sonraki çizimde */ } }
   });
@@ -3472,7 +3488,8 @@ function renderSalonStart() {
           <small>${r.set || ''} × ${esc(reps ? reps.map(fmtDec).join('-') : fmtDec(r.tekrar))} · ${esc(fmtKg(r.agirlik))}${r.rpe != null ? ` · RPE ${fmtDec(r.rpe)}` : ''}${r.msi != null ? ` · MSI ${fmtDec(r.msi)}` : ''}</small></span></div>`;
       }).join('')}
     </div>
-    <button class="btn btn-primary btn-block" data-ss="repeat">Son idmanı tekrarla</button>` : '<p class="empty">idman sayfasında kayıt yok.</p>';
+    <button class="btn btn-primary btn-block" data-ss="repeat">Son idmanı tekrarla</button>
+    <button class="btn btn-block set-gap" data-ss="edit">Son idmanı düzenle (şablon)</button>` : '<p class="empty">idman sayfasında kayıt yok.</p>';
   body.innerHTML = `${last}<button class="btn btn-block set-gap" data-ss="plan">Yeni idman planla</button>
     ${sl.err ? `<p class="muted set-gap">Çevrimdışı: son alınan veri gösteriliyor.</p>` : ''}`;
   paint(body);
@@ -3486,6 +3503,9 @@ function onSalonStartClick(e) {
   else if (act === 'repeat') {
     const w = salon.lastWorkout(salonData().gecmis);
     if (w) startSalon(salon.oneriUygula(salonData().gecmis, w.hareketler));
+  } else if (act === 'edit') {
+    const w = salon.lastWorkout(salonData().gecmis);
+    if (w) showSalonPlanSablon({ tur: 'son', hareketler: salon.oneriUygula(salonData().gecmis, w.hareketler), tarih: w.tarih });
   } else if (act === 'plan') showSalonPlan();
 }
 
@@ -3823,14 +3843,42 @@ function slPlusSet() {
 // --- Sürüm 12: hareket bilgi kartı (free-exercise-db) ve hareket grafiği --------------------
 
 let hdb = null; // hareketdb.js (yalnızca kart açılınca yüklenir)
-const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=12.0.0'));
+const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=12.1.0'));
 let bilgiTimer = null;
+
+/** Hareket adı → free-exercise-db kimliği (eşleştirme pahalı: 876 kayıt; sonuç önbellekte). */
+const kimlikCache = new Map();
+function hareketKimligi(H, ad) {
+  if (kimlikCache.has(ad)) return kimlikCache.get(ad);
+  const k = katalogOf(ad) || { ad };
+  const id = bilgi.eslestir(ad, H.DB, k.gorsel || '', (x) => Boolean(H.TR[x]) || H.YEREL.has(x));
+  kimlikCache.set(ad, id);
+  return id;
+}
+
+/** [data-sp-th] yer tutucularına hareket fotoğrafı (eşleşme varsa; yoksa boş kalır). */
+async function kartGorselleri(root) {
+  const els = [...root.querySelectorAll('[data-sp-th]')];
+  if (!els.length) return;
+  const H = await hdbYukle();
+  for (const el of els) {
+    const id = hareketKimligi(H, el.dataset.spTh);
+    if (!id || !H.YEREL.has(id)) continue; // küçük resim yalnızca uygulamadaki fotoğraflardan (çevrimdışı, dış istek yok)
+    const im = document.createElement('img');
+    im.loading = 'lazy';
+    im.alt = '';
+    im.src = `img/hareket/${id}_0.webp`;
+    im.addEventListener('error', () => im.remove());
+    el.replaceChildren(im);
+    el.classList.add('is-img');
+  }
+}
 
 /** Hareket bilgi kartını açar (fotoğraf başlangıç ↔ bitiş, adımlar, kaslar, kısıt, sık hata, video). */
 async function bilgiKarti(ad) {
   const H = await hdbYukle();
   const k = katalogOf(ad) || { ad };
-  const id = bilgi.eslestir(ad, H.DB, k.gorsel || '', (x) => Boolean(H.TR[x]) || H.YEREL.has(x));
+  const id = hareketKimligi(H, ad);
   const r = id ? H.DB.find((x) => x[0] === id) : null;
   const tr = id ? H.TR[id] : null;
   const ks = kisitOf(ad);
@@ -4058,20 +4106,25 @@ function onSlDetailClick(e) {
   else if (act === 'add') pickHareket({ mode: 'add', h });
 }
 
-function openSlEdit(h) {
-  const x = slH()[h];
-  const done = salon.doneSets(slst(), h);
-  sl.edit = { h, d: { set: x.set, tekrar: x.tekrar, sure: x.sure, agirlik: x.agirlik, dinlen: x.dinlen }, min: Math.max(1, done) };
+/** src: 'ses' (idman) ya da 'plan' (planlama 3. adım). Düzenleme katmanı o ekrana taşınır. */
+const seListe = () => (sl.edit && sl.edit.src === 'plan' ? sl.plan.liste : slH());
+function openSlEdit(h, src = 'ses') {
+  const x = (src === 'plan' ? sl.plan.liste : slH())[h];
+  const done = src === 'plan' ? 0 : salon.doneSets(slst(), h);
+  const scr = $(src === 'plan' ? 'screen-salon-plan' : 'screen-salon');
+  if ($('sl-edit').parentElement !== scr) scr.append($('sl-edit'));
+  sl.edit = { h, src, d: { set: x.set, tekrar: x.tekrar, sure: x.sure, agirlik: x.agirlik, dinlen: x.dinlen }, min: Math.max(1, done) };
   renderSlEdit();
   $('sl-edit').hidden = false;
 }
 
 function renderSlEdit() {
   const E = sl.edit;
-  const x = slH()[E.h];
+  const L = seListe();
+  const x = L[E.h];
   const d = E.d;
   $('sl-edit').style.setProperty('--c', grupInfo(x.ad).renk);
-  $('se-tag').textContent = `${grupInfo(x.ad).ad} · ${E.h + 1}/${slH().length} · DÜZENLE`;
+  $('se-tag').textContent = `${grupInfo(x.ad).ad} · ${E.h + 1}/${L.length} · DÜZENLE`;
   $('se-title').textContent = x.ad;
   const stp = (key, label, value, note = '') => `<div class="es-row"><div class="es-l">${label}${note ? `<small>${note}</small>` : ''}</div>
     <div class="es-stp"><button data-se="${key}:-1" aria-label="${label} azalt">−</button><b class="n">${value}</b><button data-se="${key}:1" aria-label="${label} artır">+</button></div></div>`;
@@ -4091,6 +4144,13 @@ function onSlEditClick(e) {
   if (!E || !t) return;
   const d = E.d;
   if (t.id === 'se-back' || t.id === 'se-cancel') { $('sl-edit').hidden = true; sl.edit = null; return; }
+  if (t.id === 'se-save' && E.src === 'plan') {
+    Object.assign(sl.plan.liste[E.h], d);
+    $('sl-edit').hidden = true;
+    sl.edit = null;
+    const y = $('sp-body').scrollTop; renderSalonPlan(); $('sp-body').scrollTop = y;
+    return toast('Hareket güncellendi');
+  }
   if (t.id === 'se-save') {
     Object.assign(slH()[E.h], d);
     $('sl-edit').hidden = true;
@@ -4369,6 +4429,20 @@ async function saveSalonForm() {
 
 const STC_ADIM = [0, 0.5, 0.7, 0.85];
 
+/** Hazır idmanı (son idman ya da kayıtlı plan) şablon olarak planın 3. adımında açar: sırala, çıkar, ekle, düzenle. */
+function showSalonPlanSablon(hz) {
+  if (!hz) return showSalonPlan();
+  showSalonPlan();
+  const P = sl.plan;
+  if (!P) return;
+  P.liste = hz.hareketler.map((x) => ({ ...x }));
+  P.secili = P.liste.map((x) => x.ad);
+  P.oncelik = { ...(hz.oncelik || {}) };
+  P.sablon = hz.tur;
+  P.step = 2;
+  renderSalonPlan();
+}
+
 function showSalonPlan() {
   const d = salonData();
   if (!d) { toast('Salon verisi yok. Bağlantıyı kontrol et.'); loadSalon(); return; }
@@ -4410,7 +4484,7 @@ function renderSalonPlan() {
       <p class="sp-note">Çubuk son 4 hafta, çizgi tüm zaman ortalaması. Önceliğe sen karar verirsin.</p>
       <div class="sp-kas">${grup.sirala(salon.gruplar(d.etki)).map((g) => {
         const o = P.oncelik[g] || 0;
-        return `<button class="sp-k${o ? ' is-on' : ''}" data-sp-grup="${esc(g)}"><b>${esc(grupAd(g))}<em>${o === 2 ? 'ÖNCELİK ×2' : o ? 'ÖNCELİK' : ''}</em></b>
+        return `<button class="sp-k${o ? ' is-on' : ''}" data-sp-grup="${esc(g)}"><b>${esc(grupAd(g))}<em>${o >= 2 ? `ÖNCELİK ×${o}` : o ? 'ÖNCELİK' : ''}</em></b>
           <span class="sp-bar"><i data-bg="${grupRenk(g)}" data-w="${Math.min(100, (son4[g] || 0) * 2.5)}"></i><s data-l="${Math.min(100, (tum[g] || 0) * 2.5)}"></s></span>
           <small>son 4 hafta %${fmtDec(son4[g] || 0)} · tümü %${fmtDec(tum[g] || 0)}</small></button>`;
       }).join('')}</div>
@@ -4430,7 +4504,8 @@ function renderSalonPlan() {
         <span class="sp-mb" data-mb data-mb-ad="${esc(r.ad)}"></span>
         <span class="sp-sc"><b class="n">${r.puan}</b><small>PUAN</small></span>
         <span class="sp-m"><b>${esc(r.ad)}${r.amac ? `<span class="sp-tag">${esc(r.amac.toLocaleUpperCase('tr'))}</span>` : ''}${r.oneri && r.oneri.warn ? ' <span class="warn">⚠</span>' : ''}</b>
-          ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))} · <span class="sp-i" data-sp-info="${esc(r.ad)}" role="button" aria-label="Nasıl yapılır">ⓘ nasıl</span></small>
+          ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))}</small>
+          <span class="sp-nasil" data-sp-info="${esc(r.ad)}" role="button" aria-label="${esc(r.ad)}: nasıl yapılır"><span class="sp-th" data-sp-th="${esc(r.ad)}"></span><span>ⓘ Nasıl yapılır</span></span>
           ${r.borcAcik ? `<small class="sp-ok">Önleyici: ${esc(salon.ONLEYICI.find((o) => o.key === r.kat).ad.toLocaleLowerCase('tr'))} borcu</small>` : ''}
           ${r.yorgun.length ? `<small class="warn">Dinleniyor: ${esc(r.yorgun.join(', '))}</small>` : ''}
           ${r.ks.notlar.map((t) => `<small class="sp-kn">⚠ ${esc(t)}</small>`).join('')}</span>
@@ -4444,7 +4519,7 @@ function renderSalonPlan() {
     next.textContent = `Plana geç · ${P.secili.length} hareket`;
     next.disabled = !P.secili.length;
   } else {
-    $('sp-title').textContent = 'Plan';
+    $('sp-title').textContent = P.sablon ? (P.sablon === 'plan' ? 'Planı düzenle' : 'Son idmandan plan') : 'Plan';
     if (P.liste.length !== P.secili.length || P.liste.some((x, i) => x.ad !== P.secili[i])) {
       P.liste = P.secili.map((ad) => P.liste.find((x) => x.ad === ad) || salon.planHareket(d, ad, { bodyweight: (katalogOf(ad) || {}).ekipman === 'Bodyweight' }));
     }
@@ -4456,12 +4531,13 @@ function renderSalonPlan() {
         const o = salon.oneri(d.gecmis, x.ad);
         const kn = kisitOf(x.ad).notlar;
         return `<div class="sp-pl"><span class="sp-n n">${i + 1}</span>
-          <span class="sp-m"><b>${esc(x.ad)}</b><small>${esc(grupAd(grupOf(x.ad)))}${o ? ` · öneri: <em class="${o.warn ? 'warn' : ''}">${esc(o.text)}</em>` : ''}</small>${kn.map((t) => `<small class="sp-kn">⚠ ${esc(t)}</small>`).join('')}</span>
-          <span class="sp-v n">${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}<small>${esc(fmtKg(x.agirlik))}</small></span>
+          <span class="sp-m"><b>${esc(x.ad)}</b><small>${esc(grupAd(grupOf(x.ad)))}${x._oneri ? ` · öneri uygulandı: <em>${esc(x._oneri.text)}</em>` : o ? ` · öneri: <em class="${o.warn ? 'warn' : ''}">${esc(o.text)}</em>` : ''}</small>${kn.map((t) => `<small class="sp-kn">⚠ ${esc(t)}</small>`).join('')}</span>
+          <button class="sp-v n" data-sp-ed="${i}" aria-label="${esc(x.ad)} düzenle">${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}<small>${esc(fmtKg(x.agirlik))} ✎</small></button>
           <span class="sp-mv"><button data-sp-mv="${i}:-1" aria-label="Yukarı" ${i ? '' : 'disabled'}>↑</button><button data-sp-mv="${i}:1" aria-label="Aşağı" ${i < P.liste.length - 1 ? '' : 'disabled'}>↓</button><button data-sp-rm="${i}" aria-label="Çıkar">✕</button></span></div>
           ${i < P.liste.length - 1 ? `<button class="sp-ss${x.ss && P.liste[i + 1].ss === x.ss ? ' is-on' : ''}" data-sp-ss="${i}">${x.ss && P.liste[i + 1].ss === x.ss ? '⛓ süperset · ayır' : '⛓ süperset yap'}</button>` : ''}`;
       }).join('')}
-      <p class="sp-note">Set, tekrar ve ağırlık idmanda karta dokunup Düzenle ile değişir. Plan yalnızca telefonda tutulur.</p>`;
+      <button class="btn btn-block sp-ekle" data-sp-add>＋ Hareket ekle</button>
+      <p class="sp-note">Set, tekrar, ağırlık: sağdaki değere dokun. Plan yalnızca telefonda tutulur.</p>`;
     next.textContent = 'İdmana başla';
     next.disabled = !P.liste.length;
   }
@@ -4471,6 +4547,7 @@ function renderSalonPlan() {
   paint(body);
   if (P.step === 0) yerlestirHarita();
   yerlestirMini(body);
+  if (P.step === 1) kartGorselleri(body).catch(() => {});
   for (const el of body.querySelectorAll('[data-w]')) el.style.width = `${el.dataset.w}%`;
   for (const el of body.querySelectorAll('[data-l]')) el.style.left = `${el.dataset.l}%`;
 }
@@ -4513,29 +4590,27 @@ function haritaBolumu(d, son4, tum) {
   const sec = {};
   for (const g of harita.META.grup) { const p = hmOncelik(d, g); if (p) sec[g] = p; }
   const say = (v) => Object.keys(sec).filter((g) => harita.gorunumde(v, g)).length || '';
-  const chips = Object.entries(sec).map(([g, p]) => `<button class="hm-chip" data-hm-g="${esc(g)}"><span class="gd" data-bg="${grup.grupRenk(g)}"></span>${esc(g)}<em>${p === 2 ? '★★' : '★'}</em></button>`).join('');
-  return `<div class="hm-top"><p class="sp-lb">KAS HARİTASI · kasa dokun</p>
+  return `<div class="hm-top"><p class="sp-lb">KAS HARİTASI · dokun: seç / bırak</p>
       <div class="hm-seg"><button data-hm-v="front" class="${P.hmView === 'front' ? 'on' : ''}">Ön<i>${say('front')}</i></button><button data-hm-v="back" class="${P.hmView === 'back' ? 'on' : ''}">Arka<i>${say('back')}</i></button></div></div>
     <div class="hm-wrap" id="hm-wrap"></div>
-    ${P.odak ? hmPanel(d, P.odak, son4, tum) : `<p class="hm-hint">Dokun: ★ öncelik · yana kaydır: ön / arka</p>`}
-    ${chips ? `<div class="hm-chips">${chips}</div>` : ''}`;
+    ${Object.keys(sec).length ? hmSecili(d, sec, son4, tum) : '<p class="hm-hint">Çalıştırmak istediğin bölgelere dokun · yana kaydır: ön / arka</p>'}`;
 }
 
-function hmPanel(d, g, son4, tum) {
-  const s4 = hmDagilim(son4)[g] || 0;
-  const tz = hmDagilim(tum)[g] || 0;
-  const max = Math.max(40, s4, tz);
-  const p = hmOncelik(d, g);
-  const tp = yuk.toparlanma(seansListesi())[g];
-  const fark = Math.round(s4 - tz);
-  const not = fark >= 5 ? ['warn', `Son dönemde fazla çalışılmış (+${fark} puan)`] : fark <= -5 ? ['', `Son dönemde geri kalmış (${fark} puan) · öncelik önerilir`] : ['', 'Dengede'];
-  const ornek = planRows(d, { oncelik: Object.fromEntries(tabloGruplari(d, g).map((t) => [t, 1])) }).rows.slice(0, 3);
-  return `<div class="hm-info"><div class="hm-h"><span class="gd" data-bg="${grup.grupRenk(g)}"></span><div><b>${esc(g)}</b><small>${esc(grup.grupKas(g))}</small></div><button class="hm-x" data-hm-x aria-label="Kapat">×</button></div>
-    <div class="hm-bars"><span>Son 4 hafta</span><div class="hm-tr"><i data-bg="${grup.grupRenk(g)}" data-w="${(s4 / max) * 100}"></i></div><b>%${fmtDec(Math.round(s4 * 10) / 10)}</b>
-      <span>Tüm zaman</span><div class="hm-tr"><i data-bg="#5F6B78" data-w="${(tz / max) * 100}"></i></div><b>%${fmtDec(Math.round(tz * 10) / 10)}</b></div>
-    <p class="hm-not ${not[0]}">${esc(not[1])}${tp ? ` · toparlanma %${tp.toparlanma}${tp.yuzmePay ? ` (yükün %${tp.yuzmePay}'si yüzmeden)` : ''}` : ''}</p>
-    <div class="hm-prio">${[['0', 'Yok'], ['1', '★ Öncelik'], ['2', '★★ Yüksek']].map(([v, t]) => `<button data-hm-p="${v}" class="${String(p) === v ? 'on' : ''}">${t}</button>`).join('')}</div>
-    ${ornek.length ? `<div class="hm-ex">${ornek.map((r) => `<span>${esc(r.ad)}</span>`).join('')}</div>` : ''}</div>`;
+/** Seçili bölgeler ve ağırlıkları (1–5): haritanın altında. */
+function hmSecili(d, sec, son4, tum) {
+  const s4 = hmDagilim(son4), tz = hmDagilim(tum);
+  const tp = yuk.toparlanma(seansListesi());
+  const rows = grup.sirala(Object.keys(sec)).map((g) => {
+    const w = sec[g];
+    const fark = Math.round((s4[g] || 0) - (tz[g] || 0));
+    const hazir = tp[g] ? tp[g].toparlanma : 100;
+    const not = fark <= -5 ? '<em class="ok">geri kalmış</em>' : fark >= 5 ? '<em class="warn">fazla çalışılmış</em>' : '';
+    return `<div class="hm-row" data-hm-row="${esc(g)}"><span class="gd" data-bg="${grup.grupRenk(g)}"></span>
+      <div class="hm-rn"><b>${esc(g)}</b><small>son 4 hafta %${fmtDec(Math.round((s4[g] || 0) * 10) / 10)} · hazır %${hazir}${hazir < 60 ? ' ⚠' : ''} ${not}</small></div>
+      <div class="hm-w" role="group" aria-label="${esc(g)} ağırlığı">${[1, 2, 3, 4, 5].map((n) => `<button data-hm-w="${esc(g)}|${n}" class="${n <= w ? 'on' : ''}" aria-label="${n}">${n}</button>`).join('')}</div>
+      <button class="hm-rm" data-hm-rm="${esc(g)}" aria-label="${esc(g)} bırak">×</button></div>`;
+  }).join('');
+  return `<p class="sp-lb">SEÇİLİ BÖLGELER · AĞIRLIK <small>(1 az · 5 çok; hareket sıralamasını belirler)</small></p><div class="hm-list">${rows}</div>`;
 }
 
 /** Figürü yerleştirir (innerHTML'den sonra; durum sl.plan'dan). */
@@ -4546,17 +4621,19 @@ function yerlestirHarita() {
   if (!wrap || !d) return;
   const sec = {};
   for (const g of harita.META.grup) { const p = hmOncelik(d, g); if (p) sec[g] = p; }
-  wrap.append(harita.figur(P.hmView, { secili: sec, odak: P.odak }));
+  wrap.append(harita.figur(P.hmView, { secili: sec, sabit: true }));
 }
 
-/** Haritaya dokunma: seçili değilse ★ + odak; seçiliyse yalnızca odak. */
+/** Haritaya dokunma: seçili değilse seçer (ağırlık 3), seçiliyse bırakır. */
+const HM_VARSAYILAN = 3;
 function onHaritaTap(g) {
   const P = sl.plan;
   const d = salonData();
   const ts = tabloGruplari(d, g);
   if (!ts.length) { toast(`${g}: tabloda (hkEtki) bu gruba bağlı hareket yok`, 2500); return false; }
-  if (!hmOncelik(d, g)) for (const t of ts) P.oncelik[t] = 1;
-  P.odak = g;
+  const secili = hmOncelik(d, g) > 0;
+  for (const t of ts) { if (secili) delete P.oncelik[t]; else P.oncelik[t] = HM_VARSAYILAN; }
+  P.odak = null;
   return true;
 }
 
@@ -4583,24 +4660,21 @@ function onSalonPlanClick(e) {
     if (P.hmSwiped && Date.now() - P.hmSwiped < 400) return;
     const hit = harita.hitEvent(fig, P.hmView, e);
     if (hit && onHaritaTap(hit.g)) { const y = $('sp-body').scrollTop; renderSalonPlan(); $('sp-body').scrollTop = y; }
-    else if (!hit && P.odak) { P.odak = null; const y = $('sp-body').scrollTop; renderSalonPlan(); $('sp-body').scrollTop = y; }
     return;
   }
   const t = e.target.closest('button');
   if (!t) return;
   if (t.dataset.hmV) {
     P.hmView = t.dataset.hmV;
-  } else if (t.dataset.hmG) {
-    P.odak = t.dataset.hmG;
-    P.hmView = harita.gorunumde(P.hmView, P.odak) ? P.hmView : harita.yuzu(P.odak);
-  } else if (t.dataset.hmX != null) {
-    P.odak = null;
-  } else if (t.dataset.hmP != null && P.odak) {
-    const v = Number(t.dataset.hmP);
-    for (const g of tabloGruplari(salonData(), P.odak)) { if (v) P.oncelik[g] = v; else delete P.oncelik[g]; }
+  } else if (t.dataset.hmW) {
+    const [g, n] = t.dataset.hmW.split('|');
+    for (const x of tabloGruplari(salonData(), g)) P.oncelik[x] = Number(n);
+  } else if (t.dataset.hmRm) {
+    for (const x of tabloGruplari(salonData(), t.dataset.hmRm)) delete P.oncelik[x];
   } else if (t.dataset.spGrup) {
     const g = t.dataset.spGrup;
-    P.oncelik[g] = ((P.oncelik[g] || 0) + 1) % 3;
+    const o = P.oncelik[g] || 0;
+    if (o >= 2) delete P.oncelik[g]; else P.oncelik[g] = o + 1; // liste: yok → ★ → ★★ → yok (haritadaki 3–5 de buradan sıfırlanır)
   } else if (t.dataset.spChip) {
     const key = t.dataset.spChip;
     if (key === 'stc') P.stcMin = Number(t.dataset.v);
@@ -4620,6 +4694,11 @@ function onSalonPlanClick(e) {
     const a = P.liste[i], b = P.liste[i + 1];
     if (a.ss && b.ss === a.ss) { delete b.ss; if (!(i > 0 && P.liste[i - 1].ss === a.ss)) delete a.ss; for (let j = i + 2; j < P.liste.length && P.liste[j].ss === a.ss; j++) delete P.liste[j].ss; }
     else { const id = a.ss || b.ss || a._k; a.ss = id; b.ss = id; }
+  } else if (t.dataset.spEd != null) {
+    openSlEdit(Number(t.dataset.spEd), 'plan');
+    return;
+  } else if (t.dataset.spAdd != null) {
+    P.step = 1;
   } else if (t.dataset.spRm) {
     P.liste.splice(Number(t.dataset.spRm), 1);
     P.secili = P.liste.map((x) => x.ad);
@@ -4724,6 +4803,7 @@ function wire() {
   wireSalon();
   $('home-history').addEventListener('click', showHistory);
   $('home-form').addEventListener('click', showForm);
+  $('home-gym-info').addEventListener('click', (e) => { if (e.target.closest('#home-gym-edit')) showSalonPlanSablon(salonHazir()); });
   $('home-hafta').addEventListener('click', () => showHaftaOzeti());
   $('fm-back').addEventListener('click', showHome);
   $('hz-back').addEventListener('click', showHome);
@@ -4737,11 +4817,12 @@ function wire() {
     else if (b.dataset.hw === 'css') cssTestiAc();
   });
   $('fm-body').addEventListener('click', (e) => {
-    if (!e.target.closest('[data-fm="blok"]')) return;
-    data.setPrefs({ blokBas: salon.haftaBasi(todayKey()) });
+    const b = e.target.closest('[data-fm]');
+    if (!b) return;
+    if (b.dataset.fm === 'blok') { data.setPrefs({ blokBas: salon.haftaBasi(todayKey()) }); toast('Döngü bu hafta başladı: 1. hafta · Hacim'); }
+    else if (b.dataset.fm === 'blokbitir') { data.setPrefs({ blokBas: null }); toast('Döngü durduruldu'); }
     state.prefs = null;
     renderForm();
-    toast('Blok bu hafta başladı: 1. hafta · Hacim');
   });
   $('hist-back').addEventListener('click', () => showHome());
   $('hist-list').addEventListener('click', onHistoryClick);

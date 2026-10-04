@@ -9,21 +9,57 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 ## Sıradaki
 
-### Kas haritası notları (04.10.2026, sürüm 12 sonrası; "uygula" bekliyor)
+### Sürüm 12.1.0 (04.10.2026) — ekran görüntüleriyle bildirilen hatalar, YAPILDI
+- [x] Haritada seç/bırak: dokun = seç, tekrar dokun = bırak; renkler sabit (seçince diğerleri griye dönmüyor),
+  seçilen kasta beyaz ✓ işareti ve parıltı. Ağırlık (1–5) haritanın altındaki "Seçili bölgeler" listesinde, ✕ ile bırak.
+- [x] Ana sayfa salon kartı: uzun virgüllü metin yerine kas grubu çubuğu + payları (Omuz %40 …) ve hareket
+  listesi (ad · set×tekrar; ilk 5, "+N hareket daha"); süre "~1 sa 47 dk" biçiminde.
+- [x] Son idmanı şablon alıp düzenleme: ana sayfada "Düzenle" ve salon başlangıcında "Son idmanı düzenle" →
+  planın 3. adımı; değere dokun → set/tekrar/ağırlık/dinlenme; çıkar, sırala, süperset, "＋ Hareket ekle"; Kaydet.
+- [x] "Nasıl yapılır" düğmesi büyük (40 px), uygulamadaki fotoğraf küçük resim olarak.
+- [x] Form ve denge mantık hataları:
+  - Yük artış oranı aradan dönüşte anlamsız büyüyordu (4 hafta boşluk + 2 hafif idman = 4 → "dinlenme haftası").
+    Payda artık en az "normal hafta" (3 seans × 65 dk × RPE 6 = 1.170; sporRef kisit: seans_dk, seans_rpe);
+    kronik yük normalin yarısından azsa "aradan dönüş: haftada en çok %20 artır".
+  - "Form −69 yorgun" (kondisyon − yorgunluk) aynı nedenle yanıltıcıydı → kaldırıldı. Yerine: bu haftanın yükü
+    normal haftaya göre % (az / normal / yüksek), son 8 hafta çubuk grafiği (yüzme + salon, normal hafta çizgisi), tek
+    cümlelik sonuç.
+  - Kas haritası neyi anlattığı belirsizdi → "Kas yorgunluğu": yalnızca toparlanması %90 altı kaslar, açıklama
+    ("renk koyulaştıkça daha yorgun"), kaynak (yüzmeden/salondan); hepsi dinlenmişse harita yok.
+  - Yoğunluk dengesi hedefleriyle (kolay ~%75, eşik ~%15, hız ~%10) ve tek cümle yorum.
+  - 4 haftalık döngü başlatılmadan "1. hafta · Hacim" gösteriliyordu → yalnızca başlatılınca; durdurulabilir.
+- [x] Hareket fotoğrafı eşlemesi: "Deadbug" = "Dead Bug"; eşleme önbellekte (her dokunuşta 876 kayıt taranmıyor).
+
+### Hareket görselleri — daha zengin kaynak (araştırma 04.10.2026; karar bekliyor)
+Bugün: free-exercise-db (Unlicense) 2 fotoğraf/hareket; senin 16 hareketinden 9'u eşleşiyor, 7'sinde görsel yok
+(Band Chest Fly, Breathing Reset, Doorway Pec Stretch, Thread the Needle, Figure Four, Dead Hang, Band Glute Bridge
+yanlış ekipmanla). Seçenekler:
+- [ ] **exercises-dataset (hasaneyldrm, GitHub):** 1.324 hareket, her biri **animasyonlu GIF** + küçük resim, adımlar
+  10 dilde (**Türkçe dahil**). Görseller Gym visual'a ait, izinle dağıtılıyor: yalnız 180×180, her kullanımda
+  "© Gym visual" yazılmalı. Kişisel uygulama için en uygun içerik; lisans notu (NOTICE) kurulumdan önce okunmalı.
+- [ ] **wger:** ~800+ hareket, CC BY-SA 3.0 (kaynak gösterilir, aynı lisansla paylaşılır); görsel kapsamı düzensiz.
+- [ ] **Everkinetic:** ~100 temel hareket, başlangıç/bitiş çizimleri (SVG), CC BY-SA 3.0; sade ve net.
+- [ ] **ExerciseDB:** 1.500+ GIF/video; ticari lisans tek seferlik ücretli.
+- [ ] Esneme / nefes / rehab hareketleri (Breathing Reset, Thread the Needle, Figure Four, Doorway Pec) veri
+  setlerinde zayıf → bunlar için H'deki **Video** sütunu (YouTube, uygulama içinde oynatma) en sağlam yol.
+Öneri: GIF seti (yalnız senin hareketlerin, ~40–60 dosya, uygulamaya gömülü) + rehab/esneme için video;
+free-exercise-db yedek. Karar: hangi kaynak?
+
+### Kas haritası notları (04.10.2026, sürüm 12 sonrası) — 12.1.0'da yapıldı (yukarıda)
 - [ ] **Seçince renkler gidiyor:** bir kas seçilince seçilmeyen gruplar griye dönüyor (`harita.js` → `guncelle`:
   seçim varken diğerlerinin opaklığı 0). İstenen: tüm gruplar kendi renginde kalsın; seçilen öne çıksın
   (amber çerçeve/parıltı + ★ rozet), seçilmeyenler en fazla hafif soluklaşsın (ör. %55), griye dönmesin.
   Ağrı haritası ve mini vücutlar (yoğunluk modu) bundan etkilenmez.
-- [ ] **Vücut resmi yalnızca bölge seçer** (karar 04.10.2026): dokun = seç, tekrar dokun = kaldır. Vücut üzerinde
+- [x] **Vücut resmi yalnızca bölge seçer** (karar 04.10.2026): dokun = seç, tekrar dokun = kaldır. Vücut üzerinde
   kademe yok (★/★★ rozeti kalkar; seçili bölge yalnızca vurgulanır). Şu an seçili kasa dokununca seçim kalkmıyor
   (`onHaritaTap` yalnızca odak açıyor) → düzelir.
-- [ ] **Bölge ağırlıkları haritanın altında:** "SEÇİLİ BÖLGELER" listesi; her satırda grup rengi + ad + 5 kademeli
+- [x] **Bölge ağırlıkları haritanın altında:** "SEÇİLİ BÖLGELER" listesi; her satırda grup rengi + ad + 5 kademeli
   ağırlık seçici (●●●○○, varsayılan 3) ve ✕ (kaldır). Satırda 4 hafta / tüm zaman payı ve toparlanma %'si.
   Puanlama zaten ağırlıkla çarpar (`salon.puanla`: pay × ağırlık) → 1–5 doğrudan çalışır; kayıtlı planlardaki
   eski 1/2 değerleri aynen okunur. Eski alt panel (Yok / ★ / ★★) bu listeye dönüşür; "Liste" görünümü de aynı
   ağırlıkları gösterir.
   Test: seç → kaldır; ağırlık 5 → sıralama değişir; eski ★/★★ senaryoları yeni seçiciyle.
-- [ ] **Hareket seçerken resim, bilgi ve video görünsün** (04.10.2026). Bugün: öneri kartında küçük "ⓘ nasıl"
+- [ ] **Hareket seçerken resim, bilgi ve video görünsün** (04.10.2026; 12.1.0: büyük "Nasıl yapılır" + küçük resim yapıldı; uygulama içi video ve "Plana ekle" kalan). Bugün: öneri kartında küçük "ⓘ nasıl"
   yazısı bilgi kartını açıyor (fotoğraf, adımlar, kaslar); video yalnızca H'de Video doluysa YouTube'a çıkan ▶.
   İstenen: seçim sırasında hareketi görerek karar vermek. Öneri:
   - Kartta hareket fotoğrafı küçük resim olarak (başlangıç ↔ bitiş geçişi); mini vücut yanında kalır.
@@ -393,6 +429,9 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 - Uçtan uca testlerde sahte saatle zaman ilerletmeli uzun yüzme senaryoları ("Tam idman", "Mola") tam takım
   çalışırken ara sıra bir dokunuşu kaçırıyor (yaklaşık 2–3 tam koşuda bir). 04.10.2026'da sürüm 12 öncesi kodda da
   (70498a8) aynı görüldü: uygulama hatası değil, test düzeneğinin sahte saat zamanlaması. Tek başına koşunca hep geçer.
+  12.1.0 (04.10.2026): aynı tür ara sıra kaçırma "Seti erken bitirme", salon "Süperset" ve "İdman: ısınma"
+  senaryolarında da birer kez görüldü; tekrar koşuda ve ardışık 3 tam koşuda geçti. Düzenek sağlamlaştırılmalı
+  (sahte saat ilerletmeden sonra ekranın güncellenmesini beklemek).
 
 - [ ] Telefondaki tarih önbelleğinin neden bozulduğu kesin bulunamadı. Sürüm 3+
   bozuk kaydı atlıyor ve hatayı ekranda gösteriyor. "Tarih listesi beklenmeyen

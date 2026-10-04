@@ -1616,3 +1616,66 @@ svg.hg .br { fill: #9085e9; }
 .lisans { margin: 18px 0 24px; }
 .lisans .muted { font-size: 14px; line-height: 1.45; }
 .sp-cak { margin: 6px 0 10px; padding: 9px 12px; border-radius: 14px; border: 1px solid rgba(255, 176, 32, 0.6); background: rgba(255, 176, 32, 0.1); color: var(--warn); font-size: 14px; font-weight: 600; }
+
+/* --- 12.1: harita seçimi (renkler sabit, ✓ işareti), seçili bölgeler + ağırlık --- */
+.kf .kb.is-ok { width: 30px; height: 30px; min-width: 30px; padding: 0; border-radius: 15px; background: #fff; color: #0B0F14; border: 3px solid #F5A524; font-size: 17px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55); }
+.kf .kl.is-sel { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 6px rgba(245, 165, 36, 0.8)); }
+.hm-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.hm-row { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-radius: 16px; background: #121922; border: 1px solid #1E2731; }
+.hm-row .gd { width: 12px; height: 12px; border-radius: 6px; flex: none; }
+.hm-rn { flex: 1; min-width: 0; }
+.hm-rn b { display: block; font-size: 16px; }
+.hm-rn small { display: block; font-size: 11.5px; line-height: 1.3; color: #8B97A5; font-weight: 600; }
+.hm-rn em { font-style: normal; font-weight: 800; }
+.hm-rn em.ok { color: var(--t-teal); }
+.hm-rn em.warn { color: var(--warn); }
+.hm-w { display: flex; gap: 3px; flex: none; }
+.hm-w button { width: 26px; height: 34px; border: 0; border-radius: 8px; background: #1C2530; color: #5F6B78; font-size: 13px; font-weight: 800; padding: 0; }
+.hm-w button.on { background: #F5A524; color: #1A0E04; }
+.hm-rm { flex: none; width: 34px; height: 34px; border: 0; border-radius: 17px; background: #1C242E; color: #8B97A5; font-size: 20px; }
+
+/* --- 12.1: ana sayfa salon kartı (kas grupları + hareket listesi), plan düzenleme --- */
+.hgg-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hgg-ed { height: 32px; padding: 0 14px; border-radius: 16px; border: 1px solid rgba(245, 165, 36, 0.5); background: transparent; color: #F5A524; font-size: 14px; font-weight: 800; }
+.hgg-gr { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; font-weight: 700; color: #C2CBD5; }
+.hgg-gr > span { display: inline-flex; align-items: center; gap: 5px; }
+.hgg-gr i { width: 9px; height: 9px; border-radius: 5px; }
+.hgg-gr b { color: var(--text); }
+.hgg-gr .mu { color: var(--d-muted); }
+.hgg-ls { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.hgg-ls li { display: flex; align-items: center; gap: 8px; min-height: 26px; font-size: 15px; font-weight: 600; }
+.hgg-ls li i { width: 4px; height: 16px; border-radius: 2px; flex: none; }
+.hgg-ls li span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hgg-ls li b { flex: none; font-size: 16px; color: #C2CBD5; }
+.hgg-more summary { list-style: none; cursor: pointer; margin-top: 4px; font-size: 14px; font-weight: 800; color: #F5A524; }
+.hgg-more summary::-webkit-details-marker { display: none; }
+.hgg-m { margin-top: 6px; }
+button.sp-v { border: 1px solid #2A3542; border-radius: 12px; background: #141B23; color: var(--text); padding: 4px 10px; font-family: inherit; }
+.sp-ekle { margin-top: 10px; }
+.sp-nasil { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; margin-top: 6px; min-height: 40px; padding: 4px 14px 4px 4px; border-radius: 12px; background: #1A2430; border: 1px solid #2A3A4C; color: #CFE0F2; font-size: 14px; font-weight: 800; }
+.sp-th { width: 0; height: 32px; border-radius: 8px; overflow: hidden; flex: none; background: #fff; }
+.sp-th.is-img { width: 44px; }
+.sp-th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sp-nasil:not(:has(.is-img)) { padding-left: 14px; }
+
+/* --- 12.1: Form ve denge (sade) --- */
+.fm-card { padding: 12px 14px; border-radius: 18px; background: #12181F; border: 1px solid #1E2731; }
+.fm-bh { display: flex; align-items: center; gap: 12px; }
+.fm-bh > b { font-size: 38px; line-height: 1; }
+.fm-bh span b { display: block; font-size: 17px; }
+.fm-bh span small { display: block; font-size: 13px; color: #8B97A5; font-weight: 600; }
+.fm-bh .ok { color: var(--t-green); }
+.fm-bh .warn { color: var(--warn); }
+.fm-yb { position: relative; height: 12px; margin: 12px 0 4px; border-radius: 6px; background: #1E2731; }
+.fm-yb i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: #8B97A5; }
+.fm-yb i.ok { background: var(--t-green); }
+.fm-yb i.warn { background: var(--warn); }
+.fm-yb s { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: #C2CBD5; text-decoration: none; }
+.fm-acik { margin: 6px 0; font-size: 13px; line-height: 1.4; color: #8B97A5; }
+.fm-sonuc { margin: 4px 0 8px; font-size: 15px; font-weight: 700; color: #C2CBD5; }
+.fm-sonuc.ok { color: var(--t-green); }
+.fm-sonuc.warn { color: var(--warn); }
+svg.hg .by { fill: #3987e5; }
+svg.hg .bs { fill: #F5A524; }
+.fd-r > small { width: 66px; flex: none; font-size: 11px; color: #7A8694; font-weight: 600; }
+.sp-kp b.warn { color: var(--warn); }

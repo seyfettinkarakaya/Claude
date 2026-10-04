@@ -22,6 +22,8 @@ export const VARSAYILAN = {
   msi: { gozlem: 0.5, hafiflet: 1, dur: 2, tibbi: 3 },
   sure: { sabah: 80, ogle: 65, aksam: 0 },
   gunHafta: 3,
+  seansDk: 65,   // normal hafta yükü için ortalama seans süresi (dk) ve zorluğu (RPE)
+  seansRpe: 6,
   kulac: { drill: [10, 11], yuzus: [13, 15], race: [14, 15], pull: [11, 12] },
   stilSira: ['FR', 'BK', 'BF', 'BR'],
   omuzRahatlatma: true,
@@ -47,6 +49,8 @@ export function kurallar(ref) {
     else if (/^msi_(gozlem|hafiflet|dur|tibbi)$/.test(k) && num(v) != null) c.msi[k.slice(4)] = num(v);
     else if (/^sure_(sabah|ogle|aksam)$/.test(k)) c.sure[k.slice(5)] = num(v) || 0;
     else if (k === 'gun_hafta' && num(v)) c.gunHafta = num(v);
+    else if (k === 'seans_dk' && num(v)) c.seansDk = num(v);
+    else if (k === 'seans_rpe' && num(v)) c.seansRpe = num(v);
     else if (/^kulac_(drill|yuzus|race|pull)$/.test(k) && range(v)) c.kulac[k.slice(6)] = range(v);
     else if (k === 'omuz_rahatlatma') c.omuzRahatlatma = !/^(hayır|hayir|no|0|false)$/i.test(String(v).trim());
   }

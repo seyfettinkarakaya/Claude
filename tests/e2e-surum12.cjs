@@ -73,7 +73,7 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
   const s = await launch({ salonSheets: salonV12(), ref: true, viewport: { width: 390, height: 844 } }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
-  assert.match(await txt(s, '#home-gym-go'), /SON İDMAN · 20 EYLÜL.*Dumbbell Shoulder Press, Band Bent Over Row.*2 hareket · ~.*2 harekette öneri uygulandı/);
+  assert.match(await txt(s, '#home-gym-go'), /SON İDMAN · 20 EYLÜL PAZAR\s*Düzenle\s*Omuz %40\s*Sırt %35.*Dumbbell Shoulder Press\s*3×10\s*Band Bent Over Row\s*3×15\s*2 hareket · ~10 dk · 2 harekette ilerleme önerisi/);
   // Planla → Omuz → hareket → Kaydet
   await p.click('#home-gym-planla'); await s.waitScreen('salon-plan');
   await p.click('[data-sp-grup="Shoulders"]'); await p.click('#sp-next');
@@ -85,7 +85,7 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
   await p.click('#sp-save'); await s.waitScreen('home');
   assert.equal((await s.ls('ysk.salonPlan')).hareketler.length, 2);
   assert.match(await txt(s, '#home-gym-desc'), /Hazır plan · 2 hareket/);
-  assert.match(await txt(s, '#home-gym-go'), /HAZIR PLAN.*Band External Rotation, Dumbbell Shoulder Press/);
+  assert.match(await txt(s, '#home-gym-go'), /HAZIR PLAN\s*Düzenle.*Band External Rotation\s*3×10\s*Dumbbell Shoulder Press\s*3×10/);
   await p.click('#home-gym-start'); await s.waitScreen('salon');
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   const ses = await s.ls('ysk.salonSession');
@@ -104,13 +104,13 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
 /** Haritadaki grubun merkezine dokunur (harita.js META). */
 async function hmTap(s, view, g) {
   const p = s.page;
-  const [m, w, h] = await p.evaluate(([v, gg]) => import('./harita.js?v=12.0.0').then((H) => [H.META[v].merkez[gg], H.META[v].w, H.META[v].h]), [view, g]);
+  const [m, w, h] = await p.evaluate(([v, gg]) => import('./harita.js?v=12.1.0').then((H) => [H.META[v].merkez[gg], H.META[v].w, H.META[v].h]), [view, g]);
   await p.$eval('#hm-wrap', (e) => e.scrollIntoView({ block: 'center' }));
   const r = await p.locator('#hm-wrap .kf').boundingBox();
   await p.mouse.click(r.x + (r.width * m[0]) / w, r.y + (r.height * m[1]) / h);
 }
 
-sc('Kas haritası: dokun → ★ + panel; öncelik ★★; çipler ve ön/arka sayaçları; tabloda olmayan grup uyarısı; liste aynı önceliği gösterir', async ({ launch }) => {
+sc('Kas haritası: dokun → seç (renkler sabit, ✓), tekrar dokun → bırak; altta 1–5 ağırlık ve ✕; ön/arka sayaçları; tabloda olmayan grup uyarısı; liste aynı önceliği gösterir', async ({ launch }) => {
   const s = await launch({ salonSheets: salonV12(), ref: true, viewport: { width: 390, height: 844 } }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
@@ -120,18 +120,28 @@ sc('Kas haritası: dokun → ★ + panel; öncelik ★★; çipler ve ön/arka s
   await p.waitForTimeout(300); // dokunma haritası yüklenir
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/hm1.png` });
   await hmTap(s, 'front', 'Omuz');
-  await p.waitForSelector('.hm-info');
-  assert.match(await txt(s, '.hm-info'), /Omuz.*Son 4 hafta.*Tüm zaman.*★ Öncelik/);
-  assert.match(await txt(s, '[data-sp-grup="Shoulders"]'), /ÖNCELİK/, 'liste aynı önceliği gösterir');
-  await p.click('[data-hm-p="2"]');
-  assert.match(await txt(s, '[data-sp-grup="Shoulders"]'), /ÖNCELİK ×2/);
+  await p.waitForSelector('[data-hm-row="Omuz"]');
+  assert.match(await txt(s, '[data-hm-row="Omuz"]'), /Omuz.*son 4 hafta %.*hazır %/);
+  assert.equal(await p.$$eval('[data-hm-row="Omuz"] .hm-w button.on', (e) => e.length), 3, 'varsayılan ağırlık 3');
+  assert.match(await txt(s, '[data-sp-grup="Shoulders"]'), /ÖNCELİK ×3/, 'liste aynı önceliği gösterir');
+  // Renkler sabit: seçilmeyen grup da renkli; seçilende ✓
+  const op = await p.$$eval('#hm-wrap .kl', (e) => Object.fromEntries(e.map((x) => [x.dataset.g, x.style.opacity])));
+  assert.equal(op['Göğüs'], '1', 'seçilmeyen grup griye dönmez');
+  assert.equal(await txt(s, '#hm-wrap .kb[data-g="Omuz"]'), '✓');
+  await p.click('[data-hm-w="Omuz|5"]');
+  assert.match(await txt(s, '[data-sp-grup="Shoulders"]'), /ÖNCELİK ×5/);
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/hm2.png` });
   await hmTap(s, 'front', 'Karın');
-  assert.match(await txt(s, '[data-sp-grup="Core"]'), /ÖNCELİK/);
-  assert.match(await txt(s, '.hm-chips'), /Omuz★★Karın★/);
+  assert.match(await txt(s, '[data-sp-grup="Core"]'), /ÖNCELİK ×3/);
   assert.match(await txt(s, '[data-hm-v="front"]'), /Ön2/);
   assert.match(await txt(s, '[data-hm-v="back"]'), /Arka1/, 'omuz arkada da görünür');
-  // Kalça yanı tabloda yok → uyarı, öncelik verilmez
+  // Tekrar dokun → bırak
+  await hmTap(s, 'front', 'Karın');
+  assert.equal(await p.$$eval('[data-hm-row="Karın"]', (e) => e.length), 0);
+  assert.doesNotMatch(await txt(s, '[data-sp-grup="Core"]'), /ÖNCELİK/);
+  await hmTap(s, 'front', 'Karın');
+  await p.click('[data-hm-w="Karın|1"]');
+  // Kalça yanı tabloda yok → uyarı, seçilmez
   await hmTap(s, 'front', 'Kalça yanı');
   await p.waitForFunction(() => /tabloda \(hkEtki\)/.test(document.getElementById('toast').textContent));
   // Arka yüz: Sırt
@@ -140,12 +150,13 @@ sc('Kas haritası: dokun → ★ + panel; öncelik ★★; çipler ve ön/arka s
   await hmTap(s, 'back', 'Sırt');
   assert.match(await txt(s, '[data-sp-grup="Back"]'), /ÖNCELİK/);
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/hm3.png`, fullPage: false });
-  // Panelde Yok → öncelik kalkar
-  await p.click('[data-hm-p="0"]');
+  // ✕ → bırak
+  await p.click('[data-hm-rm="Sırt"]');
   assert.doesNotMatch(await txt(s, '[data-sp-grup="Back"]'), /ÖNCELİK/);
   await p.click('#sp-next');
   const names = await p.$$eval('.sp-ex:not(.is-yasak)', (e) => e.map((x) => x.querySelector('.sp-m b').firstChild.textContent.trim()));
   assert.ok(names.includes('Dumbbell Shoulder Press') && names.includes('Front Plank') && !names.includes('Band Bent Over Row'), JSON.stringify(names));
+  assert.ok(names.indexOf('Dumbbell Shoulder Press') < names.indexOf('Front Plank'), `omuz 5, karın 1 → omuz hareketi önde: ${JSON.stringify(names)}`);
 });
 
 const slPress = (s) => s.page.$eval('#sl-main', (b) => b.click());
@@ -399,23 +410,28 @@ sc('Ana sayfa: haftalık şerit (gün halkası, form, bugünün önerisi, kurba�
   await p.waitForFunction(() => /bu hafta gün/.test(document.getElementById('home-week').textContent));
   const hw = await txt(s, '#home-week');
   assert.match(hw, /1\/3\s*bu hafta gün/);
-  assert.match(hw, /FORM\s*[+−-]?\d+\s*veri birikiyor/);
+  assert.match(hw, /BU HAFTA YÜK\s*%\d+\s*normalin altında/);
   assert.match(hw, /BUGÜN ÖNERİ/);
   assert.match(hw, /Kurbağalama bu ay %\d/);
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/home.png`, fullPage: true });
   await p.click('[data-hw="form"]'); await s.waitScreen('form');
   const fm = await txt(s, '#fm-body');
-  assert.match(fm, /FORM · SON 8 HAFTA/);
-  assert.match(fm, /YÜK ARTIŞ ORANI/);
-  assert.match(fm, /KAS TOPARLANMASI/);
+  assert.match(fm, /BU HAFTA\s*%\d+\s*Normalin altında\s*1\/3 seans · 60 dk · yük 360 \/ 1\.170/);
+  assert.match(fm, /SON 8 HAFTA/);
+  assert.match(fm, /KAS YORGUNLUĞU/);
+  assert.match(fm, /YÜZME YOĞUNLUĞU.*Kolay.*hedef ~%75/);
   assert.match(fm, /HAFTANIN İSKELETİ.*Pzt\s*Yüzme 60 dk.*Çar\s*Yüzme programı.*Per\s*Yüzme programı/);
-  assert.match(fm, /BLOK · 4 HAFTA/);
+  assert.match(fm, /4 HAFTALIK DÖNGÜ.*İsteğe bağlı/);
+  assert.doesNotMatch(fm, /1\. hafta · Hacim/, 'döngü başlatılmadan hafta gösterilmez');
   if (process.env.SHOT) { await p.screenshot({ path: `${process.env.SHOT}/form1.png` }); await p.$eval('#fm-body', (e) => { e.scrollTop = 700; }); await p.screenshot({ path: `${process.env.SHOT}/form2.png` }); await p.$eval('#fm-body', (e) => { e.scrollTop = 1600; }); await p.screenshot({ path: `${process.env.SHOT}/form3.png` }); }
   assert.ok(await p.evaluate(() => document.getElementById('fm-body').scrollWidth <= document.getElementById('fm-body').clientWidth), 'yatay taşma yok');
-  assert.equal(await p.$$eval('#fm-body svg.hg.cg polyline', (e) => e.length), 2, 'kondisyon + yorgunluk');
+  assert.equal(await p.$$eval('#fm-body svg.hy rect.by', (e) => e.length), 5, 'yüzme yapılan 5 hafta');
+  assert.equal(await p.$$eval('#fm-body svg.hy line.ref', (e) => e.length), 1, 'normal hafta çizgisi');
   await p.click('[data-fm="blok"]');
   assert.equal((await s.ls('ysk.prefs')).blokBas, '2026-09-21');
   assert.match(await txt(s, '#fm-body'), /1\. hafta · Hacim/);
+  await p.click('[data-fm="blokbitir"]');
+  assert.equal((await s.ls('ysk.prefs')).blokBas, undefined);
   await p.click('#fm-back'); await s.waitScreen('home');
   await p.click('#home-swim'); await s.waitScreen('days');
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/takvim.png` });
@@ -472,6 +488,72 @@ sc('Çakışma uyarısı (B5): dün uzun serbest yüzme + bugün omuz ağırlık
   await p.click('#sp-back');
   await p.click('[data-sp-grup="Shoulders"]'); await p.click('#sp-next');
   assert.match(await txt(s, '.sp-cak'), /Ağır omuz salonu \(bugün\) ile uzun yüzme \(dün\) art arda/);
+});
+
+sc('Form ve denge: uzun aradan sonra iki hafif yüzme → "yük hızlı arttı" uyarısı YOK, "aradan dönüş"; ana sayfada uyarı yok; yorgun kas yoksa harita yok', async ({ launch }) => {
+  const eski = ['2026-06-02', '2026-06-04', '2026-06-09'].map((t) => yz(t, 2000, 6));
+  const s = await launch({ ref: true, time: '2026-09-26T09:00:00', storage: { 'ysk.history': [...eski, yz('2026-09-23', 1600, 5), yz('2026-09-25', 1600, 5)] } }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => /BU HAFTA YÜK/.test(document.getElementById('home-week').textContent));
+  const hw = await txt(s, '#home-week');
+  assert.doesNotMatch(hw, /Yük hızlı/, hw);
+  assert.match(hw, /2\/3\s*bu hafta gün.*BU HAFTA YÜK\s*%51\s*normalin altında/);
+  await p.click('[data-hw="form"]'); await s.waitScreen('form');
+  const fm = await txt(s, '#fm-body');
+  assert.match(fm, /Aradan dönüş döneminde/);
+  assert.doesNotMatch(fm, /dinlenme haftası/);
+  assert.match(fm, /2\/3 seans · 120 dk · yük 600 \/ 1\.170/);
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/form-donus.png` });
+});
+
+sc('Son idmanı şablon al: ana sayfa Düzenle → planın 3. adımı; değere dokun → set/ağırlık düzenle; çıkar; ＋ Hareket ekle; Kaydet → hazır plan; idman ekranında düzenleme hâlâ çalışır', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
+  if (process.env.SHOT) { await p.$eval('#home-gym-go', (e) => e.scrollIntoView({ block: 'center' })); await p.screenshot({ path: `${process.env.SHOT}/home-gym.png` }); }
+  await p.click('#home-gym-edit'); await s.waitScreen('salon-plan');
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/sablon.png` });
+  assert.equal(await txt(s, '#sp-title'), 'Son idmandan plan');
+  assert.deepEqual(await p.$$eval('.sp-pl .sp-m b', (e) => e.map((x) => x.textContent)), ['Dumbbell Shoulder Press', 'Band Bent Over Row']);
+  // Shoulder Press: set 3 → 4, ağırlık 15 → 12,5
+  await p.click('[data-sp-ed="0"]'); await p.waitForSelector('#screen-salon-plan #sl-edit:not([hidden])');
+  assert.match(await txt(s, '#se-tag'), /1\/2 · DÜZENLE/);
+  await p.click('[data-se="set:1"]'); await p.click('[data-se="agirlik:-1"]');
+  await p.click('#se-save');
+  assert.match(await txt(s, '[data-sp-ed="0"]'), /4 × 10\s*12,5 kg/);
+  // Row çıkar, sonra hareket ekle → 1. adım (seçim korunur)
+  await p.click('[data-sp-rm="1"]');
+  await p.click('[data-sp-add]');
+  await p.waitForSelector('.sp-ex');
+  assert.match(await txt(s, '[data-sp-ex="Dumbbell Shoulder Press"]'), /✓$/, 'şablondaki hareket seçili');
+  await p.click('[data-sp-ex="Band External Rotation"]');
+  await p.click('#sp-next');
+  const ad = await p.$$eval('.sp-pl .sp-m b', (e) => e.map((x) => x.textContent));
+  assert.deepEqual(ad, ['Dumbbell Shoulder Press', 'Band External Rotation']);
+  await p.click('#sp-save'); await s.waitScreen('home');
+  const plan = await s.ls('ysk.salonPlan');
+  assert.deepEqual([plan.hareketler[0].set, plan.hareketler[0].agirlik], [4, 12.5]);
+  assert.match(await txt(s, '#home-gym-go'), /HAZIR PLAN.*Dumbbell Shoulder Press\s*4×10/);
+  // İdmanda Düzenle (katman salon ekranına döner)
+  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  await p.click('#sl-wheel .w-item.is-active .w-tag'); await p.waitForSelector('#sl-detail:not([hidden])');
+  await p.click('#sl-detail [data-sact="edit"]');
+  await p.waitForSelector('#screen-salon #sl-edit:not([hidden])');
+  assert.match(await txt(s, '#se-title'), /Dumbbell Shoulder Press/);
+});
+
+sc('Hareket seçimi: "Nasıl yapılır" düğmesi büyük, uygulamadaki fotoğraf küçük resim olarak; dokun → bilgi kartı', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  await toPlanList(s, ['Shoulders']);
+  const b = '[data-sp-ex="Band External Rotation"] .sp-nasil';
+  await p.waitForSelector(`${b} .sp-th.is-img img`);
+  const r = await p.locator(b).boundingBox();
+  assert.ok(r.height >= 40, `dokunma alanı ${r.height}`);
+  assert.equal(await p.$$eval('.sp-ex', (e) => e.filter((x) => x.classList.contains('is-on')).length), 0);
+  await p.click(b); await p.waitForSelector('#bilgi:not([hidden])');
+  assert.match(await txt(s, "#bi-title"), /Bantla dış rotasyon/);
+  assert.equal(await p.$$eval('.sp-ex.is-on', (e) => e.length), 0, 'nasıl düğmesi hareketi seçmez');
 });
 
 const only = process.argv[2];

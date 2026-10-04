@@ -1,7 +1,7 @@
 // Antrenman yükü ve toparlanma: saf işlevler (DOM yok).
 // Seans yükü = RPE × dakika (Foster sRPE). Yüzme ve salon aynı ölçekte.
 // Kaynaklar: telefondaki geçmiş (ysk.history: yüzme + salon kayıtları) ve SalonTakip "idman" geçmişi.
-import { grupKey, haritaGruplari } from './grup.js?v=12.0.0';
+import { grupKey, haritaGruplari } from './grup.js?v=12.1.0';
 
 /** "01:18:20", "18:20", "4:10" → saniye; geçersizse 0. */
 export function sureSn(s) {
@@ -146,8 +146,12 @@ export function formEgrisi(g, bugun, gun = 56) {
   return out.slice(-gun - 1);
 }
 
-/** Yük artış oranı: son 7 günün ortalaması / son 28 günün ortalaması (akut/kronik). Veri azsa null. */
-export function yukOrani(g, bugun) {
+/**
+ * Yük artış oranı: son 7 gün / son 28 günün haftalık ortalaması (akut/kronik). Veri azsa null.
+ * taban (normal hafta yükü) verilirse payda en az o kadardır: aradan dönüşte iki hafif idman "yüksek" görünmez
+ * (kronik yük ~0 iken oran anlamsız büyür; 4 hafta boşluk + 1 hafif hafta = 4).
+ */
+export function yukOrani(g, bugun, taban = 0) {
   let a = 0, c = 0, ilk = null;
   for (const [t, L] of Object.entries(g)) {
     const d = fark(t, bugun);
@@ -156,13 +160,41 @@ export function yukOrani(g, bugun) {
     if (d < 28) c += L;
     if (!ilk || t < ilk) ilk = t;
   }
-  if (!ilk || fark(ilk, bugun) < 14 || !c) return null;
-  return Math.round(((a / 7) / (c / 28)) * 100) / 100;
+  if (!ilk || fark(ilk, bugun) < 14 || (!c && !taban)) return null;
+  return Math.round((a / Math.max(c / 4, taban)) * 100) / 100;
+}
+
+/** Normal hafta yükü (plan): gün × ortalama seans dk × RPE (varsayılan 3 × 65 × 6 = 1170). */
+export const normalHafta = (K) => Math.round(((K && K.gunHafta) || 3) * ((K && K.seansDk) || 65) * ((K && K.seansRpe) || 6));
+
+/** Son n ISO haftası (eskiden yeniye): [{ bas, yuzme, salon, top, dk, seans }] */
+export function haftalar(liste, bugun, n = 8) {
+  const [y, m, d] = bugun.split('-').map(Number);
+  const wd = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+  const pzt = gunEkle(bugun, -wd);
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const bas = gunEkle(pzt, -7 * i), son = gunEkle(bas, 6);
+    const w = liste.filter((s) => s.tarih >= bas && s.tarih <= son);
+    const yz = w.filter((s) => s.tur === 'yuzme').reduce((a, s) => a + s.yuk, 0);
+    const sl = w.filter((s) => s.tur === 'salon').reduce((a, s) => a + s.yuk, 0);
+    out.push({ bas, yuzme: yz, salon: sl, top: yz + sl, dk: w.reduce((a, s) => a + (s.dk || 0), 0), seans: new Set(w.map((s) => s.tarih)).size });
+  }
+  return out;
+}
+
+/** Bu haftanın yükü normal haftaya göre: { pay (%), durum: 'az'|'normal'|'yuksek', metin } */
+export function haftaDurumu(top, normal) {
+  const pay = normal ? Math.round((top / normal) * 100) : 0;
+  if (pay > 130) return { pay, durum: 'yuksek', metin: 'Normal haftanın üstünde' };
+  if (pay >= 70) return { pay, durum: 'normal', metin: 'Normal hafta' };
+  return { pay, durum: 'az', metin: 'Normalin altında' };
 }
 
 /** Oranın yorumu: { durum: 'dusuk'|'guvenli'|'sinirda'|'yuksek', metin } */
-export function oranDurum(r) {
+export function oranDurum(r, { donus = false } = {}) {
   if (r == null) return { durum: 'bilinmiyor', metin: 'En az 2 haftalık kayıt gerekli' };
+  if (donus && r <= 1.3) return { durum: 'donus', metin: 'Aradan dönüş: yükü haftada en çok %20 artır' };
   if (r > 1.5) return { durum: 'yuksek', metin: 'Yük hızlı arttı: dinlenme haftası önerilir' };
   if (r > 1.3) return { durum: 'sinirda', metin: 'Sınırda (güvenli 0,8–1,3)' };
   if (r < 0.8) return { durum: 'dusuk', metin: 'Yük azaldı (dinlenme ya da ara)' };

@@ -130,6 +130,7 @@ t('bilgi: hareket adı eşleştirme (ekipman sözcüğü içerik sayılmaz, eşi
   assert.equal(BI.eslestir('Band Bent Over Row', db, 'Crunches'), 'Crunches', 'Görsel sütunu önce');
   assert.equal(BI.eslestir('', db), null);
   assert.deepEqual([...BI.sozcukler('Chin-Ups with Bands')], ['chinup', 'band']);
+  assert.deepEqual([...BI.sozcukler('Deadbug')], [...BI.sozcukler('Dead Bug')], 'Deadbug = Dead Bug');
   assert.deepEqual(BI.kasYogunluk(['shoulders'], ['triceps', 'shoulders', 'lats']), { Triseps: 0.45, Omuz: 1, 'Sırt': 0.45 });
 });
 t('analiz: tempo, SWOLF, bölge payları, aynı setle kıyas ve rekor, ağrı geçmişi, CSS testi, tahmin, drill, test zamanı', () => {
@@ -167,6 +168,21 @@ t('yuk.cakisma: ağır omuz salonu + uzun yüzme aynı gün / art arda (B5)', ()
   assert.equal(Y.cakisma([yz('2026-09-23', 1000)], '2026-09-23', [], true), null, 'kısa yüzme');
   assert.match(Y.cakisma([], '2026-09-23', [{ tarih: '2026-09-23', metre: 2400 }], true).metin, /\(bugün\) ve uzun yüzme \(bugün\) aynı gün/);
   assert.match(Y.cakisma([], '2026-09-23', [{ tarih: '2026-09-24', metre: 2400 }], true).metin, /\(yarın\) art arda/);
+});
+
+t('yuk: normal hafta tabanlı oran (aradan dönüş), haftalar, hafta durumu', () => {
+  // 3 ay önce kayıt, son 4 haftada yalnızca bu hafta 2 hafif seans (300 + 300)
+  const g = { '2026-06-02': 400, '2026-09-23': 300, '2026-09-25': 300 };
+  assert.equal(Y.yukOrani(g, '2026-09-26'), 4, 'tabansız: kronik ~0 → 4 (eski hata)');
+  assert.equal(Y.yukOrani(g, '2026-09-26', 1170), 0.51, 'normal hafta tabanı: 600 / 1170');
+  assert.equal(Y.oranDurum(0.51, { donus: true }).durum, 'donus');
+  assert.equal(Y.oranDurum(1.6, { donus: true }).durum, 'yuksek', 'dönüşte de çok hızlı artış uyarılır');
+  assert.equal(Y.normalHafta({ gunHafta: 3, seansDk: 65, seansRpe: 6 }), 1170);
+  const L = [{ tur: 'yuzme', tarih: '2026-09-23', yuk: 300, dk: 60 }, { tur: 'salon', tarih: '2026-09-25', yuk: 200, dk: 40 }, { tur: 'yuzme', tarih: '2026-09-15', yuk: 400, dk: 70 }];
+  const H = Y.haftalar(L, '2026-09-26', 3);
+  assert.deepEqual(H.map((x) => [x.bas, x.yuzme, x.salon, x.seans]), [['2026-09-07', 0, 0, 0], ['2026-09-14', 400, 0, 1], ['2026-09-21', 300, 200, 2]]);
+  assert.deepEqual(Y.haftaDurumu(500, 1170), { pay: 43, durum: 'az', metin: 'Normalin altında' });
+  assert.equal(Y.haftaDurumu(1200, 1170).durum, 'normal'); assert.equal(Y.haftaDurumu(1600, 1170).durum, 'yuksek');
 });
 
 console.log(`çekirdek testleri: TAMAM (${n})`);

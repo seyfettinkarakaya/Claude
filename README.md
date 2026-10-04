@@ -1,4 +1,4 @@
-# YüzmeSK — Sürüm 12
+# YüzmeSK — Sürüm 12.1
 
 Havuz kenarında ve salonda kullanılan, tek kullanıcılı idman uygulaması.
 Program Google E-Tablolar'daki **YuzmeProgram** dosyasında hazırlanır; uygulama onu
@@ -342,6 +342,9 @@ Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
 - **Takvim**: gün düğmelerinde salon simgesi, günlük yük çubuğu, ağrı işareti.
 - Dinlenme sonu bildirimi kilitli telefonda (service worker gerekir) bu sürümde yok; salonda ekran açık kalır ve titreşim verilir.
 - Garmin bağlantısı sonraki sürüme bırakıldı.
+- **12.1:** haritada dokun = seç / bırak (renkler sabit, ✓), ağırlık 1–5 altta; ana sayfa salon kartında kas grupları +
+  hareket listesi, "Düzenle" ile son idmandan plan; Form ve denge sadeleşti: yük normal haftaya göre (3 × 65 dk × RPE 6;
+  sporRef `kisit`: `seans_dk`, `seans_rpe`), aradan dönüşte yanlış "yük hızlı arttı" uyarısı yok.
 
 ## Kaynaklar ve lisanslar
 

@@ -6,7 +6,7 @@ const ES = { pullup: 'pullup', pullups: 'pullup', chinup: 'chinup', chinups: 'ch
 
 /** Ad → sözcük kümesi ("Pull-up" → pullup, "Bands" → band). */
 export function sozcukler(ad) {
-  const s = String(ad || '').toLowerCase().replace(/\b(pull|chin|push)[\s-]+ups?\b/g, '$1up').replace(/[^a-z0-9]+/g, ' ').trim();
+  const s = String(ad || '').toLowerCase().replace(/\b(pull|chin|push)[\s-]+ups?\b/g, '$1up').replace(/\bdead[\s-]*bugs?\b/g, 'deadbug').replace(/[^a-z0-9]+/g, ' ').trim();
   return new Set(s.split(' ').filter((w) => w && !DUR.has(w)).map((w) => ES[w] || w));
 }
 
