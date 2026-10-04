@@ -9,6 +9,20 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 ## Sıradaki
 
+### Kas haritası notları (04.10.2026, sürüm 12 sonrası; "uygula" bekliyor)
+- [ ] **Seçince renkler gidiyor:** bir kas seçilince seçilmeyen gruplar griye dönüyor (`harita.js` → `guncelle`:
+  seçim varken diğerlerinin opaklığı 0). İstenen: tüm gruplar kendi renginde kalsın; seçilen öne çıksın
+  (amber çerçeve/parıltı + ★ rozet), seçilmeyenler en fazla hafif soluklaşsın (ör. %55), griye dönmesin.
+  Ağrı haritası ve mini vücutlar (yoğunluk modu) bundan etkilenmez.
+- [ ] **İkinci dokunuşta seçim kalkmıyor:** şu an seçili kasa dokununca yalnızca odak/panel açılıyor
+  (`onHaritaTap`: öncelik yalnızca 0 ise 1 yapılıyor). İstenen: seçili kasa tekrar dokun → seçim kalkar
+  (öncelik 0, rozet gider, panel kapanır). Öncelik değiştirme alt paneldeki düğmelerden ve çiplerden.
+- [ ] **Öncelik 5 kademe:** Yok + 1–5 (şu an Yok / ★ / ★★). Puanlama zaten ağırlıkla çarptığı için
+  (`salon.puanla`: pay × öncelik) 1–5 doğrudan çalışır; kaydedilmiş planlardaki 1/2 aynen geçerli kalır.
+  Görünüm önerisi: alt panelde 5 noktalı seçici (●●●○○), rozette rakam (①–⑤ ya da "★3"); çipler aynı.
+  Dokunuşla döngü yok (1→2→…→5 yavaş olur): dokun = seç (varsayılan 3) / tekrar dokun = kaldır.
+  Test: eski senaryolar (★/★★) ve yeni senaryo: seç → kaldır, 5 kademe → sıralama değişir.
+
 ### Sürüm 12 — tek seferde uygulanacak plan (04.10.2026) — **TAMAMLANDI, 12.0.0 yayında (04.10.2026)**
 Kurulum için yapılacaklar (senin tarafında):
 - [ ] sporRef: yeni `SporRef.gs`'i yapıştır → Dağıtımları yönet → Yeni sürüm (CSS testi yazımı için; adres ve anahtar aynı).
