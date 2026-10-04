@@ -1457,3 +1457,9 @@ svg.hg .ln { fill: none; stroke: #3987e5; stroke-width: 2; stroke-linejoin: roun
 svg.hg .hit { fill: transparent; }
 svg.hg .last { fill: #3987e5; stroke: #12181F; stroke-width: 2; }
 svg.hg .dl { font-size: 11px; font-weight: 700; fill: #C2CBD5; }
+
+/* Sürüm 12: ısınma seti, süperset */
+.sl-isn { border-color: rgba(45, 212, 191, 0.5) !important; color: #7EE3D5 !important; font-size: 15px !important; }
+.sl-isn small { color: #6B8F8A; font-size: 12px; }
+.sp-ss { display: block; width: 100%; margin: -4px 0 6px; padding: 6px 10px; border-radius: 10px; border: 1px dashed #2A3440; background: transparent; color: #8B97A5; font-size: 13px; font-weight: 800; }
+.sp-ss.is-on { border-style: solid; border-color: rgba(245, 165, 36, 0.6); color: #F5A524; }

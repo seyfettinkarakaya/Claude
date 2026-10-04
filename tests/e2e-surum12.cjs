@@ -94,6 +94,7 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
   assert.equal(await s.ls('ysk.salonPlan'), null, 'başlayınca plan tüketilir');
   // Shoulder Press kartında öneri uygulandı, geri al çalışır
   await s.goTo(1, '#sl-wheel');
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/geri.png` });
   assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /15 kg.*öneri uygulandı: \+2,5 kg/);
   await p.click('#sl-wheel .w-item.is-active [data-sl-geri]');
   assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 3 × 10 · 12,5 kg/);
@@ -247,6 +248,43 @@ sc('Hareket bilgi kartı: planlamada ⓘ → Türkçe adımlar, yerel fotoğraf,
   await p.waitForSelector('#bilgi:not([hidden])');
   assert.equal(await txt(s, '#bi-title'), 'Dambıl omuz press');
   assert.match(await txt(s, '#bi-body'), /⚠ Sağ omuz: ağrısız aralıkta/);
+});
+
+sc('Süperset: planda bağla; set sonrası dinlenmeden sıradakine geçer, turun sonunda dinlenme; ısınma seti nota yazılır', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  await toPlanList(s, ['Shoulders', 'Back']);
+  await p.click('[data-sp-ex="Dumbbell Shoulder Press"]'); await p.click('[data-sp-ex="Band Bent Over Row"]');
+  await p.click('#sp-next');
+  await p.click('[data-sp-ss="0"]');
+  assert.match(await txt(s, '[data-sp-ss="0"]'), /süperset · ayır/);
+  await p.click('#sp-next'); await s.waitScreen('salon');
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  const ses0 = await s.ls('ysk.salonSession');
+  assert.ok(ses0.hareketler[0].ss && ses0.hareketler[0].ss === ses0.hareketler[1].ss);
+  const title = () => p.$eval('#sl-wheel .w-item.is-active .sl-ad', (e) => e.textContent.trim());
+  // Isınma seti (kayda sayılmaz)
+  await p.click('#sl-wheel .w-item.is-active .w-tag'); await p.waitForSelector('#sl-detail:not([hidden])');
+  await p.click('#sl-detail [data-sl-isn]');
+  assert.match(await txt(s, '#sl-detail [data-sl-isn]'), /Isınma seti · 1/);
+  await p.click('#sl-detail .dt-hint');
+  assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-tag'), /ISINMA 1/);
+  // A seti → B'ye geçer, dinlenme yok
+  await slPress(s); await s.adv(20); await slPress(s); await s.adv(1);
+  await p.waitForFunction(() => document.querySelector('#sl-wheel .w-item.is-active .sl-ad').textContent.trim() === 'Band Bent Over Row');
+  const timerOf = (ad) => p.$$eval('#sl-wheel .w-item', (els, a) => { const e = els.find((x) => x.querySelector('.sl-ad') && x.querySelector('.sl-ad').textContent.trim() === a); const tm = e && e.querySelector('.w-timer'); return tm ? tm.textContent.replace(/\s+/g, ' ').trim() : ''; }, ad);
+  assert.match(await timerOf('Dumbbell Shoulder Press'), /SÜPERSET · DİNLENME YOK.*sıradaki: Band Bent Over Row/);
+  // B seti → A'ya döner, normal dinlenme
+  await s.adv(2); await slPress(s); await s.adv(20); await slPress(s); await s.adv(3);
+  await p.waitForFunction(() => document.querySelector('#sl-wheel .w-item.is-active .sl-ad').textContent.trim() === 'Dumbbell Shoulder Press');
+  assert.match(await timerOf('Band Bent Over Row'), /DİNLENME · 2\. SETE/);
+  assert.equal(await title(), 'Dumbbell Shoulder Press');
+  // bitir ve kaydet: ısınma notu
+  await s.adv(60);
+  await p.click('#sl-back'); await s.waitModal('Salon idmanı'); await s.modalClick('İdmanı bitir ve kaydet');
+  await s.waitScreen('salon-ozet'); await p.click('#so-save'); await s.waitScreen('home');
+  const I = s.envs.SALON.sheets.idman;
+  assert.match(I.data[1][9], /^Setler: 10\. Isınma 1 set/);
+  assert.equal(I.data[2][9], 'Setler: 15');
 });
 
 const only = process.argv[2];

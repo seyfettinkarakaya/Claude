@@ -134,6 +134,7 @@ export function payload(session, st) {
     if (!reps.length) return;
     const g = session.giris[x._k] || {};
     const setler = `Setler: ${reps.map(fmtN).join('-')}${x.sure ? ' sn' : ''}`;
+    const isn = (session.isinmaSet || {})[x._k];
     out.push({
       hareket: x.ad,
       set: reps.length,
@@ -142,7 +143,7 @@ export function payload(session, st) {
       nabiz: g.nabiz == null ? '' : g.nabiz,
       rpe: g.rpe == null ? '' : g.rpe,
       msi: g.msi == null ? '' : g.msi,
-      aciklama: [setler, String(g.not || '').trim()].filter(Boolean).join('. '),
+      aciklama: [setler, isn ? `Isınma ${isn} set` : '', String(g.not || '').trim()].filter(Boolean).join('. '),
       sure: mmss(hareketMs(st, h)),
     });
   });

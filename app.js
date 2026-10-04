@@ -32,7 +32,7 @@ const MSI_BOLGELER = [
 ];
 
 const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'rpe', 'msi', 'ozet', 'done', 'salon-start', 'salon', 'salon-ozet', 'salon-plan'];
-const WAKE_SCREENS = new Set(['program', 'rpe', 'msi', 'ozet']);
+const WAKE_SCREENS = new Set(['program', 'rpe', 'msi', 'ozet', 'salon']); // salon: dinlenme sayacı görünür kalsın
 
 const state = {
   screen: null,
@@ -2366,7 +2366,8 @@ function checkBeep(key, rem) {
   if (state.beep.marks.has(mark)) return;
   // Geç açılan ekranda eski işaretler çalmasın: yalnızca şu anki saniye.
   for (let m = mark; m <= 3; m++) state.beep.marks.add(m);
-  if (mark === 0) audio.long();
+  // Dinlenme bitti: ses + titreşim (titreşim yalnızca ekrana dokunulduysa; yoksa tarayıcı engelleyip uyarı yazar)
+  if (mark === 0) { audio.long(); if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate([200, 100, 200]); }
   else audio.short();
 }
 
@@ -3047,6 +3048,8 @@ function slRenderItem(node, x, h) {
   const n = slH().length;
   const hedef = `${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}`;
   let tag = `${g.ad ? `${esc(g.ad)} · ` : ''}${h + 1}/${n}`;
+  const isnN = (sl.ses.isinmaSet || {})[x._k];
+  if (isnN) tag = `${tag} · ISINMA ${isnN}`;
   if (stat === 'tamam') tag = `✓ TAMAMLANDI · ${tag}`;
   else if (stat === 'eksik') tag = `${salon.doneSets(st, h)}/${x.set} · ERKEN BİTTİ · ${tag}`;
   const vid = k && k.video ? `<a class="sl-vid" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer" aria-label="Videoyu YouTube'da aç">▶ Video</a>` : '';
@@ -3149,6 +3152,23 @@ function onSlMain() {
   slRefreshAll();
 }
 
+/** Süperset üyeleri (aynı x.ss), sırayla. */
+const ssUyeleri = (h) => { const H = slH(); const id = H[h] && H[h].ss; return id ? H.map((x, i) => (x.ss === id ? i : -1)).filter((i) => i >= 0) : []; };
+/**
+ * Süpersette h'nin setinden sonra gidilecek hareket: turdaki sonraki üye (dinlenmesiz) ya da turun başı (dinlenmeli).
+ * { h, ara: true } (tur içi) | { h, ara: false } (yeni tur) | null
+ */
+function ssSonraki(h) {
+  const u = ssUyeleri(h);
+  if (u.length < 2) return null;
+  const st = slst();
+  const left = (i) => salon.doneSets(st, i) < slH()[i].set;
+  const after = u.filter((i) => i > h && left(i) && salon.doneSets(st, i) < salon.doneSets(st, h));
+  if (after.length) return { h: after[0], ara: true };
+  const first = u.find(left);
+  return first != null && first !== h ? { h: first, ara: false } : (left(h) ? { h, ara: false } : null);
+}
+
 /** Set biter; hareketin son setiyse hareket sonu girişi açılır. */
 function slFinishSet(ts) {
   const h = slst().cur;
@@ -3156,7 +3176,9 @@ function slFinishSet(ts) {
   if (prefs().ses) audio.ok();
   const st = slst();
   slRefreshAll();
-  if (salon.doneSets(st, h) >= slH()[h].set) openGiris(h);
+  if (salon.doneSets(st, h) >= slH()[h].set) return openGiris(h);
+  const ss = ssSonraki(h);
+  if (ss && ss.h !== h) sl.wheel.scrollTo(ss.h); // süperset: sıradaki harekete geç
 }
 
 function onSlUndo() {
@@ -3250,6 +3272,9 @@ function slTick() {
     } else if (box) {
       setTimer(box, `${st.per[st.cur].sets.length}. SET · YAPILIYOR`, 'y', fmtDur(Math.floor(el)), '', st.per[st.cur].sets.length >= x.set ? 'son set · bitince hareket biter' : `${x.set} setin ${st.per[st.cur].sets.length}.`);
     }
+  } else if (st.phase === 'rest' && box && ssSonraki(st.cur) && ssSonraki(st.cur).ara) {
+    const n = slH()[ssSonraki(st.cur).h];
+    setTimer(box, 'SÜPERSET · DİNLENME YOK', 'y', '→', '', `sıradaki: ${n.ad}`);
   } else if (st.phase === 'rest' && box) {
     const el = salon.restMs(st, now) / 1000;
     const rem = x.dinlen - el;
@@ -3478,7 +3503,7 @@ function openSlDetail(h) {
     ${k ? `<p class="dt-row">${esc([k.amac, k.ekipman].filter(Boolean).join(' · '))}${k.stc != null ? ` · Yüzme katsayısı ${fmtDec(k.stc)}` : ''}</p>` : '<p class="dt-why">Katalogda (H) yok: v2 formülü bu hareketi hesaplamaz.</p>'}
     ${etki.length ? `<div class="dt-kas"><span class="sp-mb" data-mb data-mb-ad="${esc(x.ad)}"></span><p class="dt-row sl-etki">${etki.slice(0, 4).map(([g, o]) => `${esc(g)} <b>${fmtDec(Math.round(o * 100) / 100)}</b>`).join(' · ')}</p></div>` : ''}
     ${hareketGrafik(x.ad)}
-    <p class="dt-row"><button class="sl-bilgi" data-bilgi="${esc(x.ad)}">ⓘ Nasıl yapılır</button></p>
+    <p class="dt-row"><button class="sl-bilgi" data-bilgi="${esc(x.ad)}">ⓘ Nasıl yapılır</button>${!working && !salon.doneSets(st, h) ? ` <button class="sl-bilgi sl-isn" data-sl-isn>＋ Isınma seti${(sl.ses.isinmaSet || {})[x._k] ? ` · ${(sl.ses.isinmaSet || {})[x._k]}` : ''} <small>kayda sayılmaz</small></button>` : ''}</p>
     ${k && k.video ? `<p class="dt-row"><a class="sl-vid is-inline" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer">▶ Videoyu YouTube'da aç</a></p>` : ''}
     <div class="dt-acts sl-acts">${b('edit', '✎', 'Düzenle', !working && stat !== 'tamam')}${b('swap', '⇄', 'Değiştir', !working && !started)}${b('add', '＋', 'Sonrasına ekle', !working)}${b('del', '🗑', 'Sil', !working && !started && slH().length > 1, 'del')}</div>
     ${working ? '<p class="dt-why">Set sürerken düzenlenemez</p>' : started ? '<p class="dt-why">Başlanan hareket silinemez ya da değiştirilemez</p>' : ''}
@@ -3492,6 +3517,17 @@ function onSlDetailClick(e) {
   if (e.target.closest('a')) return;
   const bi = e.target.closest('[data-bilgi]');
   if (bi) { bilgiKarti(bi.dataset.bilgi); return; }
+  if (e.target.closest('[data-sl-isn]')) {
+    const h = Number($('sl-detail').dataset.h);
+    const x = slH()[h];
+    sl.ses.isinmaSet = sl.ses.isinmaSet || {};
+    sl.ses.isinmaSet[x._k] = (sl.ses.isinmaSet[x._k] || 0) + 1;
+    slPersist();
+    slRefreshAll();
+    openSlDetail(h);
+    toast(`Isınma seti ${sl.ses.isinmaSet[x._k]}: kayda sayılmaz, nota yazılır`, 1500);
+    return;
+  }
   const btn = e.target.closest('[data-sact]');
   if (btn && btn.disabled) return;
   const box = $('sl-detail');
@@ -3673,7 +3709,8 @@ function saveGiris() {
   slPersist();
   const pr = slRekor(G.h);
   if (pr.length) toast(`🏆 Rekor · ${x.ad}: ${pr.map((r) => r.metin).join(' · ')}`, 3500);
-  const next = slNextOpen(G.h);
+  const ss = ssSonraki(G.h);
+  const next = ss && ss.h !== G.h ? ss.h : slNextOpen(G.h);
   if (next < 0 && slst().phase !== 'work') {
     slPush({ t: 'son' });
     return showSalonOzet();
@@ -3901,7 +3938,8 @@ function renderSalonPlan() {
         return `<div class="sp-pl"><span class="sp-n n">${i + 1}</span>
           <span class="sp-m"><b>${esc(x.ad)}</b><small>${esc(grupAd(grupOf(x.ad)))}${o ? ` · öneri: <em class="${o.warn ? 'warn' : ''}">${esc(o.text)}</em>` : ''}</small>${kn.map((t) => `<small class="sp-kn">⚠ ${esc(t)}</small>`).join('')}</span>
           <span class="sp-v n">${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}<small>${esc(fmtKg(x.agirlik))}</small></span>
-          <span class="sp-mv"><button data-sp-mv="${i}:-1" aria-label="Yukarı" ${i ? '' : 'disabled'}>↑</button><button data-sp-mv="${i}:1" aria-label="Aşağı" ${i < P.liste.length - 1 ? '' : 'disabled'}>↓</button><button data-sp-rm="${i}" aria-label="Çıkar">✕</button></span></div>`;
+          <span class="sp-mv"><button data-sp-mv="${i}:-1" aria-label="Yukarı" ${i ? '' : 'disabled'}>↑</button><button data-sp-mv="${i}:1" aria-label="Aşağı" ${i < P.liste.length - 1 ? '' : 'disabled'}>↓</button><button data-sp-rm="${i}" aria-label="Çıkar">✕</button></span></div>
+          ${i < P.liste.length - 1 ? `<button class="sp-ss${x.ss && P.liste[i + 1].ss === x.ss ? ' is-on' : ''}" data-sp-ss="${i}">${x.ss && P.liste[i + 1].ss === x.ss ? '⛓ süperset · ayır' : '⛓ süperset yap'}</button>` : ''}`;
       }).join('')}
       <p class="sp-note">Set, tekrar ve ağırlık idmanda karta dokunup Düzenle ile değişir. Plan yalnızca telefonda tutulur.</p>`;
     next.textContent = 'İdmana başla';
@@ -4056,6 +4094,11 @@ function onSalonPlanClick(e) {
     const j = i + k;
     [P.liste[i], P.liste[j]] = [P.liste[j], P.liste[i]];
     P.secili = P.liste.map((x) => x.ad);
+  } else if (t.dataset.spSs) {
+    const i = Number(t.dataset.spSs);
+    const a = P.liste[i], b = P.liste[i + 1];
+    if (a.ss && b.ss === a.ss) { delete b.ss; if (!(i > 0 && P.liste[i - 1].ss === a.ss)) delete a.ss; for (let j = i + 2; j < P.liste.length && P.liste[j].ss === a.ss; j++) delete P.liste[j].ss; }
+    else { const id = a.ss || b.ss || a._k; a.ss = id; b.ss = id; }
   } else if (t.dataset.spRm) {
     P.liste.splice(Number(t.dataset.spRm), 1);
     P.secili = P.liste.map((x) => x.ad);
