@@ -252,6 +252,7 @@
       <div class="seg-bar" id="prog-bar"></div>
     </header>
     <div class="wheel" id="wheel"></div>
+    <div class="yz-ara" id="yz-ara" hidden></div>
     <footer class="dock">
       <button class="dock-side" id="btn-undo" aria-label="Son dokunuşu geri al"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span>Geri al</span></button>
       <button class="dock-main" id="btn-main"><b id="btn-main-label">YÜZ</b><small id="btn-main-sub"></small></button>
@@ -302,6 +303,8 @@
     <div class="scroll pad">
       <h1 class="fin-h">Ağrı / rahatsızlık</h1>
       <p class="fin-sub">MSI — ağrı varsa bölgeye dokun; her dokunuş değeri artırır (0,5 → 1 → 1,5 → 2 → 3 → boş)</p>
+      <div class="msi-map"><div class="hm-seg" id="msi-seg"><button data-v="front" class="on">Ön</button><button data-v="back">Arka</button></div><div class="msi-harita" id="msi-harita"></div></div>
+      <div class="msi-gecmis" id="msi-gecmis"></div>
       <button class="fin-none" id="msi-none">✓ Ağrı yok<small>MSI boş kalır, özete geçer</small></button>
       <div class="msi-body" id="msi-body"></div>
       <p class="fin-info">0,5 gözlem · 1–1,5 hafiflet · 2 durdur · 3+ tıbbi</p>
@@ -321,6 +324,7 @@
       </div>
       <button class="oz-msi" id="oz-msi-box"><span class="lbl">MSI</span><span id="oz-msi"></span></button>
       <div class="seg" id="oz-havuz"><button data-v="25">25 m</button><button data-v="50">50 m</button></div>
+      <div id="oz-analiz"></div>
       <p class="lbl oz-h">TABLODAKİ NOTA YAZILACAKLAR</p>
       <div id="oz-notes"></div>
       <p class="lbl oz-h">AÇIKLAMA</p>

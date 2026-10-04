@@ -1,7 +1,7 @@
 // Sürüm 12 uçtan uca senaryoları (salon ve yüzme yenilikleri). Eski senaryolar e2e-senaryolar.cjs'te, değişmeden.
 //   NODE_PATH=$(npm root -g) node tests/e2e-surum12.cjs [filtre]
 const assert = require('assert');
-const { runScenarios, D } = require('./harness.cjs');
+const { runScenarios, D, sampleRef } = require('./harness.cjs');
 const { Sheet } = require('./fakegas.cjs');
 
 const S = [];
@@ -285,6 +285,73 @@ sc('Süperset: planda bağla; set sonrası dinlenmeden sıradakine geçer, turun
   const I = s.envs.SALON.sheets.idman;
   assert.match(I.data[1][9], /^Setler: 10\. Isınma 1 set/);
   assert.equal(I.data[2][9], 'Setler: 15');
+});
+
+// --- Yüzme ---------------------------------------------------------------------------------------
+const refV12 = () => ({ ...sampleRef(), drill: new Sheet('drill', ['Ad', 'Video', 'Açıklama'], [['Açıklama 2', 'https://youtu.be/d2', 'örnek drill']]) });
+/** Aktif setin n tekrarını yüzer (tekrar 60 sn, tekrar arası 20 sn, son tekrardan sonra 3 sn). */
+async function tekrarlar(s, n) { for (let r = 0; r < n; r++) { await s.tap(60); await s.tap(r < n - 1 ? 20 : 3); } }
+
+sc('Yüzme: drill videosu; set sonu kulaç + nabız (norm üstü uyarısı), aerobik blok sonunda omuz rahatlatma; özette SWOLF, bölgeler; eski sayfasına kulaç ve nabız', async ({ launch }) => {
+  const s = await launch({ refSheets: refV12(), ref: true }); const p = s.page;
+  await s.openToday();
+  // 2. set (Drill) kartında ▶ Drill
+  assert.equal(await p.$$eval('.w-item .w-card a.sl-vid', (e) => e.map((x) => x.getAttribute('href')).join()), 'https://youtu.be/d2');
+  // 1. set (WU 1×200): set sonu → kulaç/nabız şeridi, omuz rahatlatma yok (WU aerobik blok değil)
+  await tekrarlar(s, 1);
+  await p.waitForSelector('#yz-ara:not([hidden])');
+  assert.equal(await p.$$eval('#yz-ara .yz-rahat', (e) => e.length), 0);
+  await p.click('#yz-ara [data-kn]'); await s.waitModal('kulaç ve nabız');
+  await p.click('#modal-body [data-d="kulac:1"]'); await p.click('#modal-body [data-d="kulac:1"]');
+  assert.match(await txt(s, '#modal-body'), /16.*teknik bozuluyor/);
+  await p.click('#modal-body [data-d="nabiz:5"]');
+  await s.modalClick('Kaydet');
+  assert.match(await txt(s, '#yz-ara [data-kn]'), /Kulaç 16\/25 m · Nabız 145/);
+  // 2. set (4×50 drill) ve 3. set (MS 4×100): MS bitince omuz rahatlatma (sonraki blok AS)
+  await s.adv(20);
+  await tekrarlar(s, 4); await s.adv(20);
+  await tekrarlar(s, 4);
+  await p.waitForSelector('#yz-ara .yz-rahat');
+  assert.match(await txt(s, '#yz-ara .yz-rahat'), /Omuz rahatlatma · 60 sn/);
+  await p.click('#yz-ara [data-rahat="yap"]');
+  assert.equal(await p.$$eval('#yz-ara .yz-rahat', (e) => e.length), 0);
+  assert.deepEqual(Object.values((await s.session()).yz.rahat), ['yap']);
+  await s.finishToOzet();
+  assert.match(await txt(s, '#oz-analiz'), /BÖLGELERDE SÜRE/);
+  const oz = await p.$$eval('.oz-set', (e) => e.map((x) => x.textContent.replace(/\s+/g, ' ').trim()));
+  assert.match(oz[0], /Kulaç 16\/25 m · SWOLF \d+ · Nabız 145.*⚠ Kulaç 16\/25 m \(norm 13–15\)/);
+  await p.click('#oz-save'); await s.waitScreen('done');
+  const eski = s.env.sheets.eski;
+  const hdr = eski.data[0];
+  const row = eski.data.slice(1).find((r) => r[hdr.indexOf('Blok')] === 'WU'); // Sıra sürüm 11'den beri boş yazılır
+  assert.deepEqual([row[hdr.indexOf('Kulaç')], row[hdr.indexOf('Nabız')]], [16, 145]);
+  const hist = (await s.ls('ysk.history'))[0];
+  assert.equal(hist.setler[0].kulac, 16);
+});
+
+sc('Yüzme: ağrı ekranında kas haritası — omuza dokun → kişinin sağı/solu; liste aynı anahtarı gösterir; son 4 hafta özeti', async ({ launch }) => {
+  const s = await launch({ ref: true, viewport: { width: 390, height: 844 }, storage: { 'ysk.history': [{ id: 'x', tarih: '2026-09-20', seans: { sure: '00:40:00', rpe: 6, msi: 'sag omuz 1' }, setler: [] }] } }); const p = s.page;
+  await s.openToday();
+  await s.tap(60); await s.tap(3);
+  await p.click('#prog-back'); await s.waitModal('İdmanı bitir?'); await s.modalClick('İdmanı bitir ve kaydet');
+  await s.waitScreen('rpe'); await p.click('#rpe-grid button[data-v="6"]'); await s.waitScreen('msi');
+  await p.waitForSelector('#msi-harita .kf');
+  await p.waitForTimeout(300);
+  assert.match(await txt(s, '#msi-gecmis'), /SON 4 HAFTA\s*Sağ omuz · 1 seans · ort. 1 · en çok 1/);
+  const r = await p.locator('#msi-harita .kf').boundingBox();
+  // önden bakış: görüntünün solundaki omuz = kişinin sağ omzu (Omuz merkezi aynalanmış: x 56 / 230)
+  await p.mouse.click(r.x + (r.width * 56) / 230, r.y + (r.height * 110) / 503);
+  assert.match(await txt(s, '[data-bolge="sag omuz"]'), /Sağ omuz0,5/);
+  await p.mouse.click(r.x + (r.width * 174) / 230, r.y + (r.height * 110) / 503);
+  assert.equal((await p.locator('#msi-harita .kf').boundingBox()).y, r.y, 'dokununca harita kaymaz');
+  await p.mouse.click(r.x + (r.width * 174) / 230, r.y + (r.height * 110) / 503);
+  assert.match(await txt(s, '[data-bolge="sol omuz"]'), /Sol omuz1/);
+  assert.equal(await p.$$eval('#msi-harita .msi-pin', (e) => e.length), 2);
+  // karın: MSI yok uyarısı
+  await p.mouse.click(r.x + (r.width * 114) / 230, r.y + (r.height * 194) / 503);
+  await p.waitForFunction(() => /Bu bölge için MSI yok/.test(document.getElementById('toast').textContent));
+  await p.click('#msi-next'); await s.waitScreen('ozet');
+  assert.match(await txt(s, '#oz-msi'), /sağ omuz 0,5, sol omuz 1/);
 });
 
 const only = process.argv[2];

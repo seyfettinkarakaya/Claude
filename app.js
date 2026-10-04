@@ -11,6 +11,7 @@ import * as kisit from './kisit.js?v=11.0.1';
 import * as yuk from './yuk.js?v=11.0.1';
 import * as harita from './harita.js?v=11.0.1';
 import * as bilgi from './bilgi.js?v=11.0.1';
+import * as analiz from './analiz.js?v=11.0.1';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
 export const APP_VERSION = '11.0.1';
@@ -1506,8 +1507,77 @@ function renderItem(node, s, i, cum) {
       <span class="w-nm">${esc(rowName)}${status === 'eksik' ? ` · ${d}/${T}` : ''}</span>
     </div>
     <div class="w-ctm">${c.time ? fmtDur(c.time) : ''}${setTime(s) ? `<small>+${fmtDur(setTime(s))}</small>` : ''}</div>
-    <div class="w-card"><div class="w-tag">${tag}</div>${body}</div>`;
+    <div class="w-card">${(() => { const dr = (mode === 'ready' || mode === 'next') && drillOf(s); return dr ? `<a class="sl-vid" href="${esc(dr.video)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(dr.ad)} videosu">▶ Drill</a>` : ''; })()}<div class="w-tag">${tag}</div>${body}</div>`;
 }
+
+// --- Sürüm 12 (yüzme): set sonu ara şeridi — omuz rahatlatma, kulaç, nabız; drill videosu --------
+
+const yzVeri = () => (state.session.yz = state.session.yz || { kn: {}, rahat: {} });
+/** Set sonu dinlenmesinde (setin tüm tekrarları bitti) ara şerit; aksi halde gizli. */
+function yzAraGuncelle(st) {
+  const box = $('yz-ara');
+  const i = st.cur;
+  const s = i != null ? state.plan.setler[i] : null;
+  if (!s || st.phase !== 'rest' || zaman.doneReps(st, i) < tekrarOf(s)) { if (!box.hidden) { box.hidden = true; box.dataset.sig = ''; } return; }
+  const key = setKey(s, i);
+  const f = yzVeri();
+  const next = state.plan.setler[i + 1];
+  const blokSonu = analiz.aerobikBlok(s.blok) && (!next || String(next.blok || '').toUpperCase() !== String(s.blok || '').toUpperCase());
+  const rahat = kurallar().omuzRahatlatma && blokSonu && !f.rahat[key];
+  const kn = f.kn[key] || {};
+  const ks = kn.kulac ? kisit.kulacDurum(kn.kulac, s, kurallar()) : null;
+  const sig = `${key}|${rahat}|${kn.kulac}|${kn.nabiz}`;
+  if (box.dataset.sig === sig && !box.hidden) return;
+  box.dataset.sig = sig;
+  box.innerHTML = `${rahat ? `<div class="yz-rahat"><b>Omuz rahatlatma · 60 sn</b><span>Aerobik blok bitti: sarkaç 20 sn · kol salınımı 20 sn · kapı esnetme 20 sn</span>
+      <div class="yz-rb"><button data-rahat="yap">Yaptım</button><button data-rahat="atla">Atla</button></div></div>` : ''}
+    <button class="yz-kn${ks && ks.durum === 'yuksek' ? ' warn' : ''}" data-kn><span>${esc(setTitle(s))}</span><b>${kn.kulac ? `Kulaç ${kn.kulac}/25 m` : 'Kulaç'} · ${kn.nabiz ? `Nabız ${kn.nabiz}` : 'Nabız'}</b><small>${kn.kulac || kn.nabiz ? 'düzelt' : 'gir'}</small></button>`;
+  box.hidden = false;
+}
+
+async function onYzAra(e) {
+  const st = zst();
+  const i = st.cur;
+  const s = state.plan.setler[i];
+  if (!s) return;
+  const key = setKey(s, i);
+  const f = yzVeri();
+  const r = e.target.closest('[data-rahat]');
+  if (r) { f.rahat[key] = r.dataset.rahat; persist(); return yzAraGuncelle(st); }
+  if (!e.target.closest('[data-kn]')) return;
+  const K = kurallar();
+  const norm = kisit.kulacNormu(s, K);
+  const prevN = Object.values(f.kn).map((x) => x.nabiz).filter(Boolean).pop();
+  const v = { kulac: (f.kn[key] || {}).kulac || Math.round((norm.aralik[0] + norm.aralik[1]) / 2), nabiz: (f.kn[key] || {}).nabiz || prevN || 140 };
+  const body = document.createElement('div');
+  body.className = 'kn-body';
+  const draw = () => {
+    const d = kisit.kulacDurum(v.kulac, s, K);
+    body.innerHTML = `<div class="kn-row"><div><small>KULAÇ / 25 M</small><b class="n">${v.kulac}</b><span class="${d && d.durum === 'yuksek' ? 'warn' : 'mu'}">${esc(d ? d.metin : '')}</span></div>
+        <div class="kn-pm"><button data-d="kulac:-1">−</button><button data-d="kulac:1">+</button></div></div>
+      <div class="kn-row"><div><small>NABIZ</small><b class="n">${v.nabiz}</b><span class="mu">atım/dk${prevN ? ` · önceki ${prevN}` : ''}</span></div>
+        <div class="kn-pm"><button data-d="nabiz:-5">−5</button><button data-d="nabiz:-1">−</button><button data-d="nabiz:1">+</button><button data-d="nabiz:5">+5</button></div></div>`;
+  };
+  draw();
+  body.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-d]');
+    if (!b) return;
+    const [k, d] = b.dataset.d.split(':');
+    v[k] = k === 'kulac' ? Math.max(5, Math.min(40, v[k] + Number(d))) : Math.max(60, Math.min(220, v[k] + Number(d)));
+    draw();
+  });
+  const ok = await modal({ title: `${setTitle(s)} · kulaç ve nabız`, body, actions: [{ label: 'Kaydet', value: 'ok', cls: 'btn-primary' }, { label: 'Vazgeç', value: '' }] });
+  if (ok === 'ok' && state.session) {
+    f.kn[key] = { kulac: v.kulac, nabiz: v.nabiz };
+    persist();
+    yzAraGuncelle(zst());
+    const d = kisit.kulacDurum(v.kulac, s, K);
+    if (d && d.durum === 'yuksek') toast(`⚠ ${d.metin}`, 3500);
+  }
+}
+
+/** Set açıklamasındaki drill → sporRef drill videosu ({ ad, video }) ya da null. */
+const drillOf = (s) => { const r = sporRef(); const d = r && Array.isArray(r.drill) ? analiz.drillBul(s.aciklama, r.drill) : null; return d && d.video ? d : null; };
 
 function openProgram() {
   state.session.screen = 'program';
@@ -1792,6 +1862,7 @@ function tick() {
   if (!$('btn-main-label').dataset.fit) fitMainLabel();
   const now = Date.now();
   const st = zst();
+  yzAraGuncelle(st);
   const clock = $('prog-clock');
   const t = st.basla == null ? '0:00' : fmtClock(zaman.idmanMs(st, now));
   if (clock.textContent !== t) {
@@ -2438,8 +2509,54 @@ function openMsi() {
   renderMsi();
 }
 
+// Ağrı haritası: dokunulan kas + yan → seans sayfasına yazılan bölge anahtarı (eski liste de aynen çalışır).
+const MSI_PIN = {
+  front: { 'sag omuz': [56, 110], 'sol omuz': [174, 110], 'sag diz': [84, 372], 'sol diz': [146, 372], kalca: [115, 236] },
+  back: { 'sag omuz': [169, 104], 'sol omuz': [49, 104], boyun: [109, 62], bel: [109, 212], kalca: [109, 250] },
+};
+function msiAnahtar(hit, fy) {
+  if (hit.g === 'Omuz') return `${hit.yan} omuz`;
+  if (hit.g === 'Bacak') return `${hit.yan} diz`;
+  if (hit.g === 'Kalça' || hit.g === 'Kalça yanı') return 'kalca';
+  if (hit.g === 'Sırt') return fy < 0.2 ? 'boyun' : 'bel';
+  return null;
+}
+function msiHarita() {
+  if (!state.session || !state.session.form) return;
+  const f = state.session.form;
+  const v = state.msiView || 'front';
+  const wrap = $('msi-harita');
+  const m = harita.META[v];
+  const y = {};
+  for (const [k, val] of Object.entries(f.msi)) {
+    if (val == null) continue;
+    if (/omuz/.test(k)) y.Omuz = 1;
+    if (/diz/.test(k)) y.Bacak = 1;
+    if (k === 'kalca') { y['Kalça'] = 1; y['Kalça yanı'] = 1; }
+    if (k === 'bel' || k === 'boyun') y['Sırt'] = 1;
+  }
+  const fig = harita.figur(v, { yogunluk: Object.keys(y).length ? y : { yok: 0 }, rozet: false, cls: 'msi-fig' });
+  for (const [k, [x, yy]] of Object.entries(MSI_PIN[v])) {
+    if (f.msi[k] == null) continue;
+    const p = document.createElement('span');
+    p.className = `msi-pin${f.msi[k] >= 2 ? ' r' : ''}`;
+    p.textContent = String(f.msi[k]).replace('.', ',');
+    p.style.left = `${(x / m.w) * 100}%`;
+    p.style.top = `${(yy / m.h) * 100}%`;
+    fig.append(p);
+  }
+  wrap.replaceChildren(fig);
+  for (const b of $('msi-seg').children) b.classList.toggle('on', b.dataset.v === v);
+  const ag = analiz.agriGecmisi(data.getHistory(), yuk.gunEkle(todayKey(), -28));
+  const lab = Object.fromEntries(MSI_BOLGELER.map((b) => [b.key, b.label]));
+  const rows = Object.entries(ag).sort((a, b) => b[1].n - a[1].n);
+  $('msi-gecmis').innerHTML = rows.length ? `<p class="lbl">SON 4 HAFTA</p>${rows.map(([k, o]) => `<p><b>${esc(lab[k] || k)}</b> · ${o.n} seans · ort. ${fmtDec(o.ort)} · en çok ${fmtDec(o.max)}</p>`).join('')}` : '';
+}
+
 function renderMsi() {
   const f = state.session.form;
+  msiHarita();
+  harita.hitYukle();
   $('msi-body').innerHTML = MSI_BOLGELER.map((b) => {
     const v = f.msi[b.key];
     const cls = v == null ? '' : v >= 2 ? 'w2' : v >= 1 ? 'w1' : 'w05';
@@ -2458,9 +2575,20 @@ function onMsiClick(e) {
     return openOzet();
   }
   if (e.target.closest('#msi-next')) return openOzet();
-  const b = e.target.closest('button[data-bolge]');
-  if (!b) return;
-  const k = b.dataset.bolge;
+  const sv = e.target.closest('#msi-seg [data-v]');
+  if (sv) { state.msiView = sv.dataset.v; msiHarita(); return; }
+  let k = null;
+  const fig = e.target.closest('#msi-harita .kf');
+  if (fig) {
+    const hit = harita.hitEvent(fig, state.msiView || 'front', e);
+    const r = fig.getBoundingClientRect();
+    k = hit ? msiAnahtar(hit, (e.clientY - r.top) / r.height) : null;
+    if (!k) { toast('Bu bölge için MSI yok: omuz, diz, kalça, bel ya da boyuna dokun', 2500); return; }
+  } else {
+    const b = e.target.closest('button[data-bolge]');
+    if (!b) return;
+    k = b.dataset.bolge;
+  }
   const cur = f.msi[k];
   const idx = cur == null ? -1 : MSI_DONGU.indexOf(cur);
   if (idx === MSI_DONGU.length - 1) delete f.msi[k];
@@ -2510,6 +2638,45 @@ function msiSummary(msi) {
   return parts.length ? parts.join(', ') : 'ağrı yok';
 }
 
+/** Özette setin ek satırı: kulaç · nabız · SWOLF, geçen aynı setle kıyas, rekor. */
+function ozetEk(i, eff) {
+  const s = state.plan.setler[i];
+  const kn = (state.session.yz && state.session.yz.kn[setKey(s, i)]) || {};
+  const parts = [];
+  if (kn.kulac) { const sw = analiz.swolf(eff.avgMs, Number(s.mesafe), kn.kulac); parts.push(`Kulaç ${kn.kulac}/25 m${sw ? ` · SWOLF ${sw}` : ''}`); }
+  if (kn.nabiz) parts.push(`Nabız ${kn.nabiz}`);
+  const out = [];
+  if (parts.length) out.push(`<p class="oz-x">${esc(parts.join(' · '))}</p>`);
+  const kd = kn.kulac ? kisit.kulacDurum(kn.kulac, s, kurallar()) : null;
+  if (kd && kd.durum === 'yuksek') out.push(`<p class="oz-x warn">⚠ ${esc(kd.metin)}</p>`);
+  const ort = eff.avgMs ? eff.avgMs / 1000 : 0;
+  if (ort) {
+    const imza = analiz.setImza({ ...s, tekrar: tekrarOf(s) });
+    const hist = data.getHistory();
+    const ky = analiz.kiyas(hist, imza, state.session.tarih, ort);
+    if (ky) out.push(`<p class="oz-x">Geçen (${esc(fmtDateTR(ky.tarih))}): ort. ${esc(fmtAvg(ky.onceki * 1000))} · <b class="${ky.fark < 0 ? 'ok' : ky.fark > 0 ? 'warn' : ''}">${ky.fark < 0 ? `↑ ${fmtDec(-ky.fark)} sn hızlı` : ky.fark > 0 ? `↓ ${fmtDec(ky.fark)} sn yavaş` : 'aynı'}</b></p>`);
+    const rk = analiz.setRekor(hist, imza, state.session.tarih, ort);
+    if (rk) out.push(`<p class="oz-x pr">🏆 Bu setin en hızlı ortalaması (önceki ${esc(fmtAvg(rk.onceki * 1000))})</p>`);
+  }
+  return out.join('');
+}
+
+/** Özetin üst bölümü: bölgelerde süre (tekrar süreleri × CSS bölgesi). */
+function ozetAnaliz() {
+  const st = zst();
+  const reps = [];
+  state.plan.setler.forEach((s, i) => {
+    for (const ms of zaman.repTimes(st, i)) {
+      const z = zoneOf(pacePer100(ms / 1000, s.mesafe), s);
+      if (z) reps.push({ ms, n: z.n, zone: z.zone });
+    }
+  });
+  const b = analiz.bolgeSureleri(reps);
+  if (!b.length) return '';
+  return `<p class="lbl oz-h">BÖLGELERDE SÜRE</p><div class="oz-bolge">${b.map((x) => `<i class="z${x.n}" data-grow="${x.ms}"></i>`).join('')}</div>
+    <p class="oz-bl">${b.map((x) => `<span><i class="z${x.n}"></i>${esc(x.zone)} %${x.pay}</span>`).join('')}</p>`;
+}
+
 function renderOzet() {
   const f = state.session.form;
   const st = zst();
@@ -2529,8 +2696,11 @@ function renderOzet() {
       return `<button class="oz-sus" data-set="${i}" data-rep="${r}">⚠ ${r + 1}. tekrar ${fmtShort(x.ms)}${x.edited ? ' (düzeltildi)' : x.dropped ? ' (çıkarıldı)' : ''} — düzelt</button>`;
     }).join('');
     const ls = lines.map((l) => `<button class="oz-line" data-set="${k}" data-line="${l.id}"><i class="cb${l.on ? ' on' : ''}">${l.on ? '✓' : ''}</i><span>${esc(l.text)}</span></button>`).join('');
-    blocks.push(`<div class="oz-set"><div class="oz-st"><b>${esc(title)}</b><span class="n">ort. ${eff.avgMs ? fmtAvg(eff.avgMs) : '—'}</span></div>${ls}${susHtml}</div>`);
+    const x = ozetEk(i, eff);
+    blocks.push(`<div class="oz-set"><div class="oz-st"><b>${esc(title)}</b><span class="n">ort. ${eff.avgMs ? fmtAvg(eff.avgMs) : '—'}</span></div>${x}${ls}${susHtml}</div>`);
   });
+  $('oz-analiz').innerHTML = ozetAnaliz();
+  paint($('oz-analiz'));
   $('oz-notes').innerHTML = blocks.length ? blocks.join('') : '<p class="muted">Süresi ölçülen set yok.</p>';
   const zs = zst();
   const mola = zs.molaN ? [`Mola ${zs.molaN > 1 ? `${zs.molaN}× · ` : ''}${fmtShort(zaman.molaMs(zs, zs.bitir || Date.now()))}`] : [];
@@ -2648,7 +2818,8 @@ function buildPayload() {
       if (st.per[i].reps.length && zaman.doneReps(st, i) > 0) {
         const { lines, eff } = setNotes(i);
         const not = [fark, old.not, ...lines.filter((l) => l.on).map((l) => l.text)].filter(Boolean).join(' | ');
-        return { ...base, tamamlandi: true, gercek: eff.avgMs ? fmtLap(eff.avgMs) : '', kulac: '', nabiz: '', rpe: '', msi: '', not };
+        const kn = (s.yz && s.yz.kn && s.yz.kn[k]) || {};
+        return { ...base, tamamlandi: true, gercek: eff.avgMs ? fmtLap(eff.avgMs) : '', kulac: kn.kulac || '', nabiz: kn.nabiz || '', rpe: '', msi: '', not };
       }
       if (legacyDone(i)) {
         return { ...base, tamamlandi: true, gercek: old.gercek || '', kulac: '', nabiz: '', rpe: '', msi: '', not: [fark, old.not].filter(Boolean).join(' | ') };
@@ -2674,7 +2845,7 @@ function keepInHistory(payload, status) {
       return {
         sira: set.sira, blok: set.blok, tekrar: set.tekrar, mesafe: set.mesafe, stil: set.stil, tur: set.tur,
         aciklama: set.aciklama, hedef: set.hedef, dinlen: set.dinlen, alet: set.alet,
-        tamamlandi: Boolean(p.tamamlandi), gercek: p.gercek || '', not: p.not || '',
+        tamamlandi: Boolean(p.tamamlandi), gercek: p.gercek || '', not: p.not || '', kulac: p.kulac || '', nabiz: p.nabiz || '',
         yapilan: zaman.doneReps(st, i),
       };
     }),
@@ -4177,6 +4348,7 @@ function wireSalon() {
   $('sp-save').addEventListener('click', onSalonPlanSave);
   $('bi-close').addEventListener('click', bilgiKapat);
   $('home-gym-start').addEventListener('click', onGymStart);
+  $('yz-ara').addEventListener('click', onYzAra);
   $('home-gym-planla').addEventListener('click', () => (data.isConfigured('salon') ? showSalonPlan() : showSetup(true)));
 }
 
