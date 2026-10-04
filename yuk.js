@@ -1,7 +1,7 @@
 // Antrenman yükü ve toparlanma: saf işlevler (DOM yok).
 // Seans yükü = RPE × dakika (Foster sRPE). Yüzme ve salon aynı ölçekte.
 // Kaynaklar: telefondaki geçmiş (ysk.history: yüzme + salon kayıtları) ve SalonTakip "idman" geçmişi.
-import { grupKey, haritaGruplari } from './grup.js';
+import { grupKey, haritaGruplari } from './grup.js?v=12.0.0';
 
 /** "01:18:20", "18:20", "4:10" → saniye; geçersizse 0. */
 export function sureSn(s) {
@@ -213,4 +213,25 @@ export function haftaGunleri(liste, bugun) {
   const pzt = gunEkle(bugun, -wd);
   const paz = gunEkle(pzt, 6);
   return new Set(liste.filter((s) => s.tarih >= pzt && s.tarih <= paz).map((s) => s.tarih)).size;
+}
+
+/**
+ * Aynı gün / art arda çakışma (B5): ağır omuz salonu (omuz payı ≥ %30) ile uzun serbest/kürek yüzme (FR ≥ 1500 m)
+ * tarihin bir gün öncesi–sonrası içinde. planli: [{ tarih, metre }] (programdaki yüzmeler); omuzPlan: bugünkü salon planı omuz ağırlıklı.
+ * → { metin } ya da null
+ */
+export function cakisma(liste, tarih, planli = [], omuzPlan = false) {
+  const gunler = [gunEkle(tarih, -1), tarih, gunEkle(tarih, 1)];
+  const omuz = (t) => (t === tarih && omuzPlan) || liste.some((s) => s.tur === 'salon' && s.tarih === t && s.yuk > 0 && ((s.kas && s.kas.Omuz) || 0) >= 0.3 * s.yuk);
+  const uzun = (t) => liste.some((s) => s.tur === 'yuzme' && s.tarih === t && ((s.stil && s.stil.FR) || 0) >= 1500) || planli.some((p) => p.tarih === t && p.metre >= 1500);
+  const ad = (t) => (t === tarih ? 'bugün' : t < tarih ? 'dün' : 'yarın');
+  for (const a of gunler) {
+    if (!omuz(a)) continue;
+    for (const b of gunler) {
+      if ((a !== tarih && b !== tarih) || Math.abs(fark(a, b)) > 1 || !uzun(b)) continue;
+      const ayni = a === b;
+      return { metin: `Ağır omuz salonu (${ad(a)}) ${ayni ? 've' : 'ile'} uzun yüzme (${ad(b)}) ${ayni ? 'aynı gün' : 'art arda'}: omuz yükü birikir — salonda omuzu hafiflet ya da günleri ayır` };
+    }
+  }
+  return null;
 }

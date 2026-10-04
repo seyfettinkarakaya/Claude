@@ -104,7 +104,7 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
 /** Haritadaki grubun merkezine dokunur (harita.js META). */
 async function hmTap(s, view, g) {
   const p = s.page;
-  const [m, w, h] = await p.evaluate(([v, gg]) => import('./harita.js?v=11.0.1').then((H) => [H.META[v].merkez[gg], H.META[v].w, H.META[v].h]), [view, g]);
+  const [m, w, h] = await p.evaluate(([v, gg]) => import('./harita.js?v=12.0.0').then((H) => [H.META[v].merkez[gg], H.META[v].w, H.META[v].h]), [view, g]);
   await p.$eval('#hm-wrap', (e) => e.scrollIntoView({ block: 'center' }));
   const r = await p.locator('#hm-wrap .kf').boundingBox();
   await p.mouse.click(r.x + (r.width * m[0]) / w, r.y + (r.height * m[1]) / h);
@@ -449,14 +449,29 @@ sc('Haftanın özeti: bu hafta (km, seans, ağrı, notlar) → önceki hafta (sa
 });
 
 sc('Pazar: ana sayfada "Haftanın özeti hazır" → özet ekranı; Ayarlar\'da kaynak ve lisans notu', async ({ launch }) => {
-  const s = await launch({ ref: true, time: '2026-09-27T10:00:00', storage: { 'ysk.history': hist12() } }); const p = s.page;
+  const s = await launch({ ref: true, time: '2026-09-27T10:00:00', viewport: { width: 320, height: 700 }, storage: { 'ysk.history': hist12() } }); const p = s.page;
+  const tasma = () => p.evaluate(() => [...document.querySelectorAll('.screen:not([hidden]) .scroll')].some((e) => e.scrollWidth > e.clientWidth + 1) || document.documentElement.scrollWidth > 320);
   await s.waitScreen('home');
   await p.waitForSelector('[data-hw="hafta"]');
+  assert.equal(await tasma(), false, '320 px ana sayfada taşma yok');
   await p.click('[data-hw="hafta"]'); await s.waitScreen('hafta');
   assert.match(await txt(s, '#hz-title'), /21 Eylül/);
+  assert.equal(await tasma(), false, '320 px özette taşma yok');
   await p.click('#hz-back'); await s.waitScreen('home');
+  await p.click('#home-form'); await s.waitScreen('form');
+  assert.equal(await tasma(), false, '320 px Form ve denge ekranında taşma yok');
+  await p.click('#fm-back'); await s.waitScreen('home');
   await p.click('#home-settings'); await s.waitScreen('setup');
   assert.match(await txt(s, '#pref-lisans'), /free-exercise-db \(Unlicense.*SIL Open Font License/);
+});
+
+sc('Çakışma uyarısı (B5): dün uzun serbest yüzme + bugün omuz ağırlıklı salon planı → planlamada uyarı; omuz seçilmezse yok', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true, storage: { 'ysk.history': [yz('2026-09-22', 2000, 6)] } }); const p = s.page;
+  await toPlanList(s, ['Core']);
+  assert.equal(await p.$$eval('.sp-cak', (e) => e.length), 0);
+  await p.click('#sp-back');
+  await p.click('[data-sp-grup="Shoulders"]'); await p.click('#sp-next');
+  assert.match(await txt(s, '.sp-cak'), /Ağır omuz salonu \(bugün\) ile uzun yüzme \(dün\) art arda/);
 });
 
 const only = process.argv[2];

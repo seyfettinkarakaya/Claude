@@ -158,4 +158,15 @@ t('analiz: tempo, SWOLF, bölge payları, aynı setle kıyas ve rekor, ağrı ge
   assert.equal(A.cssTestiZamani(esik, 114, '2026-10-06'), null, 'hedefin 2 sn altında değil');
 });
 
+t('yuk.cakisma: ağır omuz salonu + uzun yüzme aynı gün / art arda (B5)', () => {
+  const sal = (tarih, omuz) => ({ tur: 'salon', tarih, yuk: 300, kas: { Omuz: omuz, Karın: 300 - omuz } });
+  const yz = (tarih, fr) => ({ tur: 'yuzme', tarih, yuk: 300, stil: { FR: fr } });
+  assert.match(Y.cakisma([sal('2026-09-22', 150), yz('2026-09-23', 2000)], '2026-09-23').metin, /Ağır omuz salonu \(dün\) ile uzun yüzme \(bugün\) art arda/);
+  assert.equal(Y.cakisma([sal('2026-09-22', 30), yz('2026-09-23', 2000)], '2026-09-23'), null, 'omuz payı düşük');
+  assert.equal(Y.cakisma([sal('2026-09-21', 150), yz('2026-09-23', 2000)], '2026-09-23'), null, 'iki gün ara');
+  assert.equal(Y.cakisma([yz('2026-09-23', 1000)], '2026-09-23', [], true), null, 'kısa yüzme');
+  assert.match(Y.cakisma([], '2026-09-23', [{ tarih: '2026-09-23', metre: 2400 }], true).metin, /\(bugün\) ve uzun yüzme \(bugün\) aynı gün/);
+  assert.match(Y.cakisma([], '2026-09-23', [{ tarih: '2026-09-24', metre: 2400 }], true).metin, /\(yarın\) art arda/);
+});
+
 console.log(`çekirdek testleri: TAMAM (${n})`);

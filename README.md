@@ -1,4 +1,4 @@
-# YüzmeSK — Sürüm 11
+# YüzmeSK — Sürüm 12
 
 Havuz kenarında ve salonda kullanılan, tek kullanıcılı idman uygulaması.
 Program Google E-Tablolar'daki **YuzmeProgram** dosyasında hazırlanır; uygulama onu
@@ -26,6 +26,12 @@ dosyasından okunur.
 | `salon.js` | Salon: olaylardan set/dinlenme durumu, tabloya giden satırlar, planlama puanı, ilerleme önerisi |
 | `ref.js` | sporRef hesapları: güne/havuza/alete göre CSS, tempo bölgeleri, RPE/MSI açıklamaları |
 | `wheel.js` | Tekerlek (wheel) gezinme bileşeni: sürükleme, atalet, oturma |
+| `grup.js` | 10 kas grubu (Omuz, Göğüs, Biseps, Triseps, Ön kol, Sırt, Karın, Kalça, Kalça yanı, Bacak), renkleri, tablodaki İngilizce adların eşlemesi |
+| `kisit.js` | Sağlık kısıtları: yasaklı hareketler, squat derinliği, MSI kararı, süre bütçesi, kulaç normu (sporRef `kisit` sayfasıyla değiştirilebilir) |
+| `yuk.js` | Yük modeli: seans yükü (RPE × dk), form eğrisi, yük artış oranı, kas toparlanması, kurbağalama payı |
+| `harita.js` | Dokunmatik kas haritası (ön/arka figür, dokunma haritası `img/kas/`) |
+| `analiz.js` | Yüzme analizi: SWOLF, bölgelerde süre, aynı setle kıyas ve rekor, ağrı geçmişi, CSS testi, derece tahmini |
+| `bilgi.js`, `hareketdb.js` | Hareket bilgi kartları: ad eşleme ve free-exercise-db verisi (36 harekete Türkçe metin + `img/hareket/` fotoğrafları) |
 | `data.js` | **Tek veri erişim modülü**: Apps Script çağrıları, yerel önbellek, gönderim kuyruğu |
 | `manifest.json`, `icons/` | PWA tanımı ve simgeler (192, 512, apple-touch-icon) |
 | `fonts/` | Archivo ve Barlow Condensed (SIL Open Font License); dışarıdan yazı tipi yüklenmez |
@@ -102,7 +108,7 @@ salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
 |---|---|---|---|
 | YuzmeProgram | `Code.gs` | Plan | eski, seans, arsiv |
 | SalonTakip | `Salon.gs` | H, hkEtki, ref, idman | idman (en üste) |
-| sporRef | `SporRef.gs` | zone, css, alet, bilgi, RPE, MSI, fazBilgi | — |
+| sporRef | `SporRef.gs` | zone, css, alet, bilgi, RPE, MSI, fazBilgi; isteğe bağlı kisit, yuzmeKas, drill | css (yalnızca CSS testi: sona yeni satır) |
 
 **SalonTakip** (`Salon.gs`):
 - `idman`: A–J sırası değişmez — `Tarih, No, Hareket, Set, Tekrar, Ağırlık, Nabız, RPE, MSI, Açıklama`
@@ -114,6 +120,10 @@ salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
 - `H`: `Exercise, Goal Tag, Equipment, BW Coefficient, Swim Transfer Coefficient, …`;
   isteğe bağlı **Video** sütunu `H!A:E`'den sonra (yalnızca youtube.com / youtu.be adresleri gösterilir).
 - `hkEtki`: `Exercise, Muscle Group, Muscle, Kinetic Chain, Yük Etki Oranı`.
+- Sürüm 12, `H`'de isteğe bağlı üç başlık okur (varsa): **Kısıt** (ör. `squat>90`, `zıplama`),
+  **Alternatif** (güvenli hareket adı), **Görsel** (free-exercise-db kimliği; bilgi kartı için ad eşlemesini geçersiz kılar).
+  Boş bırakılırsa uygulama kısıtları hareket adından, kartı ad benzerliğinden bulur.
+- `hkEtki` grupları İngilizce kalabilir (`Shoulders`, `Arms`, `Core` …); uygulama 10 Türkçe gruba çevirir.
 
 **sporRef** (`SporRef.gs`, salt okuma):
 - `zone` (`Zone, Alt Sınır, Üst Sınır, Tür, Türkçe Adı`): PACE satırları CSS'e eklenen sn/100 m
@@ -122,6 +132,23 @@ salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
   alet adları `alet` sayfasındaki kod/ad ile eşlenir (`PB` = `Pullbuoy`). Günü kapsayan satır yoksa
   en son değer kullanılır ve Ayarlar'da "CSS güncel değil" yazar. sporRef bağlı değilse CSS Ayarlar'dan elle girilir.
 - `RPE`, `MSI`: başlıksız tek sütun (`7–8 — Zor, …`); salon girişinde ve Ayarlar'da açıklama olarak gösterilir.
+- **Sürüm 12, isteğe bağlı sayfalar** (yoksa uygulama varsayılanlarla çalışır; eski sayfalara dokunulmaz):
+  - `kisit` (`Kural, Değer, Açıklama`): `tani` (Değer: tanı adı, Açıklama: kural metni), `br_ay_max` (10),
+    `squat_derinlik` (90), `yasak` (virgülle: `koşu, run, jump, …`), `msi_gozlem` / `msi_hafiflet` / `msi_dur` / `msi_tibbi`
+    (0,5 / 1 / 2 / 3), `sure_sabah` / `sure_ogle` / `sure_aksam` (80 / 65 / 0 = sınırsız), `gun_hafta` (3),
+    `kulac_drill` / `kulac_yuzus` / `kulac_race` / `kulac_pull` (`10-11` gibi aralık), `omuz_rahatlatma` (evet/hayır).
+  - `yuzmeKas` (`Stil, Grup, Katsayı`): yüzme yükünün kas gruplarına dağılımı (ör. `FR, Omuz, 0.35`).
+  - `drill` (`Ad, Video, Açıklama`): set açıklamasında drill adı geçerse ▶ video bağlantısı çıkar.
+- **CSS testi** (Ayarlar → CSS testi yap): 400 m ve 200 m süresinden CSS = (t400 − t200) / 2;
+  sporRef bağlıysa `css` sayfasının **sonuna** bir satır eklenir (`Tarih_ilk`, `CSS`, `Kaynak = YüzmeSK CSS testi`), eski satırlar durur.
+
+### Sürüm 12'ye geçiş
+
+1. `SporRef.gs` ve `Salon.gs`'i yeni sürümle değiştirip **Yeni sürüm** olarak yeniden dağıtın (adres ve anahtar değişmez).
+   `Code.gs` değişmedi.
+2. İsterseniz sporRef'e `kisit`, `yuzmeKas`, `drill` sayfalarını, SalonTakip `H`'ye Kısıt / Alternatif / Görsel başlıklarını ekleyin.
+3. Hareket fotoğrafları uygulamayla gelir (`img/hareket/`); listede olmayan hareketlerin fotoğrafı
+   `raw.githubusercontent.com` (free-exercise-db) üzerinden yüklenir, bu yüzden CSP `img-src`'ye bu adres eklendi.
 
 ## 3. GitHub Pages'e koyma
 
@@ -299,6 +326,29 @@ alamazsa **LOCKED**).
 Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
 `WRITE_MISMATCH`, `MISSING_COLUMN`, `NO_SHEET`, `BAD_REQUEST`, `SERVER`.
 
+## Sürüm 12'de neler var
+
+- **Ana sayfa**: haftalık şerit (bu hafta gün sayısı, omuz önleyici, form), bugünün önerisi (süre bütçesi, toparlanma,
+  önleyici borç), kurbağalama payı, yük artış uyarısı, CSS testi zamanı; Pazar günü "Haftanın özeti hazır".
+- **Form ve denge**: kondisyon / yorgunluk / form (TrainingPeaks PMC mantığı, 42 ve 7 günlük ortalama), yük artış oranı
+  (7 gün / 28 gün; güvenli 0,8–1,3), kas toparlanması haritası, kolay/eşik/hız dengesi, stil payları, haftanın iskeleti,
+  4 haftalık blok (Hacim → Hacim+ → Kuvvet → Dinlenme). 6 haftadan kısa kayıtta form "veri birikiyor" olarak gösterilir.
+- **Haftanın özeti**: km, set, seans, form, haftalık yük ve geçen hafta kıyası, stil, ağrı, günler, notlar (kişisel; paylaşım yok).
+- **Salon**: kas haritasıyla planlama (dokun → ★, iki kez → ★★), sağlık kısıtı filtresi (⊘ + güvenli alternatif),
+  önleyici borç, kayıtlı plan ve ana sayfadan doğrudan giriş, otomatik ilerleme ("geri al"; ⚠ varsa öneri yok),
+  ısınma, ağrı → hafiflet/durdur, rekorlar, hacim, kıyas, süperset, hareket bilgi kartları ve grafik.
+- **Yüzme**: set sonu kulaç + nabız (norm uyarısı), aerobik blok sonunda omuz rahatlatma, drill videosu, SWOLF,
+  bölgelerde süre, aynı setle kıyas ve rekor, ağrı haritası + son 4 hafta, CSS testi ve derece tahmini, tempo grafiği.
+- **Takvim**: gün düğmelerinde salon simgesi, günlük yük çubuğu, ağrı işareti.
+- Dinlenme sonu bildirimi kilitli telefonda (service worker gerekir) bu sürümde yok; salonda ekran açık kalır ve titreşim verilir.
+- Garmin bağlantısı sonraki sürüme bırakıldı.
+
+## Kaynaklar ve lisanslar
+
+- Kas haritası görseli kullanıcının kendi görselinden üretildi (`tasarim/v27/kaynak/`).
+- Hareket fotoğrafları ve açıklamaları: [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense, kamu malı).
+- Yazı tipleri Archivo ve Barlow Condensed: SIL Open Font License.
+
 ## Mimari ve Faz 2
 
 Arayüz (`app.js`) tabloya, `localStorage`'a veya kuyruğa doğrudan erişmez; hepsi `data.js`
@@ -319,7 +369,9 @@ node tests/test-ref.mjs       # ref.js: CSS seçimi (gün/havuz/alet), 7 bölge,
 node tests/test-duzen.mjs     # duzen.js: ekle/sil, olay kaydırma, plan farkı notu, kısıtlar
 node tests/test-salon.mjs     # salon.js: set/dinlenme durumu, tabloya giden satırlar, puan, öneri
 node tests/test-zaman.mjs     # zaman.js: olaylardan süreler, düğme sırası, bip, şüpheli tekrar
+node tests/test-cekirdek.mjs  # grup.js, kisit.js, yuk.js, analiz.js, bilgi.js (Sürüm 12 çekirdeği)
 node tests/e2e-senaryolar.cjs [filtre]  # 50+ uçtan uca senaryo (Playwright + Chromium)
+node tests/e2e-surum12.cjs [filtre]     # Sürüm 12 senaryoları (harita, kısıt, ilerleme, yüzme analizi, form, haftanın özeti)
 node tests/test-e2e.cjs       # baştan sona tam akış
 ```
 

@@ -1615,3 +1615,4 @@ svg.hg .br { fill: #9085e9; }
 .wd.on .wd-ek em, .wd.on .wd-ek .wd-a { color: #032024; }
 .lisans { margin: 18px 0 24px; }
 .lisans .muted { font-size: 14px; line-height: 1.45; }
+.sp-cak { margin: 6px 0 10px; padding: 9px 12px; border-radius: 14px; border: 1px solid rgba(255, 176, 32, 0.6); background: rgba(255, 176, 32, 0.1); color: var(--warn); font-size: 14px; font-weight: 600; }

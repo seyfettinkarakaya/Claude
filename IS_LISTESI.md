@@ -9,30 +9,37 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 ## Sıradaki
 
-### Sürüm 12 — tek seferde uygulanacak plan (04.10.2026)
+### Sürüm 12 — tek seferde uygulanacak plan (04.10.2026) — **TAMAMLANDI, 12.0.0 yayında (04.10.2026)**
+Kurulum için yapılacaklar (senin tarafında):
+- [ ] sporRef: yeni `SporRef.gs`'i yapıştır → Dağıtımları yönet → Yeni sürüm (CSS testi yazımı için; adres ve anahtar aynı).
+- [ ] SalonTakip: yeni `Salon.gs`'i yapıştır → Yeni sürüm (H'deki Kısıt / Alternatif / Görsel başlıklarını okur).
+- [ ] İsteğe bağlı: sporRef'e `kisit`, `yuzmeKas`, `drill` sayfaları; H'ye Kısıt / Alternatif / Görsel (biçim README'de).
+Not: tüm testler yeşil (birim + uçtan uca 52/52 eski + 15 yeni). Eski senaryolardan yalnızca "son idmanı tekrarla"
+genişletildi (öneri artık uygulanıyor → "geri al" ile eski davranış doğrulanıyor).
+
 "uygula" denince aşağıdakilerin **hepsi tek sürümde** yapılır; sıra, bağımlılığa göre. Ayrıntılar alttaki
 maddelerde (A1–F5, salon senaryosu, hareket bilgi kartları). Garmin (F4) sonraya; F3 antrenör raporu yerine kişisel "Haftanın özeti".
-- [ ] **0. Hazırlık:** tüm testler yeşil (03.10.2026: hepsi geçti, uçtan uca 52/52); dalda çalışılır.
-- [ ] **1. Veri ve betikler (yalnızca ekleme):** sporRef'e `kisit`, `yuzmeKas` (stil → kas katsayıları), `drill`
+- [x] **0. Hazırlık:** tüm testler yeşil (03.10.2026: hepsi geçti, uçtan uca 52/52); dalda çalışılır.
+- [x] **1. Veri ve betikler (yalnızca ekleme):** sporRef'e `kisit`, `yuzmeKas` (stil → kas katsayıları), `drill`
   (video) sayfaları; SporRef.gs bunları okur + CSS testi için yalnızca satır ekleyen işlem. SalonTakip `H`'ye
   isteğe bağlı Kısıt / Alternatif / Görsel sütunları (yoksa da çalışır). Eski sütunlar, sayfalar, işlemler aynen.
-- [ ] **2. Ortak çekirdek:** 10 kas grubu (Türkçe ad, v27 renkleri; eski 7 ad çalışır) · kısıt motoru (A1, A2,
+- [x] **2. Ortak çekirdek:** 10 kas grubu (Türkçe ad, v27 renkleri; eski 7 ad çalışır) · kısıt motoru (A1, A2,
   A3, A5, A6) · yük ve toparlanma (B1–B5, yüzme kas yükü dahil).
-- [ ] **3. Salon:** kas haritalı planlama (v27; eski çubuk listesi "Liste" görünümü) · öneri kartlarında mini
+- [x] **3. Salon:** kas haritalı planlama (v27; eski çubuk listesi "Liste" görünümü) · öneri kartlarında mini
   vücut + plan tepsisi · plan Kaydet + ana sayfadan doğrudan giriş · otomatik ilerleme ("geri al"; ⚠'de yok) ·
   toparlanma · önleyici borç (E1) · kart üstü kısıt (E2) · ısınma şablonu (E3) · periyotlama (E4) · rekor ·
   özet (hacim, kas ısı haritası, kıyas) · hareket grafiği · dinlenme bitti bildirimi · süperset · ısınma seti ·
   **hareket bilgi kartları (G)**.
-- [ ] **4. Yüzme:** omuz rahatlatma (A4) · kulaç + nabız girişi, SWOLF (C1–C3) · drill videosu (C4) · ağrı
+- [x] **4. Yüzme:** omuz rahatlatma (A4) · kulaç + nabız girişi, SWOLF (C1–C3) · drill videosu (C4) · ağrı
   haritası (C5) · özet (D1) · set grafiği (D2) · denge (D3) · rehberli CSS testi (D4) · derece tahmini (D5).
-- [ ] **5. Ortak ekranlar:** ana ekran (F1) · takvim (F2) · haftanın özeti (F3) · haftanın iskeleti (F5) · form
+- [x] **5. Ortak ekranlar:** ana ekran (F1) · takvim (F2) · haftanın özeti (F3) · haftanın iskeleti (F5) · form
   ekranı (B2–B3).
-- [ ] **6. Düzeltmeler:** hareket sonu "SETLER 10-10-/10" kırılması · İngilizce grup adları ("Legs 0,7") ·
+- [x] **6. Düzeltmeler:** hareket sonu "SETLER 10-10-/10" kırılması · İngilizce grup adları ("Legs 0,7") ·
   Ayarlar'da kaynak/lisans notu (kas görseli: kullanıcı; hareket fotoğrafları: free-exercise-db, Unlicense).
-- [ ] **7. Test ve yayın:** her adımda tüm testler; her yeni özelliğe uçtan uca senaryo; senaryo ve öneri
+- [x] **7. Test ve yayın:** her adımda tüm testler; her yeni özelliğe uçtan uca senaryo; senaryo ve öneri
   panoları yeniden çekilir; kurulum rehberi (yeni sayfalar) güncellenir; sürüm 12.0.0 → main.
 
-- [ ] **G. Hareket bilgi kartları (infografik)** (talep 04.10.2026). Kaynak: free-exercise-db (yuhonas, Unlicense =
+- [x] **G. Hareket bilgi kartları (infografik)** (talep 04.10.2026). Kaynak: free-exercise-db (yuhonas, Unlicense =
   kamu malı; 876 hareket, her biri başlangıç/bitiş fotoğrafı, adım adım anlatım, birincil/ikincil kas, ekipman).
   - Eşleme: H'deki hareket adları → veritabanı kimliği (otomatik + elle düzeltme; H'de isteğe bağlı "Görsel").
   - Yalnızca senin hareketlerinin fotoğrafları uygulamaya gömülür (webp, çevrimdışı çalışır; dış istek yok).
@@ -55,13 +62,13 @@ Hollow, Side Bridge) ya da açıklamasında "Setler: … sn" varsa; planda/idman
 Süreli/Tekrar ile değiştirilebilir. Süreli harekette Tekrar sütununa ortalama saniye yazılır.
 
 Talep (03.10.2026, karar bekliyor):
-- [ ] **Ana sayfadan salon idmanına doğrudan giriş** (yüzmedeki "İdmanı aç" gibi). Öneri: salon kartında
+- [x] **Ana sayfadan salon idmanına doğrudan giriş** (yüzmedeki "İdmanı aç" gibi). Öneri: salon kartında
   hazır idman (önceden kaydedilmiş plan ya da son idman) tarih · hareket sayısı · ~süre ve kas grubu renk
   çubuğuyla görünür; **İdmana başla** doğrudan idmana girer, **Planla** planlama ekranını açar; süren idman
   varsa **Devam et**. Planlama sonunda "Kaydet, sonra başla" ile plan ana sayfada bekler.
   Açık soru: son idman tekrarlanırken ilerleme önerisi (+2,5 kg / +1 tekrar) uygulansın mı?
 
-- [ ] **Salon planlama ekranı yeniden tasarım** (talep 03.10.2026: "çok basit, alanlar okunaksız").
+- [x] **Salon planlama ekranı yeniden tasarım** (talep 03.10.2026: "çok basit, alanlar okunaksız").
   Seçenekler `tasarim/v19/` (a: büyük kartlar, b: gövde haritası, c: tek ekran + plan tepsisi).
   Karar: üçü birlikte, vücut daha gerçekçi → birleşik taslak `tasarim/v20/` (Hedef: Vücut/Denge/Liste
   sekmeleri + büyük kas kartları; Hareket seç: mini vücut + puan + plan tepsisi; Plan: sürükle, planın
@@ -99,24 +106,24 @@ Talep (03.10.2026, karar bekliyor):
     listesi (şu an 7) bu 10'a göre güncellenecek; sporRef/salon hareket eşlemesi de.
   Onay ("uygula") bekliyor.
 
-- [ ] **Salon baştan sona senaryo ve sürüm 12 önerisi** (talep 03.10.2026) → `tasarim/senaryo/senaryo.html`
+- [x] **Salon baştan sona senaryo ve sürüm 12 önerisi** (talep 03.10.2026) → `tasarim/senaryo/senaryo.html`
   (14 adım: Salı planla → Çarşamba ana ekrandan başla → idman → özet; mevcut ekranlar gerçek uygulamadan,
   yeniler taslak). Kaynak: `tasarim/senaryo/kaynak/` (cek.cjs: uygulamadan ekran görüntüleri, sahte veriyle).
   Eksikler (senaryoda görülen):
-  - [ ] Kas grubu renk/ad tablosu 10 grubu tanımıyor: Biceps, Triceps, Forearms, Hip gri ve İngilizce
+  - [x] Kas grubu renk/ad tablosu 10 grubu tanımıyor: Biceps, Triceps, Forearms, Hip gri ve İngilizce
     (planlama, kart ayrıntısı "Legs 0,7 · Glutes 0,3"). v27 renkleriyle Türkçe; eski 7 ad çalışmaya devam.
-  - [ ] Hareket sonu "SETLER 10-10-/10" satır kırılıyor → metin boyu uyumu.
-  - [ ] Kayıtlı plan + ana sayfadan doğrudan giriş (yukarıdaki talep).
-  - [ ] Planlama 1. adımı kas haritası (v27); eski çubuk listesi haritanın altında "Liste" görünümü.
-  - [ ] Öneri kartlarında mini vücut + plan tepsisi; planda kapsam haritası, Kaydet / İdmana başla.
-  - [ ] Özet: toplam hacim, çalışan kaslar haritası, rekorlar, geçen benzer idmanla kıyas.
-  - [ ] Ayarlar'da kas görseli kaynak notu.
+  - [x] Hareket sonu "SETLER 10-10-/10" satır kırılıyor → metin boyu uyumu.
+  - [x] Kayıtlı plan + ana sayfadan doğrudan giriş (yukarıdaki talep).
+  - [x] Planlama 1. adımı kas haritası (v27); eski çubuk listesi haritanın altında "Liste" görünümü.
+  - [x] Öneri kartlarında mini vücut + plan tepsisi; planda kapsam haritası, Kaydet / İdmana başla.
+  - [x] Özet: toplam hacim, çalışan kaslar haritası, rekorlar, geçen benzer idmanla kıyas.
+  - [x] Ayarlar'da kas görseli kaynak notu.
   Popüler uygulamalardan öneriler (Hevy, Strong, Fitbod):
-  - [ ] YÜKSEK: kas toparlanma (son çalışmadan geçen süre + yük) haritada ve öneri sıralamasında; ana
+  - [x] YÜKSEK: kas toparlanma (son çalışmadan geçen süre + yük) haritada ve öneri sıralamasında; ana
     ekranda "sıradaki öneri". Kayıtlı rutin, tek dokunuşla başlat. Otomatik ilerleme (son idman tekrarında
     da öneri uygulanır, "geri al"; ⚠ varsa uygulanmaz).
-  - [ ] ORTA: rekor (PR) rozeti ve listesi; özet kas ısı haritası; kart ayrıntısında son 8 idman grafiği.
-  - [ ] SONRA: dinlenme bitti bildirimi (kilitliyken), süperset, ısınma seti.
+  - [x] ORTA: rekor (PR) rozeti ve listesi; özet kas ısı haritası; kart ayrıntısında son 8 idman grafiği.
+  - [x] SONRA: dinlenme bitti bildirimi (kilitliyken), süperset, ısınma seti. (Kilitli ekran bildirimi service worker ister → sonraya; salonda ekran açık kalır + titreşim.)
   Bozmama kuralı: idman sayfası sütunları, Salon.gs/Code.gs/SporRef.gs, puanlama değişmez; mevcut akışlar
   (son idmanı tekrarla, idman, giriş, kayıt, kuyruk) aynen kalır; her adımda tüm testler (03.10.2026: hepsi
   geçti, uçtan uca 52/52) + yeni özelliğe yeni senaryo.
@@ -124,7 +131,7 @@ Talep (03.10.2026, karar bekliyor):
   uygulanmaz), (2) YÜKSEK + ORTA + SONRA ve eksiklerin hepsi, (3) eski 1. adım haritanın altında "Liste".
   Ana sayfadan doğrudan giriş de bu kapsamda. Uygulamadan önce yüzmeye taşınacak fikirler soruldu (aşağıda).
 
-- [ ] **Salondan yüzmeye taşınabilecek fikirler** (soru 03.10.2026, seçim bekliyor):
+- [x] **Salondan yüzmeye taşınabilecek fikirler** (soru 03.10.2026, seçim bekliyor):
   1. MSI (ağrı) girişi kas haritasıyla: aynı görsel, sağ/sol omuz-diz vb. bölgeye dokun → 0,5/1/2; tabloya
      yazılan anahtarlar aynı (sag omuz, …). Son 4 haftanın ağrı haritası; salonda ⚠ ve rehab önerisini besler.
   2. Ortak yük ve toparlanma: yüzme de kas yüküne sayılır (stil × mesafe × RPE → omuz, sırt, triseps, karın,
@@ -137,62 +144,62 @@ Talep (03.10.2026, karar bekliyor):
   6. Haftalık bölge dengesi (salondaki kas dağılımı gibi): 4 hafta / tüm zaman, kolay–eşik–sprint oranı.
   7. CSS güncelleme önerisi: eşik setleri sürekli hedefin altında ve RPE düşükse "CSS testi zamanı".
 
-- [ ] **Kapsamlı öneriler: yüzme + salon** (talep 03.10.2026: "hepsini iş listesine ekle"). Dayanak: yuzme-idman-modeli
+- [x] **Kapsamlı öneriler: yüzme + salon** (talep 03.10.2026: "hepsini iş listesine ekle"). Dayanak: yuzme-idman-modeli
   kısıtları (Perthes sağ kalça, sağ omuz impingement, sağ diz kondromalazi, MSI skalası, seans süreleri,
   kulaç normları, stil hiyerarşisi FR→BK→BF→BR), Hevy/Strong/Fitbod, MySwimPro/FORM/Garmin, TrainingPeaks.
   Not: senaryo panosundaki Goblet Squat kısıtla çelişiyor (ağırlıklı squat >90° yasak) → kısıt koruması gelince
   taslakta güvenli alternatifle (≤90° box squat / glute bridge) değiştirilecek.
   **A. Sağlık kısıtı koruması (önce bu)**
-  - [ ] A1 Kısıt profili: sporRef'te `kisit` sayfası (tanı → kural); uygulama okur, Ayarlar'da gösterir.
-  - [ ] A2 Salonda yasaklı/riskli hareket: H'ye "Kısıt" ve "Alternatif" sütunları; planlamada gizlenir ya da
+  - [x] A1 Kısıt profili: sporRef'te `kisit` sayfası (tanı → kural); uygulama okur, Ayarlar'da gösterir.
+  - [x] A2 Salonda yasaklı/riskli hareket: H'ye "Kısıt" ve "Alternatif" sütunları; planlamada gizlenir ya da
     ⚠ "Perthes: ağırlıklı squat >90°" + güvenli alternatif önerilir; idmanda Değiştir de bunlara uyar.
-  - [ ] A3 Kurbağalama (BR) aylık sayaç: bu ayın BR metresi / toplam (sınır %10); BR set kartında "bu ay %7/10",
+  - [x] A3 Kurbağalama (BR) aylık sayaç: bu ayın BR metresi / toplam (sınır %10); BR set kartında "bu ay %7/10",
     sınıra yaklaşınca uyarı (diz kısıtı da ayrıca not edilir).
-  - [ ] A4 Omuz rahatlatma: her aerobik blok sonunda dinlenme ekranında kısa omuz rahatlatma kartı; yapıldı
+  - [x] A4 Omuz rahatlatma: her aerobik blok sonunda dinlenme ekranında kısa omuz rahatlatma kartı; yapıldı
     işareti seans notuna.
-  - [ ] A5 MSI kural motoru (yüzme + salon, idman içinde): 0,5 gözlem notu · 1–1,5 hafiflet (kalan tekrar/ağırlık
+  - [x] A5 MSI kural motoru (yüzme + salon, idman içinde): 0,5 gözlem notu · 1–1,5 hafiflet (kalan tekrar/ağırlık
     önerisi) · ≥2 seti durdur (set biter, not düşer) · 3+ tıbbi uyarı, seansı bitir önerisi.
-  - [ ] A6 Seans süresi bütçesi: Sal/Çar/Per sabah 75–80 dk, öğle 65 dk, Cuma akşam sınırsız; yüzme programı ve
+  - [x] A6 Seans süresi bütçesi: Sal/Çar/Per sabah 75–80 dk, öğle 65 dk, Cuma akşam sınırsız; yüzme programı ve
     salon planı ~süresi bütçeyle karşılaştırılır, aşarsa kırpma önerisi; haftada 3 gün sayacı.
   **B. Yük ve toparlanma (ortak)**
-  - [ ] B1 Seans yükü (sRPE = RPE × dakika) yüzme ve salon için; günlük ve haftalık yük.
-  - [ ] B2 Form grafiği (TrainingPeaks PMC mantığı): 42 gün "kondisyon", 7 gün "yorgunluk", fark "form".
-  - [ ] B3 Yük artış uyarısı (akut/kronik oran > 1,5): omuz geçmişi için erken uyarı; deload haftası önerisi.
-  - [ ] B4 Kas yükü haritası: salon (hkEtki) + yüzme (stil × mesafe × RPE katsayıları, sporRef'te düzenlenebilir)
+  - [x] B1 Seans yükü (sRPE = RPE × dakika) yüzme ve salon için; günlük ve haftalık yük.
+  - [x] B2 Form grafiği (TrainingPeaks PMC mantığı): 42 gün "kondisyon", 7 gün "yorgunluk", fark "form".
+  - [x] B3 Yük artış uyarısı (akut/kronik oran > 1,5): omuz geçmişi için erken uyarı; deload haftası önerisi.
+  - [x] B4 Kas yükü haritası: salon (hkEtki) + yüzme (stil × mesafe × RPE katsayıları, sporRef'te düzenlenebilir)
     → toparlanma; salonda "dün 3 km FR: omuz dinleniyor".
-  - [ ] B5 Aynı gün çakışma uyarısı: ağır omuz salonu + uzun FR/kürek aynı gün ya da art arda.
+  - [x] B5 Aynı gün çakışma uyarısı: ağır omuz salonu + uzun FR/kürek aynı gün ya da art arda.
   **C. Yüzme: idman içi**
-  - [ ] C1 Kulaç sayısı girişi (dinlenirken ±, varsayılan türe göre: drill 10–11, yüzüş 13–15, race 14–15,
+  - [x] C1 Kulaç sayısı girişi (dinlenirken ±, varsayılan türe göre: drill 10–11, yüzüş 13–15, race 14–15,
     pull 11–12 /25 m); eski sayfasındaki Kulaç sütunu dolar (şu an boş yazılıyor). SWOLF ve kulaç başı mesafe.
-  - [ ] C2 Kulaç normu sapması: yüzüşte sürekli >15 ise "teknik bozuluyor / yorgunluk" notu.
-  - [ ] C3 Set sonu nabız (hızlı giriş; Nabız sütunu şu an boş yazılıyor).
-  - [ ] C4 Drill videosu: açıklamadaki drill adına göre bağlantı (sporRef `drill` sayfası; salondaki ▶ gibi).
-  - [ ] C5 MSI girişi kas haritasıyla (sağ/sol ayrımlı; tabloya yazılan anahtarlar aynı) + 4 haftalık ağrı haritası.
+  - [x] C2 Kulaç normu sapması: yüzüşte sürekli >15 ise "teknik bozuluyor / yorgunluk" notu.
+  - [x] C3 Set sonu nabız (hızlı giriş; Nabız sütunu şu an boş yazılıyor).
+  - [x] C4 Drill videosu: açıklamadaki drill adına göre bağlantı (sporRef `drill` sayfası; salondaki ▶ gibi).
+  - [x] C5 MSI girişi kas haritasıyla (sağ/sol ayrımlı; tabloya yazılan anahtarlar aynı) + 4 haftalık ağrı haritası.
   **D. Yüzme: analiz**
-  - [ ] D1 Özet: bölge dağılımı, geçen aynı setle kıyas, rekor rozetleri, SWOLF.
-  - [ ] D2 Set ilerleme grafiği (aynı set türünün son 8 seferi).
-  - [ ] D3 Haftalık denge: bölge oranları (kolay/eşik/sprint) ve stil dağılımı (hiyerarşi, BR %).
-  - [ ] D4 Rehberli CSS testi (400 + 200): uygulamada test seti, CSS hesaplanır, onayla sporRef `css`'e yeni satır
+  - [x] D1 Özet: bölge dağılımı, geçen aynı setle kıyas, rekor rozetleri, SWOLF.
+  - [x] D2 Set ilerleme grafiği (aynı set türünün son 8 seferi).
+  - [x] D3 Haftalık denge: bölge oranları (kolay/eşik/sprint) ve stil dağılımı (hiyerarşi, BR %).
+  - [x] D4 Rehberli CSS testi (400 + 200): uygulamada test seti, CSS hesaplanır, onayla sporRef `css`'e yeni satır
     (SporRef.gs'e yalnızca ekleme işlemi). Eşik setleri sürekli hedef altında + RPE düşükse "CSS testi zamanı".
-  - [ ] D5 Derece tahmini: CSS ve set ortalamalarından 100/200/400 tahmini, zaman içinde.
+  - [x] D5 Derece tahmini: CSS ve set ortalamalarından 100/200/400 tahmini, zaman içinde.
   **E. Salon: ek**
-  - [ ] E1 Yüzücü önleyici dozu: haftalık omuz prehab (rotator manşet), core, kalça stabilite minimumu; "borç"
+  - [x] E1 Yüzücü önleyici dozu: haftalık omuz prehab (rotator manşet), core, kalça stabilite minimumu; "borç"
     ana ekranda ve planlamada öncelik önerisi olarak.
-  - [ ] E2 Kart üstü kısıt hatırlatması (ör. "derinlik ≤90°", "omuz ağrısızsa").
-  - [ ] E3 Isınma şablonu (bant omuz ısınması) idman başında, kayda sayılmaz.
-  - [ ] E4 Periyotlama: 4 haftalık blok (hacim → kuvvet → bakım) ve deload, yüzme yüküyle (B2–B3) eşgüdümlü.
-  - [ ] E5 (Önceki kabul edilenler: toparlanma, kayıtlı rutin, otomatik ilerleme, PR, ısı haritası, grafik,
+  - [x] E2 Kart üstü kısıt hatırlatması (ör. "derinlik ≤90°", "omuz ağrısızsa").
+  - [x] E3 Isınma şablonu (bant omuz ısınması) idman başında, kayda sayılmaz.
+  - [x] E4 Periyotlama: 4 haftalık blok (hacim → kuvvet → bakım) ve deload, yüzme yüküyle (B2–B3) eşgüdümlü.
+  - [x] E5 (Önceki kabul edilenler: toparlanma, kayıtlı rutin, otomatik ilerleme, PR, ısı haritası, grafik,
     bildirim, süperset, ısınma seti.)
   **F. Ortak deneyim**
-  - [ ] F1 Ana ekran: haftalık 3 gün halkası, form durumu (taze/yorgun), bugünün önerisi (yüzme mi salon mu,
+  - [x] F1 Ana ekran: haftalık 3 gün halkası, form durumu (taze/yorgun), bugünün önerisi (yüzme mi salon mu,
     süre bütçesiyle), BR ve omuz prehab göstergeleri.
-  - [ ] F2 Takvim: salon günleri, günlük yük çubuğu, kısıt uyarıları.
-  - [ ] F3 **Haftanın özeti** (04.10.2026, kişisel; paylaşım yok): Pazar açılır, geçmiş haftalara kaydırılır.
+  - [x] F2 Takvim: salon günleri, günlük yük çubuğu, kısıt uyarıları.
+  - [x] F3 **Haftanın özeti** (04.10.2026, kişisel; paylaşım yok): Pazar açılır, geçmiş haftalara kaydırılır.
     Yüzme km · salon set · seans x/3 · form; bölge dengesi; stil + kurbağalama %; ağrı mini haritası; önceki haftayla
     kıyas; haftanın notları (ör. "EN3 hedef altında → CSS testi önerildi", "omuz önleyici 2/2 ✓"). Ana ekrandan
     ve Yapılmış idmanlar'dan açılır. Örnek görüntü: `tasarim/oneriler/rapor-eski.png` (paylaş düğmesi olmadan).
   - [ ] F4 Saat verisi içe aktarma (Garmin FIT) — **sonra** (04.10.2026), sürüm 12'de yok.
-  - [ ] F5 Haftalık program iskeleti önerisi: kısıtlar + form + denge → 3 günün odağı (öneri, program sayfasına
+  - [x] F5 Haftalık program iskeleti önerisi: kısıtlar + form + denge → 3 günün odağı (öneri, program sayfasına
     yazmaz).
   Örnek ekranlar (19 taslak, her madde en az birinde): `tasarim/oneriler/oneriler.html` (kaynak: `kaynak/yap.py`).
   Bozmama kuralı aynı: tablo sütunları ve betikler yalnızca ekleme ile değişir (yeni sayfa/işlem), mevcut akışlar
@@ -278,9 +285,9 @@ Sürüm 10.5 (sürüm 11 ile yayında):
     Başlamış harekette set sayısı yapılanın altına inemez. Plan telefonda olduğu için "planla fark" notu yok;
     `idman` sayfasına gerçekte yapılan (değiştirilen hareket kendi adıyla) yazılır.
 
-- [ ] **F.2** Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
+- [x] **F.2** (sürüm 12) Seans özeti ve analiz: bitişte planlanan/gerçekleşen mesafe-süre,
   blok bazında dağılım; haftalık toplamlar.
-- [ ] **F.3** Set başına kulaç sayısı / nabız girişi (isteğe bağlı alanlar).
+- [x] **F.3** (sürüm 12) Set başına kulaç sayısı / nabız girişi (isteğe bağlı alanlar).
 - [x] İdman sırasında ağrı (MSI) kaydı — karar: yüzmede seans sonu yeterli (salonda hareket başına).
 - [ ] **F.7** Service worker: uygulama dosyaları önbellekte, internet yokken de açılır.
 

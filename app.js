@@ -1,20 +1,20 @@
 // YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=11.0.1';
-import { Wheel } from './wheel.js?v=11.0.1';
-import * as zaman from './zaman.js?v=11.0.1';
-import * as ref from './ref.js?v=11.0.1';
-import * as duzen from './duzen.js?v=11.0.1';
-import * as salon from './salon.js?v=11.0.1';
-import * as grup from './grup.js?v=11.0.1';
-import * as kisit from './kisit.js?v=11.0.1';
-import * as yuk from './yuk.js?v=11.0.1';
-import * as harita from './harita.js?v=11.0.1';
-import * as bilgi from './bilgi.js?v=11.0.1';
-import * as analiz from './analiz.js?v=11.0.1';
+import * as data from './data.js?v=12.0.0';
+import { Wheel } from './wheel.js?v=12.0.0';
+import * as zaman from './zaman.js?v=12.0.0';
+import * as ref from './ref.js?v=12.0.0';
+import * as duzen from './duzen.js?v=12.0.0';
+import * as salon from './salon.js?v=12.0.0';
+import * as grup from './grup.js?v=12.0.0';
+import * as kisit from './kisit.js?v=12.0.0';
+import * as yuk from './yuk.js?v=12.0.0';
+import * as harita from './harita.js?v=12.0.0';
+import * as bilgi from './bilgi.js?v=12.0.0';
+import * as analiz from './analiz.js?v=12.0.0';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '11.0.1';
+export const APP_VERSION = '12.0.0';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1117,6 +1117,9 @@ function bugunOnerisi(G) {
   return { metin: `Salon: ${odak}${yorgun.length ? ` · ${yorgun.slice(0, 2).join(', ')} dinleniyor` : ''}`, butce };
 }
 
+/** Programdaki (gönderilmemiş) yüzme günleri: [{ tarih, metre }] */
+const planliYuzme = () => visibleDates().map((d) => ({ tarih: d.tarih, metre: Number(d.toplamMesafe) || 0 }));
+
 /** Ana sayfa: haftalık şerit (gün halkası, form, bugünün önerisi, göstergeler, uyarılar). */
 function renderHafta() {
   const box = $('home-week');
@@ -1129,12 +1132,14 @@ function renderHafta() {
   const o = bugunOnerisi(G);
   const od = yuk.oranDurum(G.oran);
   const testZ = analiz.cssTestiZamani(data.getHistory(), guncelCss(), G.bugun);
+  const cak = yuk.cakisma(G.L, G.bugun, planliYuzme());
   const ring = (v, t, l, cls) => { const p = Math.min(1, v / t); const c = 2 * Math.PI * 20; return `<div class="hw-ring ${cls}"><svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="20" class="tr"/><circle cx="24" cy="24" r="20" class="fg" stroke-dasharray="${(c * p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 24 24)"/><text x="24" y="29" text-anchor="middle">${v}/${t}</text></svg><small>${l}</small></div>`; };
   box.innerHTML = `<div class="hw-top">${ring(gun, G.K.gunHafta, 'bu hafta gün', 'a')}${omuz ? ring(omuz.yapilan, omuz.hedef, 'omuz önleyici', 't') : ''}
       <button class="hw-form" data-hw="form"><small>FORM</small><b class="n ${fc}">${G.son.form > 0 ? '+' : ''}${G.son.form}</b><span class="${fc}">${ft}</span><small>kondisyon ${G.son.kondisyon} · yorgunluk ${G.son.yorgunluk}</small></button></div>
     <div class="hw-today"><small>BUGÜN ÖNERİ${o.butce ? ` · ${esc(o.butce.toLocaleUpperCase('tr'))}` : ''}</small><b>${esc(o.metin)}</b></div>
     ${ay.toplam ? `<p class="hw-g ${ay.brOran >= G.K.brAyMax * 0.8 ? 'warn' : ''}">Kurbağalama bu ay <b>%${fmtDec(ay.brOran)}</b> / ${G.K.brAyMax}</p>` : ''}
     ${od.durum === 'yuksek' || od.durum === 'sinirda' ? `<p class="hw-g warn">⚠ Yük artış oranı ${fmtDec(G.oran)}: ${esc(od.metin)}</p>` : ''}
+    ${cak ? `<p class="hw-g warn">⚠ ${esc(cak.metin)}</p>` : ''}
     ${new Date().getDay() === 0 && gun ? '<button class="hw-g hw-oz" data-hw="hafta">📋 Haftanın özeti hazır ›</button>' : ''}
     ${testZ ? '<button class="hw-g hw-test" data-hw="css">💡 CSS testi zamanı: eşik setleri hedefin altında · testi yap ›</button>' : ''}`;
 }
@@ -3818,7 +3823,7 @@ function slPlusSet() {
 // --- Sürüm 12: hareket bilgi kartı (free-exercise-db) ve hareket grafiği --------------------
 
 let hdb = null; // hareketdb.js (yalnızca kart açılınca yüklenir)
-const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=11.0.1'));
+const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=12.0.0'));
 let bilgiTimer = null;
 
 /** Hareket bilgi kartını açar (fotoğraf başlangıç ↔ bitiş, adımlar, kaslar, kısıt, sık hata, video). */
@@ -4417,7 +4422,9 @@ function renderSalonPlan() {
     $('sp-title').textContent = 'Hareket seç';
     const { rows, yasak, borc } = planRows(d, planOpts());
     const ac = borc.filter((b) => b.acik);
+    const cak = hmOncelik(d, 'Omuz') ? yuk.cakisma(seansListesi(), todayKey(), planliYuzme(), true) : null;
     body.innerHTML = `<p class="sp-note">Sıralama: öncelikli kas × hareketin etkisi × yüzme aktarımı. ⚠: son iki idmanda ağrı (MSI ≥ 1,5).</p>
+      ${cak ? `<p class="sp-cak">⚠ ${esc(cak.metin)}</p>` : ''}
       ${ac.length ? `<div class="sp-borc"><b>Önleyici borç · bu hafta</b>${borc.map((b) => `<span class="${b.acik ? '' : 'is-ok'}">${esc(b.ad)} ${b.yapilan}/${b.hedef}${b.acik ? '' : ' ✓'}</span>`).join('')}</div>` : ''}
       ${rows.map((r) => `<button class="sp-ex${P.secili.includes(r.ad) ? ' is-on' : ''}" data-sp-ex="${esc(r.ad)}">
         <span class="sp-mb" data-mb data-mb-ad="${esc(r.ad)}"></span>
