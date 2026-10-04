@@ -74,8 +74,16 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
 - [ ] Video listesi (16 hareket, öneri + yedek): `tasarim/video/liste.csv` → kullanıcı kontrol eder → H'deki Video
   sütununa yazılır. Videolar buradan izlenemedi (YouTube bu ortamda kapalı); yalnızca adı ve kanalıyla seçildi.
   Sahibi gömmeyi kapattıysa uygulama YouTube bağlantısına düşer. H'deki diğer hareketler için liste genişletilecek.
-- [ ] Uygulama: video kartta youtube-nocookie ile gömülü (CSP frame-src), başlangıç saniyesi (`?t=`) desteklenir,
-  internet yoksa bağlantı.
+- [x] Video listesi (04.10.2026): idman sayfasındaki 61 hareketin tamamı, OPEX öncelikli (33 OPEX, 4 beğenilen,
+  24 diğer kısa video) → `tasarim/video/liste.csv`. Kullanıcı onayladı: **uygulamada kaynak olarak kullanılacak.**
+- [ ] **Uygulamada hareket videoları** (örnek ekranlar: `tasarim/v29/ornek.html`):
+  - Kaynak: liste uygulamaya gömülü (`videolar.js`, CSV'den üretilir); H'deki Video sütunu doluysa o önce gelir.
+  - Oynatıcı: YouTube'un kendi oynatıcısı (youtube-nocookie gömme; CSP `frame-src` eklenir), sessiz, döngü,
+    isteğe bağlı saniye aralığı (başla–bitir, 10–15 sn); "YouTube'da aç" ve "Video değiştir".
+  - Yerler: bilgi kartının başı (1), hareket seçiminde küçük önizleme + süre (2), idmanda dinlenirken sıradaki
+    hareketin döngüsü (3), çevrimdışıyken fotoğraf + adımlar (4); Ayarlar'da kaynak özeti.
+  - Videosu olmayan hareket: "bağlantı ekle" (H · Video). Gömme kapalıysa YouTube bağlantısı.
+  - Test: gömme adresi ve döngü parametreleri, H önceliği, çevrimdışı yedek, 320 px taşma yok.
 
 ### Kas haritası notları (04.10.2026, sürüm 12 sonrası) — 12.1.0'da yapıldı (yukarıda)
 - [ ] **Seçince renkler gidiyor:** bir kas seçilince seçilmeyen gruplar griye dönüyor (`harita.js` → `guncelle`:
