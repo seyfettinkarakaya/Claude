@@ -18,9 +18,9 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="fonts/fonts.css?v=12.1.0">
-  <link rel="stylesheet" href="style.css?v=12.1.0">
-  <script type="module" src="app.js?v=12.1.0"></script>
+  <link rel="stylesheet" href="fonts/fonts.css?v=13.0.0">
+  <link rel="stylesheet" href="style.css?v=13.0.0">
+  <script type="module" src="app.js?v=13.0.0"></script>
 </head>
 <body>
 
@@ -165,6 +165,15 @@
     </header>
     <div class="hz-nav"><button class="icon-btn" id="hz-prev" aria-label="Önceki hafta">‹</button><b id="hz-title"></b><button class="icon-btn" id="hz-next" aria-label="Sonraki hafta">›</button></div>
     <div class="scroll pad" id="hz-body"></div>
+  </section>
+
+  <!-- Bu hafta (sürüm 13): yüzme + salon tek plan, yük hedefi, sağlık bütçesi -->
+  <section id="screen-bu-hafta" class="screen days bu-hafta" hidden>
+    <header class="days-top">
+      <button class="icon-btn" id="bh-back" aria-label="Ana sayfa">‹</button>
+      <h1 class="days-title">Bu hafta</h1>
+    </header>
+    <div class="scroll pad" id="bh-body"></div>
   </section>
 
   <!-- Salon: başlangıç (son idmanı tekrarla / yeni plan) -->

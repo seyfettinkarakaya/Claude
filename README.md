@@ -32,11 +32,15 @@ dosyasından okunur.
 | `harita.js` | Dokunmatik kas haritası (ön/arka figür, dokunma haritası `img/kas/`) |
 | `analiz.js` | Yüzme analizi: SWOLF, bölgelerde süre, aynı setle kıyas ve rekor, ağrı geçmişi, CSS testi, derece tahmini |
 | `bilgi.js`, `hareketdb.js` | Hareket bilgi kartları: ad eşleme ve free-exercise-db verisi (36 harekete Türkçe metin + `img/hareket/` fotoğrafları) |
+| `model.js` | Sürüm 13 entegre model: ortak döngü fazı, haftalık yük hedefi, eklem bütçeleri, 7 günlük plan, ölçüm zamanı |
+| `hazir.js` | Günlük hazır olma skoru, dinlenme haftası önerisi, haftalık set / kas grubu, plan uyumu, ağırlık adımı |
+| `video.js`, `videolar.js` | Hareket videoları: YouTube adresi çözme, çerezsiz gömme adresi; 61 hareketlik liste (`tasarim/video/liste.csv`'den üretilir) |
+| `adimlar.js` | Hareketlerin Türkçe adımları (exercises-dataset metinleri, MIT; `tasarim/adim/yap.py` ile üretilir) |
 | `data.js` | **Tek veri erişim modülü**: Apps Script çağrıları, yerel önbellek, gönderim kuyruğu |
 | `manifest.json`, `icons/` | PWA tanımı ve simgeler (192, 512, apple-touch-icon) |
 | `fonts/` | Archivo ve Barlow Condensed (SIL Open Font License); dışarıdan yazı tipi yüklenmez |
 | `Code.gs` | YuzmeProgram betiği (`getDates`, `getPlan`, `finishSession`) |
-| `Salon.gs` | SalonTakip betiği (`getSalon`, `saveSalon`) |
+| `Salon.gs` | SalonTakip betiği (`getSalon`, `saveSalon`; sürüm 13: `savePlan`, `planYapildi`) |
 | `SporRef.gs` | sporRef betiği, salt okuma (`getRef`) |
 | `tests/` | Arka uç ve uçtan uca testler (bkz. en alt) |
 
@@ -107,7 +111,7 @@ salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
 | Dosya | Betik | Okur | Yazar |
 |---|---|---|---|
 | YuzmeProgram | `Code.gs` | Plan | eski, seans, arsiv |
-| SalonTakip | `Salon.gs` | H, hkEtki, ref, idman | idman (en üste) |
+| SalonTakip | `Salon.gs` | H, hkEtki, ref, idman, plan (varsa) | idman (en üste), plan (sürüm 13) |
 | sporRef | `SporRef.gs` | zone, css, alet, bilgi, RPE, MSI, fazBilgi; isteğe bağlı kisit, yuzmeKas, drill | css (yalnızca CSS testi: sona yeni satır) |
 
 **SalonTakip** (`Salon.gs`):
@@ -123,6 +127,10 @@ salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
 - Sürüm 12, `H`'de isteğe bağlı üç başlık okur (varsa): **Kısıt** (ör. `squat>90`, `zıplama`),
   **Alternatif** (güvenli hareket adı), **Görsel** (free-exercise-db kimliği; bilgi kartı için ad eşlemesini geçersiz kılar).
   Boş bırakılırsa uygulama kısıtları hareket adından, kartı ad benzerliğinden bulur.
+- **Sürüm 13 — `plan` sayfası** (yalnızca ekleme; ilk "Programa yaz"da betik kendisi açar):
+  `Tarih, Sıra, Hareket, Set, Tekrar, Ağırlık, Süre, Dinlen, Süperset, Not, Durum`. Bir günün planı yazılınca
+  o tarihin eski satırları yenileriyle değişir; idman bitince o günün satırlarına `Durum = yapıldı` yazılır (silinmez).
+  Sayfa yoksa `getSalon` cevabı eskisiyle aynıdır.
 - `hkEtki` grupları İngilizce kalabilir (`Shoulders`, `Arms`, `Core` …); uygulama 10 Türkçe gruba çevirir.
 
 **sporRef** (`SporRef.gs`, salt okuma):
@@ -326,6 +334,31 @@ alamazsa **LOCKED**).
 Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
 `WRITE_MISMATCH`, `MISSING_COLUMN`, `NO_SHEET`, `BAD_REQUEST`, `SERVER`.
 
+### Sürüm 13'e geçiş
+
+1. SalonTakip'te `Salon.gs`'i yenisiyle değiştirip **Yeni sürüm** olarak dağıtın (adres ve anahtar değişmez).
+   Yalnızca salon programı (`plan` sayfası) için gerekir; eski betikle uygulama "Salon.gs eski" der, gerisi çalışır.
+   `Code.gs` ve `SporRef.gs` değişmedi.
+2. Videolar YouTube'un çerezsiz oynatıcısıyla (youtube-nocookie) gömülür; CSP'ye
+   `frame-src https://www.youtube-nocookie.com` eklendi. İnternet yokken fotoğraf ve adımlar gösterilir.
+3. Telefonda yeni yerel anahtarlar: `ysk.hazir` (hazır olma kontrolleri, 60 gün), `ysk.hareketNot` (harekete sabit not);
+   ayarlar: `yer` (Salon/Ev/Otel), `bildirim`. Ayarlar → Yedek indir: anahtarlar hariç JSON.
+
+## Sürüm 13'te neler var
+
+- **Bu hafta** (ana sayfa → "🗓 Bu hafta"): yüzme + salon tek plan. Ortak döngü fazı (Hacim → Hacim+ → Kuvvet → Dinlenme;
+  Form ve denge'de başlatılır), haftalık yük hedefi (geçen haftadan en çok %10, aradan dönüşte %20, yük hızlı arttıysa
+  %20 az), eklem bütçeleri (omuz yükü, kurbağalama %, diz bükümlü setler; ağrıda sınır daralır), 7 gün:
+  yapılan → programdaki → öneri (Cuma akşam yüzme; Sal–Per'de salon, yüzmeye komşu olmayan güne). Hazır olma
+  "dinlen" ise bugün öneri yok. Önerilen salon günü "Salonu planla" ile düzenlenip `plan` sayfasına yazılır.
+  Yüzme önerisi tabloya yazılmaz (Code.gs değişmedi). CSS testi 28 günde bir hatırlatılır.
+- **Salon programı**: haftalık ekran; boş güne planla, Düzenle, Sil, İdmana başla; bugünün programı ana sayfada.
+- **Hareket videoları**: kartta sessiz döngü video (OPEX öncelikli 61 hareket; H · Video sütunu önce), Türkçe adımlar,
+  harekete sabit not, ağırlık adımı; idmanda "▶ Form".
+- **Pratik öneriler**: günlük hazır olma kontrolü, RIR → RPE, son set türü, Salon/Ev/Otel süzgeci, haftalık set /
+  kas grubu (10–20, omuz ≤ 12), salon programı uyumu, dinlenme haftası önerisi, dinlenme sonu bildirimi
+  (iPhone'da yalnızca ana ekrana eklenmiş uygulamada ve izin verilirse), JSON yedek.
+
 ## Sürüm 12'de neler var
 
 - **Ana sayfa**: haftalık şerit (bu hafta gün sayısı, omuz önleyici, form), bugünün önerisi (süre bütçesi, toparlanma,
@@ -350,6 +383,9 @@ Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
 
 - Kas haritası görseli kullanıcının kendi görselinden üretildi (`tasarim/v27/kaynak/`).
 - Hareket fotoğrafları ve açıklamaları: [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense, kamu malı).
+- Hareket adımlarının metni: [exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (MIT; lisans notu `adimlar.js` başında).
+  Veri setinin animasyonları (© Gym visual) lisanssız olduğundan **kullanılmaz**.
+- Videolar YouTube'da sahiplerinde durur, uygulama yalnızca YouTube'un oynatıcısıyla gömer (dosya kopyalanmaz).
 - Yazı tipleri Archivo ve Barlow Condensed: SIL Open Font License.
 
 ## Mimari ve Faz 2

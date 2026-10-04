@@ -9,6 +9,7 @@ import * as A from '../analiz.js';
 import * as V from '../video.js';
 import * as HZ from '../hazir.js';
 import { VIDEOLAR } from '../videolar.js';
+import * as M from '../model.js';
 
 let n = 0;
 const t = (name, fn) => { try { fn(); n++; } catch (e) { console.error('BAŞARISIZ:', name); throw e; } };
@@ -227,6 +228,51 @@ t('hazir: skor ve karar (eklem MSI eşikleri), dinlenme haftası, haftalık set,
   assert.deepEqual(HZ.planUyumu(['a', 'b', 'c', 'c'], ['a', 'c', 'x']), { planli: 3, yapilan: 2, pay: 67 });
   assert.equal(HZ.planUyumu([], ['a']).pay, null);
   assert.equal(HZ.adimaYuvarla(13, 2), 14); assert.equal(HZ.adimaYuvarla(16.25, 2.5), 17.5); assert.equal(HZ.adimaYuvarla(11, 1.25), 11.25);
+});
+
+t('model: faz döngüsü, haftalık hedef, sağlık bütçeleri', () => {
+  assert.equal(M.faz(null).ad, 'Hacim'); assert.equal(M.faz(2).ad, 'Kuvvet'); assert.equal(M.faz(7).ad, 'Dinlenme'); assert.equal(M.faz(-1).ad, 'Dinlenme');
+  assert.deepEqual(M.haftaHedefi({ gecen: 1000, buHafta: 300, normal: 1170 }), { hedef: 1100, kalan: 800, metin: 'Geçen haftadan en çok %10 fazla' });
+  assert.equal(M.haftaHedefi({ gecen: 1170, normal: 1170 }).hedef, 1170, 'normalin üstüne çıkmaz (faz 1)');
+  assert.equal(M.haftaHedefi({ gecen: 1170, normal: 1170, fazKat: 1.12 }).hedef, 1287, 'kuvvet fazı');
+  assert.equal(M.haftaHedefi({ gecen: 0, normal: 1170 }).hedef, 819, 'taban normalin %70i');
+  assert.equal(M.haftaHedefi({ gecen: 300, normal: 1170, donus: true }).hedef, 585, 'dönüş: normalin yarısı');
+  assert.equal(M.haftaHedefi({ gecen: 1500, normal: 1170, oran: { durum: 'yuksek' } }).hedef, 1200, 'yük yüksek: −%20');
+  assert.equal(M.haftaHedefi({ gecen: 1000, buHafta: 2000, normal: 1170 }).kalan, 0);
+  const KK = K.kurallar(null);
+  const L = [{ tarih: '2026-09-29', tur: 'yuzme', yuk: 400, kas: { Omuz: 300 } }, { tarih: '2026-09-20', tur: 'yuzme', yuk: 400, kas: { Omuz: 300 } }];
+  const satir = [{ tarih: '2026-09-30', hareket: 'Split Squat', set: 3 }, { tarih: '2026-09-30', hareket: 'Band Row', set: 4 }];
+  const b = M.saglikButceleri({ L, salonSatir: satir, bugun: '2026-10-01', K: KK, normal: 1170, brAy: 9 });
+  assert.deepEqual(b.map((x) => [x.ad, x.deger, x.sinir, x.durum]), [['Omuz', 300, 410, 'iyi'], ['Kalça', 9, 10, 'sinirda'], ['Diz', 3, 9, 'iyi']]);
+  const a = M.saglikButceleri({ L, salonSatir: satir, bugun: '2026-10-01', K: KK, normal: 1170, brAy: 9, msiBolge: { 'sag omuz': 1, 'sag diz': 1 } });
+  assert.deepEqual(a.map((x) => [x.sinir, x.durum]), [[328, 'sinirda'], [5, 'asti'], [6, 'iyi']], 'ağrıda sınırlar daralır');
+});
+
+t('model: hafta planı — Cuma yüzme, salon yüzmeye komşu olmayan güne, yapılan/planlı önce, hazır olma, ölçüm', () => {
+  const KK = K.kurallar(null);
+  const ozet = (P) => P.map((g) => `${g.gun.slice(0, 3)}:${g.isler.map((x) => x.tur[0]).join('')}`).join(' ');
+  // Pazartesi, boş hafta: Sal salon, Per yüzme, Cum yüzme
+  let P = M.haftaPlani({ bugun: '2026-09-28', bas: '2026-09-28', K: KK });
+  assert.equal(ozet(P), 'Paz: Sal:s Çar: Per:y Cum:y Cum: Paz:');
+  assert.equal(P[4].isler[0].butce, 'akşam · sınırsız'); assert.equal(P[1].isler[0].butce, 'sabah 80 / öğle 65 dk');
+  assert.ok(P.every((g) => !g.uyarilar.length), 'girişim yok');
+  // Salı yapılan salon + Çarşamba programda yüzme → yalnız Cuma önerisi
+  P = M.haftaPlani({ bugun: '2026-09-30', bas: '2026-09-28', K: KK, L: [{ tarih: '2026-09-29', tur: 'salon', dk: 50, set: 12, yuk: 300, kas: {} }], yuzmePlan: ['2026-09-30'] });
+  assert.deepEqual(P.map((g) => g.durum), ['bos', 'yapildi', 'planli', 'bos', 'oneri', 'bos', 'bos']);
+  // Perşembe, hiç yapılmamış: salon Perşembe'ye mecbur (Cuma yüzme komşu) → girişim uyarısı yalnız kuvvet fazında
+  P = M.haftaPlani({ bugun: '2026-10-01', bas: '2026-09-28', K: KK, fazNo: 2 });
+  assert.equal(ozet(P), 'Paz: Sal: Çar: Per:s Cum:y Cum: Paz:');
+  assert.match(P[3].uyarilar.join(), /art arda/);
+  // Bugün dinlen: bugün öneri yok, uyarı var; hafif: işaret
+  P = M.haftaPlani({ bugun: '2026-09-29', bas: '2026-09-28', K: KK, hazirKarar: 'dinlen' });
+  assert.equal(P[1].isler.length, 0); assert.match(P[1].uyarilar[0], /dinlen/);
+  assert.equal(ozet(P), 'Paz: Sal: Çar:s Per:y Cum:y Cum: Paz:', 'bugün kapalı: salon Çarşamba');
+  P = M.haftaPlani({ bugun: '2026-09-29', bas: '2026-09-28', K: KK, hazirKarar: 'hafif' });
+  assert.match(P[1].isler[0].hafif, /hazır olma/);
+  assert.match(M.haftaPlani({ bugun: '2026-09-28', bas: '2026-09-28', K: KK, hafiflet: true })[4].isler[0].hafif, /yük yüksek/);
+  assert.match(M.haftaPlani({ bugun: '2026-09-28', bas: '2026-09-28', K: KK, fazNo: 3 })[1].isler[0].ad, /önleyici \+ mobilite/);
+  assert.deepEqual(M.olcumZamani({ bugun: '2026-10-01', sonCssTarih: '2026-09-20' }), []);
+  assert.deepEqual(M.olcumZamani({ bugun: '2026-10-01', sonCssTarih: '2026-08-20', fazNo: 3 }), ['CSS testi (400 + 200): son test 42 gün önce', 'Dinlenme haftası: salonda tahmini 1RM ve ağrı (MSI) eğilimini gözden geçir']);
 });
 
 console.log(`çekirdek testleri: TAMAM (${n})`);

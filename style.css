@@ -1726,3 +1726,32 @@ button.hw-g.ok { color: var(--t-green); }
 .fs-g { width: 64px !important; }
 .lisans .btn { margin-top: 6px; }
 .modal { z-index: 80; } /* 13.3: bilgi kartının (60) üstünde */
+
+/* --- Sürüm 13.4: Bu hafta (yüzme + salon tek plan) --- */
+.hw-g.hw-bh { color: var(--t-teal); font-weight: 800; }
+.bh-faz { padding: 12px 14px; border-radius: 18px; background: #1A1408; border: 1px solid rgba(245, 165, 36, 0.5); }
+.bh-faz small { display: block; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: #C2A06A; }
+.bh-faz b { display: block; font-size: 20px; margin: 2px 0 4px; }
+.bh-faz p { font-size: 13.5px; color: #D5DCE4; margin: 2px 0 0; }
+.bh-b .fd-t i { background: #8B97A5; }
+.bh-b .fd-t i.ok { background: var(--t-green); }
+.bh-b .fd-t i.warn { background: var(--warn); }
+.bh-b .fd-t i.bad, .bh-b .bad { background: var(--danger); }
+.bh-b b.bad { background: none; color: var(--danger); }
+.bh-b b.warn { color: var(--warn); }
+.bh-gun { margin-bottom: 8px; padding: 10px 14px; border-radius: 16px; background: #121922; border: 1px solid #1E2731; }
+.bh-gun.today { border-color: rgba(245, 165, 36, 0.6); }
+.bh-gun.bos { opacity: 0.6; }
+.bh-gun.yapildi { opacity: 0.8; }
+.bh-h { display: flex; align-items: baseline; gap: 8px; }
+.bh-h b { font-size: 16px; }
+.bh-h small { font-size: 13px; color: #8B97A5; font-weight: 600; }
+.bh-h em { margin-left: auto; font-style: normal; font-size: 12.5px; font-weight: 800; color: #C2CBD5; }
+.bh-gun.oneri .bh-h em { color: var(--accent); }
+.bh-gun.yapildi .bh-h em { color: var(--t-green); }
+.bh-is { margin: 6px 0 0; font-size: 14px; }
+.bh-is small { display: block; margin-left: 24px; font-size: 12.5px; color: #8B97A5; }
+.bh-is small.warn, .bh-u.warn { color: var(--warn); }
+.bh-u { margin: 6px 0 0; font-size: 13px; }
+.bh-gun .btn { margin-top: 8px; }
+.sp-faz { margin: 0 0 10px; padding: 8px 12px; border-radius: 12px; background: #1A1408; border: 1px solid rgba(245, 165, 36, 0.4); font-size: 13px; color: #D5DCE4; }
