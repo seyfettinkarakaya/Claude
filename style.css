@@ -1703,3 +1703,26 @@ button.sl-vform { border: 0; font-family: inherit; cursor: pointer; }
 .pg-act .btn { flex: 1; min-height: 44px; font-size: 15px; padding: 0 8px; }
 .pg-act .btn-primary { flex: 1.6; }
 .pg-ekle { margin-top: 8px; min-height: 44px; font-size: 15px; }
+
+/* --- 13.3: hazır olma, sabit not, ağırlık adımı, RIR, haftalık set --- */
+.hw-hz { cursor: pointer; }
+button.hw-g.ok { color: var(--t-green); }
+.hz-q { margin: 10px 0 6px; font-size: 13px; font-weight: 800; letter-spacing: 1px; color: #8B97A5; }
+.hz-sonuc { margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: #141B23; font-weight: 800; }
+.hz-sonuc.tam { color: var(--t-green); }
+.hz-sonuc.hafif { color: var(--accent); }
+.hz-sonuc.dinlen, .hz-sonuc.tibbi { color: var(--warn); }
+.bi-not { display: flex; align-items: center; gap: 10px; margin: 8px 0; padding: 10px 12px; border-radius: 14px; background: #141B23; border: 1px solid #1E2731; }
+.bi-not p { flex: 1; margin: 0; font-size: 14px; }
+.bi-not p.mu { color: #7A8694; }
+.bi-not button { flex: none; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid #2A3542; background: #1C242E; color: var(--text); font-weight: 800; }
+.bi-adim { display: flex; align-items: center; gap: 6px; margin: 8px 0 12px; font-size: 13px; color: #8B97A5; font-weight: 700; }
+.bi-adim span { margin-right: auto; }
+.bi-adim button { min-width: 40px; height: 34px; border-radius: 10px; border: 1px solid #2A3542; background: #141B23; color: #C2CBD5; font-weight: 800; }
+.bi-adim button.on { background: var(--accent); color: #1A0E04; border-color: var(--accent); }
+#bi-not-ta { width: 100%; font: inherit; font-size: 16px; padding: 10px; border-radius: 12px; border: 2px solid var(--line); background: #0B0F14; color: var(--text); }
+.sl-pin { margin-top: 2px; font-size: 13px; color: #FDE68A; font-weight: 700; }
+.sg-rir button, .sg-tur button { font-size: 15px; }
+.fs-g { width: 64px !important; }
+.lisans .btn { margin-top: 6px; }
+.modal { z-index: 80; } /* 13.3: bilgi kartının (60) üstünde */

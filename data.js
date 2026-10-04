@@ -16,6 +16,8 @@ const KEYS = {
   salon: 'ysk.salon',           // SalonTakip verisi (katalog, kas etkileri, geçmiş)
   salonSession: 'ysk.salonSession',
   salonPlan: 'ysk.salonPlan',   // kaydedilmiş salon planı (ana sayfada "Hazır plan"), yalnızca telefonda
+  hazir: 'ysk.hazir',           // (sürüm 13) günlük hazır olma kontrolü { 'YYYY-MM-DD': { uyku, agri, enerji, eklem } }
+  hareketNot: 'ysk.hareketNot', // (sürüm 13) harekete sabit not ve ağırlık adımı { ad: { not, adim } }
 };
 
 // Bağlantılar: her tablonun kendi Apps Script'i, adresi ve anahtarı vardır.
@@ -111,6 +113,8 @@ export function getPrefs() {
     if (typeof p.ses === 'boolean') out.ses = p.ses;
     if (p.css === null || (typeof p.css === 'number' && p.css > 0)) out.css = p.css;
     if (p.havuz === 25 || p.havuz === 50) out.havuz = p.havuz;
+    if (p.yer === 'Ev' || p.yer === 'Otel') out.yer = p.yer; // yalnızca ayarlandıysa (sürüm 13)
+    if (p.bildirim === true) out.bildirim = true;
     if (typeof p.blokBas === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.blokBas)) out.blokBas = p.blokBas; // yalnızca ayarlandıysa
   }
   return out;
@@ -494,4 +498,41 @@ export function saveSalonPlan(p) {
 
 export function clearSalonPlan() {
   store(KEYS.salonPlan, null);
+}
+
+// ---------------------------------------------------------------------------
+// Sürüm 13: hazır olma kontrolü, harekete sabit not / ağırlık adımı, yedek
+// ---------------------------------------------------------------------------
+
+const obje = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+
+/** Günlük hazır olma kayıtları (son 60 gün tutulur). */
+export const getHazir = () => obje(load(KEYS.hazir, {}));
+export function setHazir(tarih, kayit) {
+  const h = getHazir();
+  h[tarih] = kayit;
+  const keys = Object.keys(h).sort();
+  for (const k of keys.slice(0, Math.max(0, keys.length - 60))) delete h[k];
+  store(KEYS.hazir, h);
+}
+
+/** Harekete sabit not ve ağırlık adımı: { not, adim } */
+export const getHareketNot = (ad) => obje(obje(load(KEYS.hareketNot, {}))[ad]);
+export function setHareketNot(ad, patch) {
+  const all = obje(load(KEYS.hareketNot, {}));
+  const cur = { ...obje(all[ad]), ...patch };
+  for (const k of Object.keys(cur)) if (cur[k] === '' || cur[k] == null) delete cur[k];
+  if (Object.keys(cur).length) all[ad] = cur; else delete all[ad];
+  store(KEYS.hareketNot, all);
+}
+
+/** Telefondaki tüm YüzmeSK verisinin yedeği (bağlantı anahtarları hariç). */
+export function yedek() {
+  const out = { uygulama: 'YüzmeSK', tarih: new Date().toISOString(), veriler: {} };
+  for (const [ad, key] of Object.entries(KEYS)) {
+    if (ad === 'config') continue; // anahtarlar (token) yedeğe girmez
+    const v = load(key, null);
+    if (v != null) out.veriler[key] = v;
+  }
+  return out;
 }

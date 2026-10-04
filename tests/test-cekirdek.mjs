@@ -7,6 +7,7 @@ import * as Y from '../yuk.js';
 import * as BI from '../bilgi.js';
 import * as A from '../analiz.js';
 import * as V from '../video.js';
+import * as HZ from '../hazir.js';
 import { VIDEOLAR } from '../videolar.js';
 
 let n = 0;
@@ -206,6 +207,26 @@ t('video: YouTube adresi, gömme adresi, H önceliği, liste (büyük/küçük h
   const o = V.ozet(VIDEOLAR);
   assert.equal(o.toplam, 61); assert.equal(o.opex, 33);
   assert.equal(V.videoBul('DB Pullover (Lat Focus)', '', VIDEOLAR).id, '7ee9w2zYFr0');
+});
+
+t('hazir: skor ve karar (eklem MSI eşikleri), dinlenme haftası, haftalık set, plan uyumu, ağırlık adımı', () => {
+  assert.deepEqual(HZ.hazirSkor({ uyku: 5, agri: 1, enerji: 5, eklem: 0 }), { skor: 100, karar: 'tam', metin: 'Hazırsın: plan aynen' });
+  assert.equal(HZ.hazirSkor({ uyku: 3, agri: 3, enerji: 3, eklem: 0 }).karar, 'hafif', 'skor 60');
+  assert.equal(HZ.hazirSkor({ uyku: 1, agri: 5, enerji: 2, eklem: 0 }).karar, 'dinlen');
+  assert.equal(HZ.hazirSkor({ uyku: 5, agri: 1, enerji: 5, eklem: 1 }).karar, 'hafif', 'MSI 1 → hafiflet');
+  assert.equal(HZ.hazirSkor({ uyku: 5, agri: 1, enerji: 5, eklem: 2 }).karar, 'dinlen', 'MSI 2 → dur');
+  assert.equal(HZ.hazirSkor({ uyku: 5, agri: 1, enerji: 5, eklem: 3 }).karar, 'tibbi');
+  assert.deepEqual(HZ.dinlenmeOnerisi({ oran: { durum: 'guvenli' } }), { oner: false, nedenler: [] });
+  assert.deepEqual(HZ.dinlenmeOnerisi({ oran: { durum: 'yuksek' } }).nedenler, ['yük hızlı arttı']);
+  assert.ok(HZ.dinlenmeOnerisi({ hazirlar: [{ karar: 'hafif' }, { karar: 'dinlen' }, { karar: 'tam' }, { karar: 'hafif' }] }).oner);
+  assert.deepEqual(HZ.dinlenmeOnerisi({ msiler: [0, 0.5, 1, 1.5] }).nedenler, ['ağrı (MSI) artıyor']);
+  assert.equal(HZ.dinlenmeOnerisi({ msiler: [1.5, 1, 0.5] }).oner, false, 'azalan ağrı');
+  const pay = (ad) => ({ Row: { 'Sırt': 0.8, Biseps: 0.2 }, Press: { Omuz: 0.8, Triseps: 0.2 } })[ad];
+  assert.deepEqual(HZ.haftalikSet([{ tarih: '2026-09-21', hareket: 'Row', set: 4 }, { tarih: '2026-09-23', hareket: 'Press', set: 3 }, { tarih: '2026-09-14', hareket: 'Row', set: 9 }], '2026-09-21', '2026-09-27', pay), { 'Sırt': 4, Omuz: 3 });
+  assert.equal(HZ.setDurum('Omuz', 14).durum, 'fazla'); assert.equal(HZ.setDurum('Sırt', 14).durum, 'iyi'); assert.equal(HZ.setDurum('Bacak', 4).durum, 'az');
+  assert.deepEqual(HZ.planUyumu(['a', 'b', 'c', 'c'], ['a', 'c', 'x']), { planli: 3, yapilan: 2, pay: 67 });
+  assert.equal(HZ.planUyumu([], ['a']).pay, null);
+  assert.equal(HZ.adimaYuvarla(13, 2), 14); assert.equal(HZ.adimaYuvarla(16.25, 2.5), 17.5); assert.equal(HZ.adimaYuvarla(11, 1.25), 11.25);
 });
 
 console.log(`çekirdek testleri: TAMAM (${n})`);
