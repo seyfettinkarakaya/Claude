@@ -11,6 +11,10 @@
  *   getSalon  : hareket kataloğu (H), kas etkileri (hkEtki), vücut ağırlığı (ref BW)
  *               ve idman geçmişi
  *   saveSalon : bir günün hareketlerini idman sayfasının en üstüne yazar
+ *   savePlan  : (sürüm 13) bir günün salon planını "plan" sayfasına yazar (o günün eski plan satırları değişir;
+ *               sayfa yoksa açılır). idman sayfasına dokunmaz.
+ *   planYapildi: (sürüm 13) o günün plan satırlarına Durum = yapıldı yazar (silinmez)
+ * "plan" sayfası varsa getSalon cevabına plan listesi eklenir (yoksa cevap aynen eskisi gibi).
  *
  * idman sayfası v2 sayfasındaki formül tarafından sütun SIRASIYLA (A–J) okunur:
  * Tarih, No, Hareket, Set, Tekrar, Ağırlık, Nabız, RPE, MSI, Açıklama. Betik
@@ -22,6 +26,8 @@ var SHEET_IDMAN = 'idman';
 var SHEET_H = 'H';
 var SHEET_ETKI = 'hkEtki';
 var SHEET_REF = 'ref';
+var SHEET_PLAN = 'plan';
+var PLAN_HEADERS = ['Tarih', 'Sıra', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Süre', 'Dinlen', 'Süperset', 'Not', 'Durum'];
 var LOCK_WAIT_MS = 30000;
 var TOKEN_PROPERTY = 'TOKEN';
 var VUCUT = 'Vücut';
@@ -53,6 +59,10 @@ function handle_(req) {
         return ok_(getSalon_());
       case 'saveSalon':
         return withLock_(function () { return ok_(saveSalon_(req)); });
+      case 'savePlan':
+        return withLock_(function () { return ok_(savePlan_(req)); });
+      case 'planYapildi':
+        return withLock_(function () { return ok_(planYapildi_(req)); });
       default:
         return fail_('UNKNOWN_ACTION', 'Bilinmeyen işlem.');
     }
@@ -100,7 +110,92 @@ function tokenGoster() {
 function getSalon_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var tz = ss.getSpreadsheetTimeZone();
-  return { katalog: readKatalog_(ss), etki: readEtki_(ss), bw: readBw_(ss, tz), gecmis: readGecmis_(ss, tz) };
+  var out = { katalog: readKatalog_(ss), etki: readEtki_(ss), bw: readBw_(ss, tz), gecmis: readGecmis_(ss, tz) };
+  if (ss.getSheetByName(SHEET_PLAN)) out.plan = readPlan_(ss, tz);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Salon planı (sürüm 13): "plan" sayfası — Tarih, Sıra, Hareket, Set, Tekrar, Ağırlık, Süre, Dinlen, Süperset, Not, Durum
+// ---------------------------------------------------------------------------
+
+function readPlan_(ss, tz) {
+  var t = readSheet_(ss, SHEET_PLAN);
+  var c = planCols_(t);
+  var out = [];
+  t.values.forEach(function (r) {
+    var tarih = dateKey_(cell_(r, c.tarih), tz);
+    if (!tarih || !text_(r, c.hareket)) return;
+    var ag = cell_(r, c.agirlik);
+    out.push({
+      tarih: tarih, sira: toNumber_(cell_(r, c.sira)) || out.filter(function (x) { return x.tarih === tarih; }).length + 1,
+      hareket: text_(r, c.hareket), set: toNumber_(cell_(r, c.set)) || 0, tekrar: toNumber_(cell_(r, c.tekrar)) || 0,
+      agirlik: normalize_(ag) === normalize_(VUCUT) ? VUCUT : toNumber_(ag), sure: toNumber_(cell_(r, c.sure)) || 0,
+      dinlen: toNumber_(cell_(r, c.dinlen)) || 0, ss: text_(r, c.ss), not: text_(r, c.not), durum: text_(r, c.durum)
+    });
+  });
+  return out.sort(function (a, b) { return a.tarih < b.tarih ? -1 : a.tarih > b.tarih ? 1 : a.sira - b.sira; });
+}
+
+function planCols_(t) {
+  return {
+    tarih: col_(t, 'Tarih', true), sira: col_(t, 'Sıra', false), hareket: col_(t, 'Hareket', true), set: col_(t, 'Set', false),
+    tekrar: col_(t, 'Tekrar', false), agirlik: col_(t, 'Ağırlık', false), sure: col_(t, 'Süre', false), dinlen: col_(t, 'Dinlen', false),
+    ss: col_(t, 'Süperset', false), not: col_(t, 'Not', false), durum: col_(t, 'Durum', false)
+  };
+}
+
+function planSheet_(ss) {
+  var sh = ss.getSheetByName(SHEET_PLAN);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_PLAN);
+    sh.getRange(1, 1, 1, PLAN_HEADERS.length).setValues([PLAN_HEADERS]);
+  }
+  return sh;
+}
+
+/** savePlan { tarih, hareketler: [{ hareket, set, tekrar, agirlik, sure, dinlen, ss, not }] } — o günün plan satırları yenilenir. */
+function savePlan_(req) {
+  var tarih = requireDate_(req.tarih);
+  var list = (Array.isArray(req.hareketler) ? req.hareketler : []).filter(function (h) { return h && String(h.hareket || '').trim(); });
+  if (list.length > 60) throw appError_('BAD_REQUEST', 'Plan en çok 60 hareket olabilir.');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tz = ss.getSpreadsheetTimeZone();
+  planSheet_(ss);
+  var t = readSheet_(ss, SHEET_PLAN);
+  var c = planCols_(t);
+  var silinen = deleteDateRows_(t.sheet, c.tarih, tarih, tz);
+  if (!list.length) return { yazilan: 0, silinen: silinen };
+  var day = Utilities.parseDate(tarih, tz, 'yyyy-MM-dd');
+  var w = t.headers.length;
+  var rows = list.map(function (h, i) {
+    var r = [];
+    for (var j = 0; j < w; j++) r.push('');
+    var put = function (k, v) { if (c[k] >= 0) r[c[k]] = v; };
+    put('tarih', day); put('sira', i + 1); put('hareket', String(h.hareket).trim().slice(0, 120));
+    put('set', toNumber_(h.set) || ''); put('tekrar', toNumber_(h.tekrar) || '');
+    put('agirlik', normalize_(h.agirlik) === normalize_(VUCUT) ? VUCUT : (toNumber_(h.agirlik) == null ? '' : toNumber_(h.agirlik)));
+    put('sure', toNumber_(h.sure) || ''); put('dinlen', toNumber_(h.dinlen) || '');
+    put('ss', String(h.ss || '').slice(0, 20)); put('not', String(h.not || '').slice(0, 300)); put('durum', '');
+    return r;
+  });
+  var at = t.sheet.getLastRow() + 1;
+  t.sheet.getRange(at, 1, rows.length, w).setValues(rows);
+  return { yazilan: rows.length, silinen: silinen };
+}
+
+/** planYapildi { tarih } — o günün plan satırlarına Durum = yapıldı (sayfa yoksa bir şey yapmaz). */
+function planYapildi_(req) {
+  var tarih = requireDate_(req.tarih);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss.getSheetByName(SHEET_PLAN)) return { isaretlenen: 0 };
+  var tz = ss.getSpreadsheetTimeZone();
+  var t = readSheet_(ss, SHEET_PLAN);
+  var c = planCols_(t);
+  if (c.durum < 0) return { isaretlenen: 0 };
+  var n = 0;
+  rowsForDate_(t, c.tarih, tarih, tz).forEach(function (i) { t.sheet.getRange(i + 2, c.durum + 1).setValues([['yapıldı']]); n++; });
+  return { isaretlenen: n };
 }
 
 function readKatalog_(ss) {

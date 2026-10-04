@@ -75,5 +75,58 @@ sc('Video: Ayarlar\'da kaynak özeti (61 hareket, OPEX 33) ve lisans notu', asyn
   assert.match(await txt(s, '#pref-lisans'), /YouTube'un kendi oynatıcısıyla/);
 });
 
+const PLAN_H = ['Tarih', 'Sıra', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Süre', 'Dinlen', 'Süperset', 'Not', 'Durum'];
+
+sc('Salon programı: haftalık görünüm; boş güne planla → "Programa yaz" → SalonTakip plan sayfası açılır, gün kartında hareketler; Düzenle / Sil', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
+  await p.click('#home-gym'); await s.waitScreen('salon-start');
+  await p.click('[data-ss="prog"]'); await s.waitScreen('salon-prog');
+  assert.match(await txt(s, '#pg-title'), /21 Eylül Pazartesi – 27 Eylül Pazar/);
+  assert.match(await txt(s, '#pg-body'), /"plan" sayfası gerekir/);
+  assert.match(await txt(s, '[data-pg-gun="2026-09-23"]'), /Çarşamba.*🏊 yüzme/);
+  await p.click('[data-pg="planla"][data-t="2026-09-24"]'); await s.waitScreen('salon-plan');
+  await p.click('[data-sp-grup="Shoulders"]'); await p.click('#sp-next');
+  await p.click('[data-sp-ex="Band External Rotation"]'); await p.click('[data-sp-ex="Dumbbell Shoulder Press"]');
+  await p.click('#sp-next');
+  assert.match(await txt(s, '[data-sp-prog]'), /Programa yaz · 24 Eylül/);
+  await p.click('[data-sp-prog]'); await s.waitScreen('salon-prog');
+  const plan = s.envs.SALON.sheets.plan;
+  assert.ok(plan, 'plan sayfası açıldı');
+  assert.deepEqual(plan.data.slice(1).map((r) => [r[1], r[2]]), [[1, 'Band External Rotation'], [2, 'Dumbbell Shoulder Press']]);
+  await p.waitForFunction(() => /2 hareket/.test(document.querySelector('[data-pg-gun="2026-09-24"]').textContent));
+  assert.match(await txt(s, '[data-pg-gun="2026-09-24"]'), /Band External Rotation.*Dumbbell Shoulder Press/);
+  assert.equal(s.envs.SALON.sheets.idman.data.length, 4, 'idman sayfasına yazılmadı');
+  // Düzenle → bir hareket çıkar → yeniden yaz
+  await p.click('[data-pg="duzenle"][data-t="2026-09-24"]'); await s.waitScreen('salon-plan');
+  assert.equal(await txt(s, '#sp-title'), 'Programı düzenle');
+  await p.click('[data-sp-rm="0"]');
+  await p.click('[data-sp-prog]'); await s.waitScreen('salon-prog');
+  await p.waitForFunction(() => /1 hareket/.test(document.querySelector('[data-pg-gun="2026-09-24"]').textContent));
+  assert.equal(plan.data.slice(1).filter((r) => r[2]).length, 1);
+  // Sil
+  await p.click('[data-pg="sil"][data-t="2026-09-24"]'); await s.waitModal('Programı sil'); await s.modalClick('Sil');
+  await p.waitForFunction(() => /Bu güne salon planla/.test(document.querySelector('[data-pg-gun="2026-09-24"]').textContent));
+});
+
+sc('Salon programı: bugünün programı tabloda varsa ana sayfada "BUGÜNÜN PROGRAMI" → İdmana başla programdaki değerlerle; süperset korunur', async ({ launch }) => {
+  const sh = salonV12();
+  sh.plan = new Sheet('plan', PLAN_H, [
+    [D('2026-09-23'), 1, 'Band Bent Over Row', 4, 12, 20, '', 75, 'A', '', ''],
+    [D('2026-09-23'), 2, 'Front Plank', 3, 1, 'Vücut', 45, 60, 'A', '', ''],
+    [D('2026-09-25'), 1, 'Dumbbell Shoulder Press', 3, 10, 12.5, '', 90, '', '', ''],
+  ]);
+  const s = await launch({ salonSheets: sh, ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden && /PROGRAM/.test(document.getElementById('home-gym-go').textContent));
+  assert.match(await txt(s, '#home-gym-go'), /BUGÜNÜN PROGRAMI · TABLODAN.*Band Bent Over Row\s*4×12.*Front Plank\s*3×45sn/);
+  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  const ses = await s.ls('ysk.salonSession');
+  assert.equal(ses.programTarih, '2026-09-23');
+  assert.deepEqual(ses.hareketler.map((x) => [x.ad, x.set, x.tekrar, x.agirlik, x.dinlen, x.sure]), [['Band Bent Over Row', 4, 12, 20, 75, 0], ['Front Plank', 3, 1, 'Vücut', 60, 45]]);
+  assert.ok(ses.hareketler[0].ss && ses.hareketler[0].ss === ses.hareketler[1].ss, 'süperset');
+});
+
 const only = process.argv[2];
 if (require.main === module) runScenarios('Sürüm 13 senaryoları', only ? S.filter(([n]) => n.toLowerCase().includes(only.toLowerCase())) : S, 8160);

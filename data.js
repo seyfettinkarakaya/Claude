@@ -459,6 +459,16 @@ export function saveSalon(payload) {
   return call('saveSalon', payload, 'salon');
 }
 
+/** Salon programı (sürüm 13): bir günün planını SalonTakip "plan" sayfasına yazar (boş liste = günü siler). */
+export function saveSalonProgram(tarih, hareketler) {
+  return call('savePlan', { tarih, hareketler }, 'salon');
+}
+
+/** Salon programı: o günün plan satırlarını "yapıldı" işaretler. */
+export function salonProgramYapildi(tarih) {
+  return call('planYapildi', { tarih }, 'salon');
+}
+
 export function loadSalonSession() {
   const s = load(KEYS.salonSession, null);
   return s && typeof s === 'object' && typeof s.tarih === 'string' && Array.isArray(s.hareketler) ? s : null;

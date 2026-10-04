@@ -167,4 +167,25 @@ test('saveSalon: yazma hatasında satırlar geri alınır', () => {
   assert.strictEqual(e.sheets.idman.data.length, 4, 'eklenen boş satır silindi');
 });
 
+test('savePlan / planYapildi (sürüm 13): plan sayfası yoksa açılır, gün satırları yenilenir, getSalon plan döner; idman dokunulmaz', () => {
+  const e = salonEnv();
+  const g0 = e.call({ action: 'getSalon' }).data;
+  assert.ok(!('plan' in g0), 'plan sayfası yokken cevap eskisi gibi');
+  const idman0 = JSON.stringify(e.sheets.idman.data);
+  let r = e.call({ action: 'savePlan', tarih: '2026-10-07', hareketler: [{ hareket: 'Band Lat Pulldown', set: 4, tekrar: 20, agirlik: 15, dinlen: 60 }, { hareket: 'Deadbug', set: 3, tekrar: 40, agirlik: 'Vücut', ss: 'A', not: 'yavaş' }] });
+  assert.ok(r.ok); assert.deepStrictEqual(r.data, { yazilan: 2, silinen: 0 });
+  assert.deepStrictEqual(e.sheets.plan.data[0], ['Tarih', 'Sıra', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Süre', 'Dinlen', 'Süperset', 'Not', 'Durum']);
+  e.call({ action: 'savePlan', tarih: '2026-10-09', hareketler: [{ hareket: 'Push-up (Standard)', set: 3, tekrar: 15, agirlik: 'Vücut' }] });
+  r = e.call({ action: 'savePlan', tarih: '2026-10-07', hareketler: [{ hareket: 'Band Seated Row', set: 4, tekrar: 15, agirlik: 15 }] });
+  assert.deepStrictEqual(r.data, { yazilan: 1, silinen: 2 }, 'aynı gün yenilenir');
+  const plan = e.call({ action: 'getSalon' }).data.plan;
+  assert.deepStrictEqual(plan.map((x) => [x.tarih, x.sira, x.hareket, x.agirlik, x.durum]), [['2026-10-07', 1, 'Band Seated Row', 15, ''], ['2026-10-09', 1, 'Push-up (Standard)', 'Vücut', '']]);
+  assert.deepStrictEqual(e.call({ action: 'planYapildi', tarih: '2026-10-07' }).data, { isaretlenen: 1 });
+  assert.strictEqual(e.call({ action: 'getSalon' }).data.plan[0].durum, 'yapıldı');
+  assert.strictEqual(JSON.stringify(e.sheets.idman.data), idman0, 'idman sayfası değişmedi');
+  assert.deepStrictEqual(e.call({ action: 'savePlan', tarih: '2026-10-09', hareketler: [] }).data, { yazilan: 0, silinen: 1 }, 'boş plan = günü sil');
+  assert.strictEqual(e.call({ action: 'savePlan', tarih: '7.10.2026', hareketler: [] }).error, 'BAD_REQUEST');
+  assert.strictEqual(salonEnv().call({ action: 'planYapildi', tarih: '2026-10-07' }).data.isaretlenen, 0, 'sayfa yoksa bir şey yapmaz');
+});
+
 console.log(`Salon/sporRef betik testleri: TAMAM (${n} senaryo)`);

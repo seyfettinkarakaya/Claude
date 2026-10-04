@@ -1688,3 +1688,18 @@ svg.hg .bs { fill: #F5A524; }
 .bi-vk a { flex: none; padding: 7px 12px; border-radius: 12px; background: #141B23; border: 1px solid #1E2731; color: #C2CBD5; font-weight: 800; text-decoration: none; }
 .bi-off { margin: 4px 0 8px; padding: 10px 12px; border-radius: 14px; border: 1px dashed #3A4656; font-size: 13.5px; color: #C2CBD5; }
 button.sl-vform { border: 0; font-family: inherit; cursor: pointer; }
+
+/* --- 13.2: salon programı --- */
+.pg-gun { margin-bottom: 10px; padding: 12px 14px; border-radius: 18px; background: #121922; border: 1px solid #1E2731; }
+.pg-gun.today { border-color: rgba(245, 165, 36, 0.6); }
+.pg-gun.done { opacity: 0.7; }
+.pg-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pg-h b { font-size: 17px; }
+.pg-h small { font-size: 13px; color: #8B97A5; font-weight: 600; }
+.pg-h em { margin-left: auto; font-style: normal; font-size: 12.5px; font-weight: 800; color: #C2CBD5; }
+.pg-h em.pg-yz { margin-left: 0; color: var(--t-teal); }
+.pg-h em.pg-ok { color: var(--t-green); }
+.pg-act { display: flex; gap: 6px; margin-top: 10px; }
+.pg-act .btn { flex: 1; min-height: 44px; font-size: 15px; padding: 0 8px; }
+.pg-act .btn-primary { flex: 1.6; }
+.pg-ekle { margin-top: 8px; min-height: 44px; font-size: 15px; }

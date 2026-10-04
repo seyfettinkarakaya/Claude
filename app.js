@@ -34,7 +34,7 @@ const MSI_BOLGELER = [
   { key: 'boyun', label: 'Boyun' },
 ];
 
-const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'rpe', 'msi', 'ozet', 'done', 'salon-start', 'salon', 'salon-ozet', 'salon-plan', 'form', 'hafta'];
+const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'rpe', 'msi', 'ozet', 'done', 'salon-start', 'salon', 'salon-ozet', 'salon-plan', 'form', 'hafta', 'salon-prog'];
 const WAKE_SCREENS = new Set(['program', 'rpe', 'msi', 'ozet', 'salon']); // salon: dinlenme sayacı görünür kalsın
 
 const state = {
@@ -3412,6 +3412,8 @@ function renderHomeGym() {
 function salonHazir() {
   const p = data.loadSalonPlan();
   if (p) return { tur: 'plan', hareketler: p.hareketler, oncelik: p.oncelik || {}, kaydedildi: p.kaydedildi };
+  const pr = programGun(todayKey());
+  if (pr.length && !pr.every((r) => r.durum)) return { tur: 'program', hareketler: programHareketler(pr), tarih: todayKey() };
   const d = salonData();
   const w = d && salon.lastWorkout(d.gecmis);
   return w ? { tur: 'son', hareketler: salon.oneriUygula(d.gecmis, w.hareketler), tarih: w.tarih } : null;
@@ -3427,7 +3429,7 @@ function renderGymGo(hz) {
   const gk = Object.entries(k);
   const N = 5;
   const satir = (x) => `<li><i data-bg="${grupRenk(grupOf(x.ad))}"></i><span>${esc(x.ad)}</span><b class="n">${x.set}×${x.sure ? `${x.sure}sn` : fmtDec(x.tekrar)}</b></li>`;
-  $('home-gym-info').innerHTML = `<span class="hgg-hd"><span class="hgg-k">${hz.tur === 'plan' ? 'HAZIR PLAN' : `SON İDMAN · ${esc(fmtDateTR(hz.tarih).toLocaleUpperCase('tr'))}`}</span><button class="hgg-ed" id="home-gym-edit">Düzenle</button></span>
+  $('home-gym-info').innerHTML = `<span class="hgg-hd"><span class="hgg-k">${hz.tur === 'plan' ? 'HAZIR PLAN' : hz.tur === 'program' ? 'BUGÜNÜN PROGRAMI · TABLODAN' : `SON İDMAN · ${esc(fmtDateTR(hz.tarih).toLocaleUpperCase('tr'))}`}</span><button class="hgg-ed" id="home-gym-edit">Düzenle</button></span>
     <span class="hgg-bar">${gk.map(([g, v]) => `<i data-bg="${grup.grupRenk(g)}" data-grow="${v}"></i>`).join('')}</span>
     <span class="hgg-gr">${gk.slice(0, 4).map(([g, v]) => `<span><i data-bg="${grup.grupRenk(g)}"></i>${esc(g)} <b>%${v}</b></span>`).join('')}${gk.length > 4 ? `<span class="mu">+${gk.length - 4}</span>` : ''}</span>
     <ul class="hgg-ls">${hz.hareketler.slice(0, N).map(satir).join('')}</ul>
@@ -3443,6 +3445,7 @@ function onGymStart() {
   if (!hz) return showSalonStart();
   if (hz.tur === 'plan') data.clearSalonPlan();
   sl.ses = salon.newSession(todayKey(), hz.hareketler.map((x) => ({ ...x })));
+  if (hz.tur === 'program') sl.ses.programTarih = hz.tarih;
   if (hz.oncelik) sl.ses.oncelik = { ...hz.oncelik };
   slPersist();
   openSalon();
@@ -3494,6 +3497,7 @@ function renderSalonStart() {
     <button class="btn btn-primary btn-block" data-ss="repeat">Son idmanı tekrarla</button>
     <button class="btn btn-block set-gap" data-ss="edit">Son idmanı düzenle (şablon)</button>` : '<p class="empty">idman sayfasında kayıt yok.</p>';
   body.innerHTML = `${last}<button class="btn btn-block set-gap" data-ss="plan">Yeni idman planla</button>
+    <button class="btn btn-block set-gap" data-ss="prog">📅 Salon programı (hafta)</button>
     ${sl.err ? `<p class="muted set-gap">Çevrimdışı: son alınan veri gösteriliyor.</p>` : ''}`;
   paint(body);
 }
@@ -3510,6 +3514,7 @@ function onSalonStartClick(e) {
     const w = salon.lastWorkout(salonData().gecmis);
     if (w) showSalonPlanSablon({ tur: 'son', hareketler: salon.oneriUygula(salonData().gecmis, w.hareketler), tarih: w.tarih });
   } else if (act === 'plan') showSalonPlan();
+  else if (act === 'prog') showSalonProgram();
 }
 
 function startSalon(hareketler) {
@@ -4411,6 +4416,8 @@ async function saveSalonForm() {
   try {
     await data.saveSalon(payload);
     keepSalonHistory(payload, 'sent');
+    if (sl.ses.programTarih) data.salonProgramYapildi(sl.ses.programTarih).then(() => loadSalon()).catch(() => {}); // program satırları "yapıldı"
+
     slEnd();
     showHome();
     toast(`Salon idmanı kaydedildi: ${payload.hareketler.length} hareket`, 3500);
@@ -4433,6 +4440,100 @@ async function saveSalonForm() {
     sl.saving = false;
     $('so-save').disabled = false;
     $('so-save').textContent = 'Kaydet';
+  }
+}
+
+// --- Salon programı (sürüm 13): SalonTakip "plan" sayfası ------------------------------------
+/** Tablodaki program satırları (plan sayfası yoksa boş). */
+const salonProgram = () => { const d = salonData(); return d && Array.isArray(d.plan) ? d.plan : []; };
+const programGun = (t) => salonProgram().filter((r) => r.tarih === t);
+/** Program satırları → idman hareketleri (son idmana göre öneri yok: program neyse o). */
+function programHareketler(rows) {
+  const ids = {};
+  return rows.map((r) => {
+    const x = salon.hareket({ ad: r.hareket, set: r.set || 3, tekrar: r.tekrar || 10, agirlik: r.agirlik == null ? '' : r.agirlik, dinlen: r.dinlen || 90, sure: r.sure || 0 });
+    if (r.ss) x.ss = ids[r.ss] || (ids[r.ss] = x._k);
+    return x;
+  });
+}
+
+function showSalonProgram(bas) {
+  state.pgBas = bas || salon.haftaBasi(todayKey());
+  show('salon-prog');
+  renderSalonProgram();
+}
+
+function renderSalonProgram() {
+  const bas = state.pgBas;
+  const ad = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+  const yuzme = new Set(visibleDates().map((x) => x.tarih));
+  const bugun = todayKey();
+  $('pg-title').textContent = `${fmtDateTR(bas)} – ${fmtDateTR(yuk.gunEkle(bas, 6))}`;
+  const destek = salonData() && Array.isArray(salonData().plan);
+  const gunler = [];
+  for (let i = 0; i < 7; i++) {
+    const t = yuk.gunEkle(bas, i);
+    const rows = programGun(t);
+    const yapildi = rows.length && rows.every((r) => r.durum);
+    const liste = rows.map((r) => `<li><span>${esc(r.hareket)}</span><b class="n">${r.set}×${r.sure ? `${r.sure}sn` : r.tekrar}${typeof r.agirlik === 'number' ? ` · ${fmtDec(r.agirlik)} kg` : ''}</b></li>`).join('');
+    const sure = rows.length ? fmtSure(salon.tahminSn(programHareketler(rows))) : '';
+    gunler.push(`<div class="pg-gun${t === bugun ? ' today' : ''}${yapildi ? ' done' : ''}" data-pg-gun="${t}">
+      <div class="pg-h"><b>${ad[i]}</b><small>${esc(fmtDateTR(t).split(' ').slice(0, 2).join(' '))}</small>${yuzme.has(t) ? '<em class="pg-yz">🏊 yüzme</em>' : ''}${yapildi ? '<em class="pg-ok">✓ yapıldı</em>' : rows.length ? `<em>${rows.length} hareket · ${sure}</em>` : ''}</div>
+      ${rows.length ? `<ul class="hgg-ls">${liste}</ul><div class="pg-act">${yapildi ? '' : `<button class="btn btn-primary" data-pg="basla" data-t="${t}">İdmana başla</button>`}<button class="btn" data-pg="duzenle" data-t="${t}">Düzenle</button><button class="btn" data-pg="sil" data-t="${t}">Sil</button></div>`
+        : t >= bugun ? `<button class="btn btn-block pg-ekle" data-pg="planla" data-t="${t}">＋ Bu güne salon planla</button>` : ''}</div>`);
+  }
+  $('pg-body').innerHTML = `${destek ? '' : '<p class="bi-off">Programı tabloda tutmak için SalonTakip\'e "plan" sayfası gerekir: ilk kez "Programa yaz" deyince betik sayfayı kendisi açar (Salon.gs sürüm 13).</p>'}${gunler.join('')}
+    <p class="sp-note">Program SalonTakip'in "plan" sayfasında durur; masada planla, salonda uygula. Yapılan gün "yapıldı" işaretlenir, silinmez.</p>`;
+}
+
+async function onSalonProgramClick(e) {
+  const b = e.target.closest('[data-pg]');
+  if (!b) return;
+  const t = b.dataset.t;
+  const rows = programGun(t);
+  if (b.dataset.pg === 'basla') {
+    sl.ses = salon.newSession(todayKey(), programHareketler(rows));
+    sl.ses.programTarih = t;
+    slPersist();
+    openSalon();
+  } else if (b.dataset.pg === 'duzenle') {
+    showSalonPlanSablon({ tur: 'program', hareketler: programHareketler(rows), tarih: t });
+    sl.plan.hedefTarih = t;
+    renderSalonPlan();
+  } else if (b.dataset.pg === 'planla') {
+    showSalonPlan();
+    if (sl.plan) sl.plan.hedefTarih = t;
+  } else if (b.dataset.pg === 'sil') {
+    const ok = await modal({ title: 'Programı sil', body: `<p>${esc(fmtDateTR(t))} günündeki ${rows.length} hareket tablodaki plan sayfasından silinsin mi?</p>`, actions: [{ label: 'Sil', value: true, cls: 'btn-primary' }, { label: 'Vazgeç', value: false }] });
+    if (!ok) return;
+    await programYaz(t, []);
+  }
+}
+
+/** Plan (3. adım) → tabloya programa yazar. Gün: hedef gün ya da seçim. */
+async function programaYaz() {
+  const P = sl.plan;
+  if (!P || !P.liste.length) return;
+  let t = P.hedefTarih;
+  if (!t) {
+    const gunler = Array.from({ length: 7 }, (_, i) => yuk.gunEkle(todayKey(), i));
+    t = await modal({ title: 'Hangi güne?', body: '<p>Plan SalonTakip\'in "plan" sayfasına yazılır; o günün eski planı değişir.</p>', actions: [...gunler.map((g, i) => ({ label: `${i === 0 ? 'Bugün' : i === 1 ? 'Yarın' : ''} ${fmtDateTR(g)}`.trim(), value: g, cls: i === 0 ? 'btn-primary' : '' })), { label: 'Vazgeç', value: '' }] });
+    if (!t) return;
+  }
+  const hareketler = P.liste.map((x) => ({ hareket: x.ad, set: x.set, tekrar: x.sure ? 1 : x.tekrar, agirlik: x.agirlik, sure: x.sure || '', dinlen: x.dinlen, ss: x.ss ? String(P.liste.findIndex((y) => y.ss === x.ss) + 1) : '' }));
+  if (await programYaz(t, hareketler)) { sl.plan = null; showSalonProgram(salon.haftaBasi(t)); }
+}
+
+async function programYaz(t, hareketler) {
+  try {
+    await data.saveSalonProgram(t, hareketler);
+    await loadSalon();
+    toast(hareketler.length ? `Programa yazıldı: ${fmtDateTR(t)} · ${hareketler.length} hareket` : `Program silindi: ${fmtDateTR(t)}`, 3000);
+    if (state.screen === 'salon-prog') renderSalonProgram();
+    return true;
+  } catch (err) {
+    toast(err.code === 'UNKNOWN_ACTION' ? 'Salon.gs eski: sürüm 13 betiğini yapıştırıp yeniden dağıt.' : `Yazılamadı: ${err.message}`, 4500);
+    return false;
   }
 }
 
@@ -4534,7 +4635,7 @@ function renderSalonPlan() {
     next.textContent = `Plana geç · ${P.secili.length} hareket`;
     next.disabled = !P.secili.length;
   } else {
-    $('sp-title').textContent = P.sablon ? (P.sablon === 'plan' ? 'Planı düzenle' : 'Son idmandan plan') : 'Plan';
+    $('sp-title').textContent = P.sablon ? (P.sablon === 'plan' ? 'Planı düzenle' : P.sablon === 'program' ? 'Programı düzenle' : 'Son idmandan plan') : 'Plan';
     if (P.liste.length !== P.secili.length || P.liste.some((x, i) => x.ad !== P.secili[i])) {
       P.liste = P.secili.map((ad) => P.liste.find((x) => x.ad === ad) || salon.planHareket(d, ad, { bodyweight: (katalogOf(ad) || {}).ekipman === 'Bodyweight' }));
     }
@@ -4552,6 +4653,7 @@ function renderSalonPlan() {
           ${i < P.liste.length - 1 ? `<button class="sp-ss${x.ss && P.liste[i + 1].ss === x.ss ? ' is-on' : ''}" data-sp-ss="${i}">${x.ss && P.liste[i + 1].ss === x.ss ? '⛓ süperset · ayır' : '⛓ süperset yap'}</button>` : ''}`;
       }).join('')}
       <button class="btn btn-block sp-ekle" data-sp-add>＋ Hareket ekle</button>
+      <button class="btn btn-block sp-ekle" data-sp-prog>📅 ${P.hedefTarih ? `Programa yaz · ${esc(fmtDateTR(P.hedefTarih))}` : 'Programa yaz (gün seç)'}</button>
       <p class="sp-note">Set, tekrar, ağırlık: sağdaki değere dokun. Plan yalnızca telefonda tutulur.</p>`;
     next.textContent = 'İdmana başla';
     next.disabled = !P.liste.length;
@@ -4712,6 +4814,9 @@ function onSalonPlanClick(e) {
   } else if (t.dataset.spEd != null) {
     openSlEdit(Number(t.dataset.spEd), 'plan');
     return;
+  } else if (t.dataset.spProg != null) {
+    programaYaz();
+    return;
   } else if (t.dataset.spAdd != null) {
     P.step = 1;
   } else if (t.dataset.spRm) {
@@ -4818,6 +4923,10 @@ function wire() {
   wireSalon();
   $('home-history').addEventListener('click', showHistory);
   $('home-form').addEventListener('click', showForm);
+  $('pg-back').addEventListener('click', () => showSalonStart());
+  $('pg-prev').addEventListener('click', () => { state.pgBas = yuk.gunEkle(state.pgBas, -7); renderSalonProgram(); });
+  $('pg-next').addEventListener('click', () => { state.pgBas = yuk.gunEkle(state.pgBas, 7); renderSalonProgram(); });
+  $('pg-body').addEventListener('click', onSalonProgramClick);
   $('home-gym-info').addEventListener('click', (e) => { if (e.target.closest('#home-gym-edit')) showSalonPlanSablon(salonHazir()); });
   $('home-hafta').addEventListener('click', () => showHaftaOzeti());
   $('fm-back').addEventListener('click', showHome);
