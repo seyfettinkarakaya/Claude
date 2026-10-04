@@ -218,5 +218,36 @@ sc('İdman: set sırasında ağrı 2 → hareket durur (yapılan setle), hareket
   assert.equal((await s.ls('ysk.salonSession')).hareketler[0].set, 2);
 });
 
+sc('Hareket bilgi kartı: planlamada ⓘ → Türkçe adımlar, yerel fotoğraf, kısıt; idman ayrıntısında mini vücut + son idmanlar grafiği + kart', async ({ launch }) => {
+  const extra = [[D('2026-09-06'), 1, 'Dumbbell Shoulder Press', 3, 10, 10, 125, 7, 0, ''], [D('2026-08-30'), 1, 'Dumbbell Shoulder Press', 3, 8, 10, 125, 8, 0.5, '']];
+  const s = await launch({ salonSheets: salonV12(extra), ref: true, viewport: { width: 390, height: 844 } }); const p = s.page;
+  await toPlanList(s, ['Shoulders']);
+  await p.click('[data-sp-info="Band External Rotation"]');
+  await p.waitForSelector('#bilgi:not([hidden])');
+  assert.equal(await txt(s, '#bi-title'), 'Bantla dış rotasyon');
+  assert.match(await txt(s, '#bi-body'), /Band External Rotation.*ÇALIŞAN KAS\s*omuz.*✓ Kısıtlarına uygun.*NASIL YAPILIR.*Dirseği 90° bük.*SIK HATA.*Yüzmeye katkısı/);
+  assert.equal(await p.getAttribute('#bi-media img', 'src'), 'img/hareket/External_Rotation_with_Band_0.webp');
+  await p.waitForFunction(() => document.querySelector('#bi-media img').complete && document.querySelector('#bi-media img').naturalWidth > 0);
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/bi1.png` });
+  await p.click('#bi-close');
+  assert.equal(await p.isHidden('#bilgi'), true);
+  assert.deepEqual(await p.$$eval('.sp-ex.is-on', (e) => e.length), [0][0], 'ⓘ hareketi seçmez');
+  // Goblet Squat: kısıtlı kart (⊘ + alternatif) — listeye yasaklıları göster, kartı plan dışında aç
+  await p.click('[data-sp-ex="Dumbbell Shoulder Press"]'); await p.click('#sp-next'); await p.click('#sp-next');
+  await s.waitScreen('salon'); await p.waitForSelector('#sl-wheel .w-item.is-active');
+  await p.click('#sl-wheel .w-item.is-active .w-tag'); await p.waitForSelector('#sl-detail:not([hidden])');
+  assert.match(await txt(s, '#sl-detail-body'), /SON 3 İDMAN · AĞIRLIK \(KG\)/);
+  assert.equal(await p.$$eval('#sl-detail-body svg.hg circle.hit', (e) => e.length), 3);
+  const titles = await p.$$eval('#sl-detail-body svg.hg circle.hit title', (e) => e.map((x) => x.textContent));
+  assert.match(titles[0], /30\.08 · 10 kg · RPE 8 · MSI 0,5/);
+  assert.match(titles[2], /20\.09 · 12,5 kg · RPE 7,5/);
+  assert.equal(await p.$$eval('#sl-detail-body .dt-kas .kf.mini', (e) => e.length), 1);
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/bi2.png` });
+  await p.click('#sl-detail [data-bilgi]');
+  await p.waitForSelector('#bilgi:not([hidden])');
+  assert.equal(await txt(s, '#bi-title'), 'Dambıl omuz press');
+  assert.match(await txt(s, '#bi-body'), /⚠ Sağ omuz: ağrısız aralıkta/);
+});
+
 const only = process.argv[2];
 if (require.main === module) runScenarios('Sürüm 12 senaryoları', only ? S.filter(([n]) => n.toLowerCase().includes(only.toLowerCase())) : S, 8150);

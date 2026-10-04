@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <!-- Yalnızca kendi dosyalarımız yüklenir; ağ bağlantısı yalnızca Apps Script'e. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; manifest-src 'self'; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https://raw.githubusercontent.com; manifest-src 'self'; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>YüzmeSK</title>
@@ -185,6 +185,12 @@
       <button class="mola-go" id="sl-devam"><b>DEVAM ET</b><small>İdman saati yeniden işler</small></button>
     </div>
   </section>
+
+  <!-- Hareket bilgi kartı (her ekrandan açılır) -->
+  <div class="bilgi" id="bilgi" hidden>
+    <header class="es-head"><button class="icon-btn" id="bi-close" aria-label="Kapat">‹</button><div><p class="es-tag" id="bi-tag"></p><h2 class="es-title" id="bi-title"></h2></div></header>
+    <div class="es-scroll" id="bi-body"></div>
+  </div>
 
   <!-- Salon özeti ve kayıt -->
   <section id="screen-salon-ozet" class="screen days salon-ozet" hidden>

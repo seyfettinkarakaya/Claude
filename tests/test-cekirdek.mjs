@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import * as G from '../grup.js';
 import * as K from '../kisit.js';
 import * as Y from '../yuk.js';
+import * as BI from '../bilgi.js';
 
 let n = 0;
 const t = (name, fn) => { try { fn(); n++; } catch (e) { console.error('BAŞARISIZ:', name); throw e; } };
@@ -115,4 +116,19 @@ t('yük: form eğrisi, oran, toparlanma, BR payı, haftalık gün', () => {
   assert.equal(Y.yuzmeKatsayi({ yuzmeKas: [{ stil: 'fr', grup: 'Shoulders', katsayi: 0.5 }] }).FR.Omuz, 0.5);
 });
 
+t('bilgi: hareket adı eşleştirme (ekipman sözcüğü içerik sayılmaz, eşik), Görsel sütunu, kas yoğunluğu', () => {
+  const db = [['External_Rotation_with_Band', 'External Rotation with Band'], ['Back_Flyes_-_With_Bands', 'Back Flyes - With Bands'], ['Dumbbell_Flyes', 'Dumbbell Flyes'],
+    ['Pullups', 'Pullups'], ['Plank', 'Plank'], ['Push_Up_to_Side_Plank', 'Push Up to Side Plank'], ['Wide-Grip_Lat_Pulldown', 'Wide-Grip Lat Pulldown'], ['Crunches', 'Crunches']];
+  assert.equal(BI.eslestir('Band External Rotation', db), 'External_Rotation_with_Band');
+  assert.equal(BI.eslestir('Standard Pull-up', db), 'Pullups');
+  assert.equal(BI.eslestir('Front Plank', db), 'Plank');
+  assert.equal(BI.eslestir('Band Lat Pulldown', db), 'Wide-Grip_Lat_Pulldown');
+  assert.equal(BI.eslestir('Band Chest Fly', db), null, 'göğüs fly sırt fly\'ına eşleşmez; ekipman da farklı → emin değil');
+  assert.equal(BI.eslestir('Dumbbell Chest Fly', db), 'Dumbbell_Flyes');
+  assert.equal(BI.eslestir('Side Plank Abduction', db), null, 'emin değilse eşleştirmez');
+  assert.equal(BI.eslestir('Band Bent Over Row', db, 'Crunches'), 'Crunches', 'Görsel sütunu önce');
+  assert.equal(BI.eslestir('', db), null);
+  assert.deepEqual([...BI.sozcukler('Chin-Ups with Bands')], ['chinup', 'band']);
+  assert.deepEqual(BI.kasYogunluk(['shoulders'], ['triceps', 'shoulders', 'lats']), { Triseps: 0.45, Omuz: 1, 'Sırt': 0.45 });
+});
 console.log(`çekirdek testleri: TAMAM (${n})`);

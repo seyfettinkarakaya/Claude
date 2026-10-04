@@ -10,6 +10,7 @@ import * as grup from './grup.js?v=11.0.1';
 import * as kisit from './kisit.js?v=11.0.1';
 import * as yuk from './yuk.js?v=11.0.1';
 import * as harita from './harita.js?v=11.0.1';
+import * as bilgi from './bilgi.js?v=11.0.1';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
 export const APP_VERSION = '11.0.1';
@@ -3277,6 +3278,85 @@ function slPlusSet() {
   });
 }
 
+// --- Sürüm 12: hareket bilgi kartı (free-exercise-db) ve hareket grafiği --------------------
+
+let hdb = null; // hareketdb.js (yalnızca kart açılınca yüklenir)
+const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=11.0.1'));
+let bilgiTimer = null;
+
+/** Hareket bilgi kartını açar (fotoğraf başlangıç ↔ bitiş, adımlar, kaslar, kısıt, sık hata, video). */
+async function bilgiKarti(ad) {
+  const H = await hdbYukle();
+  const k = katalogOf(ad) || { ad };
+  const id = bilgi.eslestir(ad, H.DB, k.gorsel || '', (x) => Boolean(H.TR[x]) || H.YEREL.has(x));
+  const r = id ? H.DB.find((x) => x[0] === id) : null;
+  const tr = id ? H.TR[id] : null;
+  const ks = kisitOf(ad);
+  const kasY = r ? bilgi.kasYogunluk(r[3], r[4]) : grup.haritaPay(salonData() ? salon.grupPay(salonData().etki, ad) : {});
+  const src = (i) => (H.YEREL.has(id) ? `img/hareket/${id}_${i}.webp` : `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${id}/${i}.jpg`);
+  const g = grupOf(ad);
+  const box = $('bilgi');
+  box.style.setProperty('--c', grup.grupRenk(g));
+  $('bi-tag').textContent = `${grup.grupAd(g).toLocaleUpperCase('tr') || 'HAREKET'}${ks.durum !== 'uygun' ? ' · KISITLI' : ''}`;
+  $('bi-title').textContent = tr ? tr.ad : ad;
+  $('bi-body').innerHTML = `${tr && tr.ad !== ad ? `<p class="bi-en">${esc(ad)}</p>` : r && r[1] !== ad ? `<p class="bi-en">${esc(ad)} · ${esc(r[1])}</p>` : ''}
+    ${id ? `<div class="bi-media" id="bi-media"><img src="${src(0)}" alt="${esc(ad)}: başlangıç"><img class="b" src="${src(1)}" alt="${esc(ad)}: bitiş">
+      <div class="bi-ph"><button data-bi-p="0" class="on">1 · Başlangıç</button><button data-bi-p="1">2 · Bitiş</button><button data-bi-p="a" class="play">⏸ durdur</button></div></div>`
+    : '<p class="dt-why">Bu hareket için fotoğraf bulunamadı. Tablodaki H sayfasına "Görsel" sütunu ekleyip free-exercise-db kimliğini yazabilirsin.</p>'}
+    <div class="bi-row"><span class="sp-mb big" data-mb data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(Object.fromEntries(Object.entries(kasY).map(([gg, v]) => [gg, Math.round(v * 100)]))))}"></span>
+      <div><p class="sp-lb">ÇALIŞAN KAS</p>${r ? `<p><b>${esc(r[3].map(bilgi.kasAdi).join(', '))}</b></p>${r[4].length ? `<p class="mu">İkincil: ${esc(r[4].map(bilgi.kasAdi).join(', '))}</p>` : ''}` : etkiTR(ad).map(([gg, o]) => `<p>${esc(gg)} <b>${fmtDec(Math.round(o * 100) / 100)}</b></p>`).join('')}</div></div>
+    ${ks.durum === 'yasak' ? `<p class="bi-k red">⊘ ${esc(ks.neden.join(' · '))}${ks.alternatif ? ` · yerine: ${esc(ks.alternatif)}` : ''}</p>` : ''}
+    ${ks.notlar.map((t) => `<p class="bi-k">⚠ ${esc(t)}</p>`).join('')}
+    ${ks.durum === 'uygun' ? '<p class="bi-k ok">✓ Kısıtlarına uygun</p>' : ''}
+    ${tr ? `<p class="sp-lb">NASIL YAPILIR</p><ol class="bi-ol">${tr.adim.map((a) => `<li>${esc(a)}</li>`).join('')}</ol>
+      <p class="sp-lb">SIK HATA</p><ul class="bi-err">${tr.hata.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
+      <div class="bi-swim"><b>Yüzmeye katkısı</b><p>${esc(tr.yuzme)}</p></div>`
+    : r ? `<p class="sp-lb">NASIL YAPILIR <small>(kaynak İngilizce)</small></p><ol class="bi-ol" lang="en">${r[5].map((a) => `<li>${esc(a)}</li>`).join('')}</ol>` : ''}
+    ${k.video ? `<p><a class="sl-vid is-inline" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer">▶ Videoyu YouTube'da aç</a></p>` : ''}
+    ${id ? `<p class="bi-src">Fotoğraf ve İngilizce anlatım: free-exercise-db (kamu malı)${H.YEREL.has(id) ? '' : ' · fotoğraf internetten yüklenir'}</p>` : ''}`;
+  paint($('bi-body'));
+  yerlestirMini($('bi-body'));
+  box.hidden = false;
+  clearInterval(bilgiTimer);
+  const m = $('bi-media');
+  if (m) {
+    let auto = true, ph = 0;
+    const set = (p) => { ph = p; m.classList.toggle('p1', p === 1); m.querySelectorAll('[data-bi-p]').forEach((b) => b.classList.toggle('on', b.dataset.biP === String(p))); };
+    bilgiTimer = setInterval(() => { if (auto && !box.hidden) set(ph ? 0 : 1); }, 1500);
+    m.querySelector('.bi-ph').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-bi-p]');
+      if (!b) return;
+      if (b.dataset.biP === 'a') { auto = !auto; b.textContent = auto ? '⏸ durdur' : '⏵ oynat'; } else { auto = false; m.querySelector('.play').textContent = '⏵ oynat'; set(Number(b.dataset.biP)); }
+    });
+  }
+}
+function bilgiKapat() { $('bilgi').hidden = true; clearInterval(bilgiTimer); }
+
+/** Hareketin son 8 idmanı: ağırlık (kg) ya da en iyi tekrar/süre; tek çizgi, noktada RPE. */
+function hareketGrafik(ad) {
+  const d = salonData();
+  const h = d ? salon.historyOf(d.gecmis, ad).slice(0, 8).reverse() : [];
+  if (h.length < 2) return '';
+  const kg = h.every((r) => typeof r.agirlik === 'number');
+  const timed = salon.isTimed(ad, h[h.length - 1].aciklama);
+  const val = (r) => (kg ? r.agirlik : Math.max(...(salon.parseSetler(r.aciklama) || [Number(r.tekrar) || 0])));
+  const v = h.map(val);
+  const lo = Math.min(...v), hi = Math.max(...v);
+  const pad = (hi - lo) * 0.15 || 1;
+  const W = 300, Hh = 96, pl = 30, pr = 50, pt = 8, pb = 18;
+  const X = (i) => pl + ((W - pl - pr) * i) / (h.length - 1);
+  const Y = (y) => pt + (Hh - pt - pb) * (1 - (y - (lo - pad)) / (hi - lo + 2 * pad));
+  const birim = kg ? ' kg' : timed ? ' sn' : '';
+  const pts = v.map((y, i) => `${X(i).toFixed(1)},${Y(y).toFixed(1)}`).join(' ');
+  const ticks = [lo, hi].filter((t, i, a) => a.indexOf(t) === i).map((t) => `<text x="${pl - 5}" y="${(Y(t) + 4).toFixed(1)}" text-anchor="end" class="ax">${fmtDec(t)}</text><line x1="${pl}" x2="${W - pr}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}" class="gl"/>`).join('');
+  const dots = h.map((r, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v[i]).toFixed(1)}" r="8" class="hit"><title>${esc(r.tarih.slice(8, 10))}.${esc(r.tarih.slice(5, 7))} · ${fmtDec(v[i])}${birim}${r.rpe != null ? ` · RPE ${fmtDec(r.rpe)}` : ''}${r.msi ? ` · MSI ${fmtDec(r.msi)}` : ''}</title></circle>`).join('');
+  return `<p class="sp-lb">SON ${h.length} İDMAN · ${kg ? 'AĞIRLIK (KG)' : timed ? 'EN UZUN SÜRE (SN)' : 'EN ÇOK TEKRAR'}</p>
+    <svg class="hg" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="${esc(ad)} son ${h.length} idman">${ticks}
+      <text x="${pl}" y="${Hh - 4}" class="ax">${esc(h[0].tarih.slice(8, 10))}.${esc(h[0].tarih.slice(5, 7))}</text><text x="${W - pr}" y="${Hh - 4}" text-anchor="end" class="ax">${esc(h[h.length - 1].tarih.slice(8, 10))}.${esc(h[h.length - 1].tarih.slice(5, 7))}</text>
+      <polyline points="${pts}" class="ln"/>${dots}<circle cx="${X(h.length - 1).toFixed(1)}" cy="${Y(v[v.length - 1]).toFixed(1)}" r="4" class="last"/>
+      <text x="${(X(h.length - 1) + 8).toFixed(1)}" y="${(Y(v[v.length - 1]) + 4).toFixed(1)}" class="dl">${fmtDec(v[v.length - 1])}${birim}</text></svg>`;
+}
+
 // --- Sürüm 12: set sırasında ağrı (MSI kural motoru), ısınma şablonu ----------------------
 
 /** Set sırasında ağrı: 0,5 not · 1–1,5 hafiflet önerisi · 2 hareketi durdur · 3+ seansı bitir önerisi. */
@@ -3396,17 +3476,22 @@ function openSlDetail(h) {
     <div class="dt-title sl-dt">${esc(x.ad)}</div>
     <p class="dt-row">Hedef <b>${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}</b> · ${esc(fmtKg(x.agirlik))} · Dinlen <b>${fmtDur(x.dinlen)}</b></p>
     ${k ? `<p class="dt-row">${esc([k.amac, k.ekipman].filter(Boolean).join(' · '))}${k.stc != null ? ` · Yüzme katsayısı ${fmtDec(k.stc)}` : ''}</p>` : '<p class="dt-why">Katalogda (H) yok: v2 formülü bu hareketi hesaplamaz.</p>'}
-    ${etki.length ? `<p class="dt-row sl-etki">${etki.slice(0, 4).map(([g, o]) => `${esc(g)} <b>${fmtDec(Math.round(o * 100) / 100)}</b>`).join(' · ')}</p>` : ''}
+    ${etki.length ? `<div class="dt-kas"><span class="sp-mb" data-mb data-mb-ad="${esc(x.ad)}"></span><p class="dt-row sl-etki">${etki.slice(0, 4).map(([g, o]) => `${esc(g)} <b>${fmtDec(Math.round(o * 100) / 100)}</b>`).join(' · ')}</p></div>` : ''}
+    ${hareketGrafik(x.ad)}
+    <p class="dt-row"><button class="sl-bilgi" data-bilgi="${esc(x.ad)}">ⓘ Nasıl yapılır</button></p>
     ${k && k.video ? `<p class="dt-row"><a class="sl-vid is-inline" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer">▶ Videoyu YouTube'da aç</a></p>` : ''}
     <div class="dt-acts sl-acts">${b('edit', '✎', 'Düzenle', !working && stat !== 'tamam')}${b('swap', '⇄', 'Değiştir', !working && !started)}${b('add', '＋', 'Sonrasına ekle', !working)}${b('del', '🗑', 'Sil', !working && !started && slH().length > 1, 'del')}</div>
     ${working ? '<p class="dt-why">Set sürerken düzenlenemez</p>' : started ? '<p class="dt-why">Başlanan hareket silinemez ya da değiştirilemez</p>' : ''}
     <p class="dt-hint">Boşluğa dokun: kapat</p>`;
   paint($('sl-detail-body'));
+  yerlestirMini($('sl-detail-body'));
   box.hidden = false;
 }
 
 function onSlDetailClick(e) {
   if (e.target.closest('a')) return;
+  const bi = e.target.closest('[data-bilgi]');
+  if (bi) { bilgiKarti(bi.dataset.bilgi); return; }
   const btn = e.target.closest('[data-sact]');
   if (btn && btn.disabled) return;
   const box = $('sl-detail');
@@ -3788,7 +3873,7 @@ function renderSalonPlan() {
         <span class="sp-mb" data-mb data-mb-ad="${esc(r.ad)}"></span>
         <span class="sp-sc"><b class="n">${r.puan}</b><small>PUAN</small></span>
         <span class="sp-m"><b>${esc(r.ad)}${r.amac ? `<span class="sp-tag">${esc(r.amac.toLocaleUpperCase('tr'))}</span>` : ''}${r.oneri && r.oneri.warn ? ' <span class="warn">⚠</span>' : ''}</b>
-          ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))}</small>
+          ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))} · <span class="sp-i" data-sp-info="${esc(r.ad)}" role="button" aria-label="Nasıl yapılır">ⓘ nasıl</span></small>
           ${r.borcAcik ? `<small class="sp-ok">Önleyici: ${esc(salon.ONLEYICI.find((o) => o.key === r.kat).ad.toLocaleLowerCase('tr'))} borcu</small>` : ''}
           ${r.yorgun.length ? `<small class="warn">Dinleniyor: ${esc(r.yorgun.join(', '))}</small>` : ''}
           ${r.ks.notlar.map((t) => `<small class="sp-kn">⚠ ${esc(t)}</small>`).join('')}</span>
@@ -3932,6 +4017,8 @@ function onSalonPlanPointer(e) {
 function onSalonPlanClick(e) {
   const P = sl.plan;
   if (!P || e.target.closest('a')) return;
+  const inf = e.target.closest('[data-sp-info]');
+  if (inf) { bilgiKarti(inf.dataset.spInfo); return; }
   const fig = e.target.closest('#hm-wrap .kf');
   if (fig) {
     if (P.hmSwiped && Date.now() - P.hmSwiped < 400) return;
@@ -4045,6 +4132,7 @@ function wireSalon() {
   $('sp-body').addEventListener('pointerup', onSalonPlanPointer);
   $('sp-next').addEventListener('click', onSalonPlanNext);
   $('sp-save').addEventListener('click', onSalonPlanSave);
+  $('bi-close').addEventListener('click', bilgiKapat);
   $('home-gym-start').addEventListener('click', onGymStart);
   $('home-gym-planla').addEventListener('click', () => (data.isConfigured('salon') ? showSalonPlan() : showSetup(true)));
 }
