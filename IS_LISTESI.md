@@ -9,6 +9,37 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
 
 ## Sıradaki
 
+### Sürüm 12 — tek seferde uygulanacak plan (04.10.2026)
+"uygula" denince aşağıdakilerin **hepsi tek sürümde** yapılır; sıra, bağımlılığa göre. Ayrıntılar alttaki
+maddelerde (A1–F5, salon senaryosu, hareket bilgi kartları). Garmin (F4) sonraya; antrenör raporu (F3) çıkarıldı.
+- [ ] **0. Hazırlık:** tüm testler yeşil (03.10.2026: hepsi geçti, uçtan uca 52/52); dalda çalışılır.
+- [ ] **1. Veri ve betikler (yalnızca ekleme):** sporRef'e `kisit`, `yuzmeKas` (stil → kas katsayıları), `drill`
+  (video) sayfaları; SporRef.gs bunları okur + CSS testi için yalnızca satır ekleyen işlem. SalonTakip `H`'ye
+  isteğe bağlı Kısıt / Alternatif / Görsel sütunları (yoksa da çalışır). Eski sütunlar, sayfalar, işlemler aynen.
+- [ ] **2. Ortak çekirdek:** 10 kas grubu (Türkçe ad, v27 renkleri; eski 7 ad çalışır) · kısıt motoru (A1, A2,
+  A3, A5, A6) · yük ve toparlanma (B1–B5, yüzme kas yükü dahil).
+- [ ] **3. Salon:** kas haritalı planlama (v27; eski çubuk listesi "Liste" görünümü) · öneri kartlarında mini
+  vücut + plan tepsisi · plan Kaydet + ana sayfadan doğrudan giriş · otomatik ilerleme ("geri al"; ⚠'de yok) ·
+  toparlanma · önleyici borç (E1) · kart üstü kısıt (E2) · ısınma şablonu (E3) · periyotlama (E4) · rekor ·
+  özet (hacim, kas ısı haritası, kıyas) · hareket grafiği · dinlenme bitti bildirimi · süperset · ısınma seti ·
+  **hareket bilgi kartları (G)**.
+- [ ] **4. Yüzme:** omuz rahatlatma (A4) · kulaç + nabız girişi, SWOLF (C1–C3) · drill videosu (C4) · ağrı
+  haritası (C5) · özet (D1) · set grafiği (D2) · denge (D3) · rehberli CSS testi (D4) · derece tahmini (D5).
+- [ ] **5. Ortak ekranlar:** ana ekran (F1) · takvim (F2) · haftanın iskeleti (F5) · form ekranı (B2–B3).
+- [ ] **6. Düzeltmeler:** hareket sonu "SETLER 10-10-/10" kırılması · İngilizce grup adları ("Legs 0,7") ·
+  Ayarlar'da kaynak/lisans notu (kas görseli: kullanıcı; hareket fotoğrafları: free-exercise-db, Unlicense).
+- [ ] **7. Test ve yayın:** her adımda tüm testler; her yeni özelliğe uçtan uca senaryo; senaryo ve öneri
+  panoları yeniden çekilir; kurulum rehberi (yeni sayfalar) güncellenir; sürüm 12.0.0 → main.
+
+- [ ] **G. Hareket bilgi kartları (infografik)** (talep 04.10.2026). Kaynak: free-exercise-db (yuhonas, Unlicense =
+  kamu malı; 876 hareket, her biri başlangıç/bitiş fotoğrafı, adım adım anlatım, birincil/ikincil kas, ekipman).
+  - Eşleme: H'deki hareket adları → veritabanı kimliği (otomatik + elle düzeltme; H'de isteğe bağlı "Görsel").
+  - Yalnızca senin hareketlerinin fotoğrafları uygulamaya gömülür (webp, çevrimdışı çalışır; dış istek yok).
+  - Kart: başlangıç ↔ bitiş geçişi (animasyon), Türkçe adımlar, çalışan kaslar v27 mini vücutta, kısıt notu
+    (A2/E2), sık hata, ▶ video. Eşleşmeyen harekette: mini vücut + adımlar + video.
+  - Açılış: idmanda karta dokun → ayrıntı paneli; planlamada öneri kartında ⓘ.
+
+
 **Sürüm 11 yayında (03.10.2026):** 3'lü dosya yapısı (YuzmeProgram · SalonTakip · sporRef, her birine
 kendi `@OnlyCurrentDoc` betiği), sporRef'ten CSS ve 7 bölge, idman anında düzenleme, metin boyu,
 salon idmanı + planlama + video. Kurulum için yapılacaklar (senin tarafında):
@@ -154,9 +185,8 @@ Talep (03.10.2026, karar bekliyor):
   - [ ] F1 Ana ekran: haftalık 3 gün halkası, form durumu (taze/yorgun), bugünün önerisi (yüzme mi salon mu,
     süre bütçesiyle), BR ve omuz prehab göstergeleri.
   - [ ] F2 Takvim: salon günleri, günlük yük çubuğu, kısıt uyarıları.
-  - [ ] F3 Haftalık rapor (Pazar): km, salon set, bölge ve stil dengesi, BR %, ağrı haritası, form; antrenöre
-    paylaşılabilir sayfa.
-  - [ ] F4 Saat verisi içe aktarma (Garmin FIT dosyası seç): kulaç, nabız, SWOLF otomatik dolar.
+  - ~~F3 Haftalık rapor (antrenöre paylaşılabilir)~~ — çıkarıldı (04.10.2026: antrenör yok).
+  - [ ] F4 Saat verisi içe aktarma (Garmin FIT) — **sonra** (04.10.2026), sürüm 12'de yok.
   - [ ] F5 Haftalık program iskeleti önerisi: kısıtlar + form + denge → 3 günün odağı (öneri, program sayfasına
     yazmaz).
   Örnek ekranlar (19 taslak, her madde en az birinde): `tasarim/oneriler/oneriler.html` (kaynak: `kaynak/yap.py`).

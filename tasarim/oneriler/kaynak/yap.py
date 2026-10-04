@@ -106,7 +106,7 @@ E['ana'] = phone(f'''
 slot = lambda gun, saat, butce, tur, odak, renk, alt='': f'''<div class="slot" style="border-left-color:{renk}"><div class="sl-h"><b>{gun}</b><span>{saat}</span><span class="bud n">{butce}</span></div>
   <p class="sl-t">{tur}</p><p class="mu sm">{odak}</p>{alt}</div>'''
 E['iskelet'] = phone(f'''{hd('Haftanın iskeleti', '6–11 Ekim')}
-<p class="note">Öneri: kısıtlar + form + denge. Program sayfasına yazmaz; antrenörün programı esas.</p>
+<p class="note">Öneri: kısıtlar + form + denge. Program sayfasına yazmaz; yalnızca öneri.</p>
 {slot('Salı', 'sabah', '75–80 dk', 'Yüzme · aerobik + teknik', 'EN2 ana set 2.000 m, drill 400 m (catch-up), FR → BK', '#2DD4BF', stack([('EN1', 25, ZC[1]), ('EN2', 55, ZC[2]), ('EN3', 10, ZC[3]), ('REC', 10, ZC[0])]))}
 {slot('Perşembe', 'öğle', '65 dk', 'Salon · önleyici + core', 'Omuz prehab (rotator manşet), core, kalça stabilite · ağır itiş yok', '#F5A524', '<p class="warn sm">⚠ Cuma eşik seti var: Perşembe omuzu hafif tut (B5)</p>')}
 {slot('Cuma', 'akşam', 'sınırsız', 'Yüzme · eşik + hız', 'EN3 4×200 + SP1 8×50, BR ≤ 200 m (bu ay %6)', '#2DD4BF', stack([('EN2', 35, ZC[2]), ('EN3', 40, ZC[3]), ('SP1', 15, ZC[4]), ('REC', 10, ZC[0])]))}
@@ -297,8 +297,7 @@ SEC = [
         ('isinma', ['E2', 'E3'], 'Isınma şablonu + kart üstü kısıt', 'Bant omuz ısınması kayda sayılmaz; kartta "derinlik ≤ 90°", "ağrısızsa", "yavaş iniş".'),
         ('periyot', ['E4'], 'Periyotlama', '4 haftalık blok (hacim → kuvvet → dinlenme), yüzme yüküyle birlikte; yük oranı yükselirse dinlenme haftası öne gelir.'),
         ('ana', ['F1'], 'Ana ekran', 'Haftalık gün halkası, omuz rahatlatma, form, bugünün önerisi (süre bütçesiyle), kurbağalama ve önleyici göstergeler.'),
-        ('rapor', ['F3'], 'Haftalık rapor', 'Km, set, bölge ve stil dengesi, ağrı, form; antrenöre paylaşılabilir.'),
-        ('fit', ['F4'], 'Saat verisi içe aktarma', 'Garmin FIT dosyası seçilir; setlerle eşleşir, kulaç/nabız/SWOLF dolar.'),
+        ('fit', ['F4'], 'Saat verisi içe aktarma · SONRA', 'Sürüm 12\'de yok; sonraya bırakıldı. Garmin FIT dosyası seçilir; setlerle eşleşir, kulaç/nabız/SWOLF dolar.'),
     ]),
 ]
 
