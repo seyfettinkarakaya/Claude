@@ -44,6 +44,12 @@ yanlış ekipmanla). Seçenekler:
   setlerinde zayıf → bunlar için H'deki **Video** sütunu (YouTube, uygulama içinde oynatma) en sağlam yol.
 Öneri: GIF seti (yalnız senin hareketlerin, ~40–60 dosya, uygulamaya gömülü) + rehab/esneme için video;
 free-exercise-db yedek. Karar: hangi kaynak?
+İnceleme (04.10.2026, exercises-dataset indirildi): 1.324 hareket; gruplama vücut bölgesi (10) + ekipman (28) +
+hedef kas + yardımcı kaslar; adımlar madde madde, Türkçe dahil. **Veri ve metinler MIT** (serbest). **GIF'ler
+Gym visual'ın**: depoyu kopyalamak lisans vermez; kullanım Gym visual koşullarına bağlı (sitesi buradan açılamadı),
+gerekirse izin/lisans alınmalı. Kapsam: senin 16 hareketinden 5 birebir, 5 yakın, 6 yok (esneme/nefes/asılma).
+Bant hareketleri 61, esneme 57. Örnek ekranlar: `tasarim/v28/ornek.html` (kütüphane, kart, seçim, eşleme;
+GIF'ler depoya konmadı, kaynağından gösterilir; üretici `kaynak/yap.py`).
 
 ### Kas haritası notları (04.10.2026, sürüm 12 sonrası) — 12.1.0'da yapıldı (yukarıda)
 - [ ] **Seçince renkler gidiyor:** bir kas seçilince seçilmeyen gruplar griye dönüyor (`harita.js` → `guncelle`:
