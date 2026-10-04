@@ -1,22 +1,28 @@
 /**
  * @OnlyCurrentDoc
  *
- * YüzmeSK — sporRef arka ucu (salt okuma)
+ * YüzmeSK — sporRef arka ucu
  *
  * sporRef tablosuna bağlı (container-bound) betik olarak kurulur ve web
  * uygulaması olarak yayınlanır (erişim: herkes, çalıştıran: ben). Yalnızca
- * bağlı olduğu tabloyu okur; hiçbir şey yazmaz.
+ * bağlı olduğu tabloya erişir. Tek yazma işlemi addCss: css sayfasının sonuna
+ * yeni satır ekler (var olan satırlara dokunmaz).
  *
- * Uç nokta (POST, gövde JSON): getRef
+ * Uç noktalar (POST, gövde JSON): getRef, addCss
  *   zones  : tempo / nabız bölgeleri (zone sayfası)
  *   css    : tarih aralığı + alet + havuza göre CSS (css sayfası)
  *   bilgi  : kısaltmalar ve parametreler (bilgi sayfası; Max Nabız, Havuz Mesafe …)
  *   alet   : alet kodları (alet sayfası)
  *   rpe/msi: ölçek açıklamaları (RPE / MSI sayfaları, başlıksız tek sütun)
  *   faz    : faz tarihleri (fazBilgi sayfası)
+ *   kisit  : sağlık kısıtı kuralları (kisit sayfası; Kural · Değer · Açıklama) — isteğe bağlı
+ *   yuzmeKas: yüzmede stil → kas grubu yük katsayısı (yuzmeKas sayfası; Stil · Grup · Katsayı) — isteğe bağlı
+ *   drill  : drill adı → video (drill sayfası; Ad · Video · Açıklama) — isteğe bağlı
+ * addCss { tarih, css, alet?, havuz? } : css sayfasına Tarih_ilk = tarih, Tarih_son boş satır ekler
  */
 
 var TOKEN_PROPERTY = 'TOKEN';
+var LOCK_WAIT_MS = 30000;
 
 function doPost(e) {
   var req;
@@ -38,6 +44,8 @@ function handle_(req) {
     switch (req.action) {
       case 'getRef':
         return ok_(getRef_());
+      case 'addCss':
+        return withLock_(function () { return ok_(addCss_(req)); });
       default:
         return fail_('UNKNOWN_ACTION', 'Bilinmeyen işlem.');
     }
@@ -85,7 +93,7 @@ function tokenGoster() {
 function getRef_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var tz = ss.getSpreadsheetTimeZone();
-  return {
+  var out = {
     zones: readZones_(ss),
     css: readCss_(ss, tz),
     bilgi: readBilgi_(ss),
@@ -94,6 +102,69 @@ function getRef_() {
     msi: readColumn_(ss, 'MSI'),
     faz: readFaz_(ss, tz)
   };
+  // Sürüm 12 sayfaları: yalnızca tabloda varsa cevaba eklenir (eski tablolarda cevap aynı kalır).
+  if (ss.getSheetByName('kisit')) out.kisit = readKisit_(ss);
+  if (ss.getSheetByName('yuzmeKas')) out.yuzmeKas = readYuzmeKas_(ss);
+  if (ss.getSheetByName('drill')) out.drill = readDrill_(ss);
+  return out;
+}
+
+function readKisit_(ss) {
+  var t = optSheet_(ss, 'kisit');
+  if (!t) return [];
+  var cK = col_(t, 'Kural', true), cD = col_(t, 'Değer', false), cA = col_(t, 'Açıklama', false);
+  return t.values.filter(function (r) { return text_(r, cK); }).map(function (r) {
+    var v = cell_(r, cD);
+    return { kural: text_(r, cK), deger: typeof v === 'number' ? v : text_(r, cD), aciklama: text_(r, cA) };
+  });
+}
+
+function readYuzmeKas_(ss) {
+  var t = optSheet_(ss, 'yuzmeKas');
+  if (!t) return [];
+  var cS = col_(t, 'Stil', true), cG = col_(t, 'Grup', true), cK = col_(t, 'Katsayı', true);
+  var out = [];
+  t.values.forEach(function (r) {
+    var k = toNumber_(cell_(r, cK));
+    if (!text_(r, cS) || !text_(r, cG) || k === null) return;
+    out.push({ stil: text_(r, cS).toUpperCase(), grup: text_(r, cG), katsayi: k });
+  });
+  return out;
+}
+
+function readDrill_(ss) {
+  var t = optSheet_(ss, 'drill');
+  if (!t) return [];
+  var cA = col_(t, 'Ad', true), cV = col_(t, 'Video', false), cD = col_(t, 'Açıklama', false);
+  return t.values.filter(function (r) { return text_(r, cA); }).map(function (r) {
+    var video = text_(r, cV);
+    return { ad: text_(r, cA), video: /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(video) ? video : '', aciklama: text_(r, cD) };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// addCss — CSS testi sonucu: css sayfasının sonuna yeni satır (eski satırlar kalır)
+// ---------------------------------------------------------------------------
+
+function addCss_(req) {
+  var tarih = requireDate_(req.tarih);
+  var css = toNumber_(req.css);
+  if (css === null || css < 50 || css > 400) throw appError_('BAD_REQUEST', 'CSS 50–400 sn/100 m olmalı.');
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var t = readSheet_(ss, 'css');
+  var cI = col_(t, 'Tarih_ilk', true), cS = col_(t, 'Tarih_son', true), cC = col_(t, 'CSS (sn)', true);
+  var cAl = col_(t, 'Alet', false), cH = col_(t, 'Havuz', false), cKa = col_(t, 'Kaynak', false);
+  var w = t.headers.length;
+  var row = [];
+  for (var i = 0; i < w; i++) row.push('');
+  row[cI] = Utilities.parseDate(tarih, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  row[cC] = Math.round(css * 10) / 10;
+  if (cAl >= 0) row[cAl] = String(req.alet || '').slice(0, 40);
+  if (cH >= 0) row[cH] = Number(req.havuz) === 50 ? 50 : 25;
+  if (cKa >= 0) row[cKa] = 'YüzmeSK CSS testi';
+  var at = t.sheet.getLastRow() + 1;
+  t.sheet.getRange(at, 1, 1, w).setValues([row]);
+  return { satir: at, tarih: tarih, css: row[cC] };
 }
 
 function optSheet_(ss, name, opts) {

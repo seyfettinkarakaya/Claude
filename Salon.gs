@@ -108,17 +108,26 @@ function readKatalog_(ss) {
   var t = readSheet_(ss, SHEET_H);
   var cE = col_(t, 'Exercise', true), cG = col_(t, 'Goal Tag', false), cQ = col_(t, 'Equipment', false);
   var cB = col_(t, 'BW Coefficient', false), cV = col_(t, 'Video', false);
+  // İsteğe bağlı (sürüm 12): Kısıt (ör. "squat>90", "zıplama"), Alternatif (güvenli hareket adı), Görsel (free-exercise-db kimliği)
+  var cK = col_(t, 'Kısıt', false), cA = col_(t, 'Alternatif', false), cGo = col_(t, 'Görsel', false);
   // "Swim Transfer Coefficient" (başlık kısaltılmış olabilir) — ilk eşleşen sütun.
   var cS = -1;
   t.headers.forEach(function (h, i) { if (cS < 0 && normalize_(h).indexOf('swim transfer') === 0) cS = i; });
   return t.values.filter(function (r) { return text_(r, cE); }).map(function (r) {
+    var k = katalogRow_(r);
+    if (text_(r, cK)) k.kisit = text_(r, cK);
+    if (text_(r, cA)) k.alternatif = text_(r, cA);
+    if (text_(r, cGo)) k.gorsel = text_(r, cGo);
+    return k;
+  });
+  function katalogRow_(r) {
     var video = text_(r, cV);
     return {
       ad: text_(r, cE), amac: text_(r, cG), ekipman: text_(r, cQ),
       bw: toNumber_(cell_(r, cB)), stc: toNumber_(cell_(r, cS)),
       video: /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(video) ? video : ''
     };
-  });
+  }
 }
 
 function readEtki_(ss) {

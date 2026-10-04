@@ -15,6 +15,7 @@ const KEYS = {
   ref: 'ysk.ref',               // sporRef verisi (CSS, bölgeler, RPE/MSI tanımları)
   salon: 'ysk.salon',           // SalonTakip verisi (katalog, kas etkileri, geçmiş)
   salonSession: 'ysk.salonSession',
+  salonPlan: 'ysk.salonPlan',   // kaydedilmiş salon planı (ana sayfada "Hazır plan"), yalnızca telefonda
 };
 
 // Bağlantılar: her tablonun kendi Apps Script'i, adresi ve anahtarı vardır.
@@ -432,6 +433,11 @@ export function getCachedRef() {
   return r && validRef(r.data) ? r : null;
 }
 
+/** CSS testi sonucu: sporRef css sayfasına yeni satır (SporRef.gs addCss; eski satırlara dokunmaz). */
+export function addCss(payload) {
+  return call('addCss', payload, 'ref');
+}
+
 // ---------------------------------------------------------------------------
 // Salon (SalonTakip)
 // ---------------------------------------------------------------------------
@@ -463,4 +469,18 @@ export function saveSalonSession(s) {
 
 export function clearSalonSession() {
   store(KEYS.salonSession, null);
+}
+
+/** Kaydedilmiş plan: { kaydedildi (ms), oncelik: {grup: 1|2}, hareketler: [...] } ya da null. */
+export function loadSalonPlan() {
+  const p = load(KEYS.salonPlan, null);
+  return p && typeof p === 'object' && Array.isArray(p.hareketler) && p.hareketler.length ? p : null;
+}
+
+export function saveSalonPlan(p) {
+  return store(KEYS.salonPlan, p);
+}
+
+export function clearSalonPlan() {
+  store(KEYS.salonPlan, null);
 }

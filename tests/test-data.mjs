@@ -363,5 +363,24 @@ await test('zaman aşımı TIMEOUT olarak döner', async () => {
   globalThis.setTimeout = realSet;
 });
 
+await test('sürüm 12: kayıtlı salon planı (bozuk/boş yok sayılır), addCss sporRef adresine gider', async () => {
+  assert.equal(data.loadSalonPlan(), null);
+  LS.setItem('ysk.salonPlan', '{bozuk');
+  assert.equal(data.loadSalonPlan(), null);
+  data.saveSalonPlan({ kaydedildi: 1, oncelik: {}, hareketler: [] });
+  assert.equal(data.loadSalonPlan(), null, 'boş plan yok sayılır');
+  const p = { kaydedildi: 5, oncelik: { Omuz: 2 }, hareketler: [{ ad: 'X', set: 3, tekrar: 10 }] };
+  data.saveSalonPlan(p);
+  assert.deepEqual(data.loadSalonPlan(), p);
+  data.clearSalonPlan();
+  assert.equal(data.loadSalonPlan(), null);
+  const REF = 'https://script.google.com/macros/s/REF/exec';
+  data.setConfig({ apiUrl: REF, token: 'r' }, 'ref');
+  handler = (b) => ({ json: { ok: true, data: { satir: 9, css: b.css } } });
+  assert.deepEqual(await data.addCss({ tarih: '2026-10-06', css: 116 }), { satir: 9, css: 116 });
+  assert.deepEqual(calls, ['addCss']);
+  assert.equal(urls[0], `${REF}|r`);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`data.js testleri: TAMAM (${n} senaryo)`);

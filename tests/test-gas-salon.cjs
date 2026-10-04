@@ -51,6 +51,47 @@ test('sporRef: eksik sayfalar boş döner; yanlış anahtar AUTH; yazma işlemi 
   assert.strictEqual(e.call({ action: 'saveSalon' }).error, 'UNKNOWN_ACTION');
 });
 
+test('sporRef (sürüm 12): kisit, yuzmeKas, drill sayfaları varsa okunur; güvenli video', () => {
+  const r = refEnv({
+    kisit: new Sheet('kisit', ['Kural', 'Değer', 'Açıklama'], [['br_ay_max', 10, 'Kurbağalama ayda en çok %'], ['tani', 'Sağ kalça · Perthes', 'Koşu yok'], ['', 5, '']]),
+    yuzmeKas: new Sheet('yuzmeKas', ['Stil', 'Grup', 'Katsayı'], [['fr', 'Omuz', '0,3'], ['FR', 'Sırt', 0.25], ['BR', 'Bacak', ''], ['', 'Omuz', 1]]),
+    drill: new Sheet('drill', ['Ad', 'Video', 'Açıklama'], [['Catch-up', 'https://youtu.be/cu', 'tek kol'], ['Fist', 'http://kotu.example', '']]),
+  }).call({ action: 'getRef' });
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.deepStrictEqual(r.data.kisit, [{ kural: 'br_ay_max', deger: 10, aciklama: 'Kurbağalama ayda en çok %' }, { kural: 'tani', deger: 'Sağ kalça · Perthes', aciklama: 'Koşu yok' }]);
+  assert.deepStrictEqual(r.data.yuzmeKas, [{ stil: 'FR', grup: 'Omuz', katsayi: 0.3 }, { stil: 'FR', grup: 'Sırt', katsayi: 0.25 }]);
+  assert.deepStrictEqual(r.data.drill.map((d) => d.video), ['https://youtu.be/cu', '']);
+});
+
+test('sporRef addCss: css sayfasının sonuna satır ekler, eski satırlar aynen; geçersiz CSS ve tarih reddedilir', () => {
+  const e = refEnv();
+  const before = e.sheets.css.data.map((r) => r.slice());
+  const r = e.call({ action: 'addCss', tarih: '2026-10-06', css: 116, alet: '', havuz: 25 });
+  assert.ok(r.ok, JSON.stringify(r));
+  const sh = e.sheets.css;
+  assert.deepStrictEqual(sh.data.slice(0, 4).map((x) => x.map(String)), before.slice(0, 4).map((x) => x.map(String)), 'eski satırlar değişmez');
+  const row = sh.data[r.data.satir - 1];
+  assert.ok(row[0] instanceof e.CDate && row[0].toISOString().startsWith('2026-10-06'));
+  assert.deepStrictEqual(row.slice(1), ['', 116, '', 25, 'YüzmeSK CSS testi']);
+  const g = e.call({ action: 'getRef' }).data.css;
+  assert.deepStrictEqual(g[g.length - 1], { ilk: '2026-10-06', son: '', css: 116, alet: '', havuz: 25 });
+  assert.strictEqual(e.call({ action: 'addCss', tarih: '2026-10-06', css: 20 }).error, 'BAD_REQUEST');
+  assert.strictEqual(e.call({ action: 'addCss', tarih: '06.10.2026', css: 116 }).error, 'BAD_REQUEST');
+});
+
+test('getSalon (sürüm 12): H\'de isteğe bağlı Kısıt / Alternatif / Görsel yalnızca doluysa eklenir', () => {
+  const e = makeEnv({
+    idman: new Sheet('idman', ['Tarih', 'No', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Nabız', 'RPE', 'MSI', 'Açıklama'], []),
+    H: new Sheet('H', ['Exercise', 'Goal Tag', 'Equipment', 'BW Coefficient', 'Swim Transfer Coefficient', 'Video', 'Kısıt', 'Alternatif', 'Görsel'], [
+      ['Goblet Squat', 'Strength', 'Dumbbell', '—', 0.65, '', 'squat>90', 'Box Squat', 'Goblet_Squat'],
+      ['Dead Bug', 'Strength', 'Bodyweight', 0.5, 0.8, '', '', '', ''],
+    ]),
+  }, 'secret', 'Salon.gs');
+  const k = e.call({ action: 'getSalon' }).data.katalog;
+  assert.deepStrictEqual(k[0], { ad: 'Goblet Squat', amac: 'Strength', ekipman: 'Dumbbell', bw: null, stc: 0.65, video: '', kisit: 'squat>90', alternatif: 'Box Squat', gorsel: 'Goblet_Squat' });
+  assert.deepStrictEqual(Object.keys(k[1]), ['ad', 'amac', 'ekipman', 'bw', 'stc', 'video']);
+});
+
 // --- Salon -------------------------------------------------------------------------
 const IDMAN_H = ['Tarih', 'No', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Nabız', 'RPE', 'MSI', 'Açıklama'];
 const salonEnv = (opts = {}) => makeEnv({
