@@ -14,14 +14,15 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
   seçim varken diğerlerinin opaklığı 0). İstenen: tüm gruplar kendi renginde kalsın; seçilen öne çıksın
   (amber çerçeve/parıltı + ★ rozet), seçilmeyenler en fazla hafif soluklaşsın (ör. %55), griye dönmesin.
   Ağrı haritası ve mini vücutlar (yoğunluk modu) bundan etkilenmez.
-- [ ] **İkinci dokunuşta seçim kalkmıyor:** şu an seçili kasa dokununca yalnızca odak/panel açılıyor
-  (`onHaritaTap`: öncelik yalnızca 0 ise 1 yapılıyor). İstenen: seçili kasa tekrar dokun → seçim kalkar
-  (öncelik 0, rozet gider, panel kapanır). Öncelik değiştirme alt paneldeki düğmelerden ve çiplerden.
-- [ ] **Öncelik 5 kademe:** Yok + 1–5 (şu an Yok / ★ / ★★). Puanlama zaten ağırlıkla çarptığı için
-  (`salon.puanla`: pay × öncelik) 1–5 doğrudan çalışır; kaydedilmiş planlardaki 1/2 aynen geçerli kalır.
-  Görünüm önerisi: alt panelde 5 noktalı seçici (●●●○○), rozette rakam (①–⑤ ya da "★3"); çipler aynı.
-  Dokunuşla döngü yok (1→2→…→5 yavaş olur): dokun = seç (varsayılan 3) / tekrar dokun = kaldır.
-  Test: eski senaryolar (★/★★) ve yeni senaryo: seç → kaldır, 5 kademe → sıralama değişir.
+- [ ] **Vücut resmi yalnızca bölge seçer** (karar 04.10.2026): dokun = seç, tekrar dokun = kaldır. Vücut üzerinde
+  kademe yok (★/★★ rozeti kalkar; seçili bölge yalnızca vurgulanır). Şu an seçili kasa dokununca seçim kalkmıyor
+  (`onHaritaTap` yalnızca odak açıyor) → düzelir.
+- [ ] **Bölge ağırlıkları haritanın altında:** "SEÇİLİ BÖLGELER" listesi; her satırda grup rengi + ad + 5 kademeli
+  ağırlık seçici (●●●○○, varsayılan 3) ve ✕ (kaldır). Satırda 4 hafta / tüm zaman payı ve toparlanma %'si.
+  Puanlama zaten ağırlıkla çarpar (`salon.puanla`: pay × ağırlık) → 1–5 doğrudan çalışır; kayıtlı planlardaki
+  eski 1/2 değerleri aynen okunur. Eski alt panel (Yok / ★ / ★★) bu listeye dönüşür; "Liste" görünümü de aynı
+  ağırlıkları gösterir.
+  Test: seç → kaldır; ağırlık 5 → sıralama değişir; eski ★/★★ senaryoları yeni seçiciyle.
 - [ ] **Hareket seçerken resim, bilgi ve video görünsün** (04.10.2026). Bugün: öneri kartında küçük "ⓘ nasıl"
   yazısı bilgi kartını açıyor (fotoğraf, adımlar, kaslar); video yalnızca H'de Video doluysa YouTube'a çıkan ▶.
   İstenen: seçim sırasında hareketi görerek karar vermek. Öneri:
@@ -33,6 +34,66 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
     eklenir); internet yoksa bağlantı olarak kalır. Video yoksa "Video ekle: H → Video sütunu" notu.
   - Fotoğraflar: 36 hareket uygulamada; diğerleri free-exercise-db'den yüklenir (çevrimdışıysa mini vücut).
   - Test: kartta küçük resim, dokun → bilgi kartı → "Planla ekle" seçer; video gömülü/bağlantı; 320 px taşma yok.
+- [ ] **Salon plan sayfası** (talep 04.10.2026). Yüzmedeki Plan sayfası gibi, salon programı da önceden yazılabilsin:
+  - SalonTakip'e **yeni** `plan` sayfası (yalnızca ekleme): `Tarih, Sıra, Hareket, Set, Tekrar, Ağırlık, Süre,
+    Dinlen, Süperset, Not`. `Salon.gs`'e yeni okuma işlemi (eski işlemler aynen). `idman` sayfası değişmez.
+  - Uygulamada **Salon programı** ekranı: haftalık takvim (yüzme takvimi gibi), gün kartında hareketler ve
+    ~süre; "İdmana başla" o günün planıyla açılır. Telefonda yapılan plan "Kaydet"te isteğe bağlı olarak
+    `plan` sayfasına da yazılır (masada planla, salonda uygula). Bitince satırlar `idman`'a (bugünkü gibi),
+    plan satırı "yapıldı" olarak işaretlenir (silinmez).
+  - Yüzme ve salon günleri tek takvimde de görünür (aşağıdaki birleşik model).
+
+### Fitness uygulamalarından pratik öneriler (araştırma 04.10.2026: Hevy, Strong, Fitbod, Alpha Progression,
+### RYVOLVE gibi hibrit uygulamalar, TrainingPeaks)
+- [ ] P1 **Günlük hazır olma kontrolü** (sabah, 10 sn): uyku, kas ağrısı, omuz/kalça/diz MSI, enerji →
+  günün önerisi (tam / hafif / dinlen). Whoop/Garmin "readiness" mantığı, cihazsız.
+- [ ] P2 **RIR (yedekte kalan tekrar) ile otomatik ilerleme:** set başına "2 tekrar daha yapabilirdim" → bir
+  sonraki ağırlık/tekrar (Alpha Progression, Juggernaut). RPE'nin yanında, isteğe bağlı.
+- [ ] P3 **Hareket değiştir (swap):** aynı kas grubunu çalıştıran, kısıta uygun ve ekipmanı olan alternatif
+  (Fitbod). Salonda alet doluysa tek dokunuşla.
+- [ ] P4 **Ekipman profilleri:** "Salon / Ev / Otel" — öneriler yalnızca o yerdeki ekipmanla.
+- [ ] P5 **Set türleri:** ısınma (var), ana, düşürme (drop), başarısızlık; özette ayrı sayılır.
+- [ ] P6 **Harekete sabit not:** "koltuk 4. delik, kablo 2. kademe" — her açılışta kartta görünür (Hevy/Strong).
+- [ ] P7 **Plaka hesaplayıcı** (barda hangi plakalar) ve dambıl/kablo adım ayarı (2,5 kg yerine 2 kg vb.).
+- [ ] P8 **Tahmini 1RM ve hacim eğrisi** hareket başına; kas grubu başına haftalık set sayısı (10–20 hedef bandı,
+  ama omuz itişte kısıta göre üst sınır).
+- [ ] P9 **Plan uyumu:** planlanan / yapılan (TrainingPeaks yeşil-sarı-kırmızı); haftalık özette yüzde.
+- [ ] P10 **Otomatik dinlenme haftası (deload):** yük oranı, ağrı ve hazır olma kötüleşince öneri (blokla birlikte).
+- [ ] P11 **Kilit ekranında dinlenme sayacı / bildirim** (service worker; sürüm 12'den ertelendi).
+- [ ] P12 **Dışa aktarma ve yedek:** tüm kayıtların CSV/JSON yedeği (tablo zaten ana kayıt; telefon geçmişi için).
+
+### Sürüm 13 — EN ÖNEMLİ: yüzme + salon tam entegre model (sağlık · yüzme · fitness dengesi)
+Amaç: tek haftalık plan, tek yük bütçesi, tek sağlık bütçesi; yüzme ve salon birbirini bozmadan birbirini
+besler. Dayanak: yuzme-idman-modeli (Perthes sağ kalça, sağ omuz rotator manşet + impingement, sağ diz
+kondromalazi, MSI ölçeği, haftada 3 gün, süre bütçeleri, CSS ~1:57) + eşzamanlı antrenman (concurrent
+training) bulguları: kuvvet ve dayanıklılık aynı güne yakın yapılınca kuvvet uyumu zayıflayabilir (girişim etkisi);
+yüzücülerde kara antrenmanı (dryland) suda performansı destekler, sıralama ve ara önemlidir.
+- [ ] M1 **Tek hafta planlayıcı:** Cuma akşam (sınırsız) + Sal/Çar/Per'den 2 gün (sabah 75–80, öğle 65 dk). Her gün
+  bir "ana iş" (yüzme eşik / yüzme hız / salon kuvvet) ve bir "yan iş" (önleyici + core 15–20 dk). Bütçe
+  aşılmaz; yan iş yüzmeden sonra kısa kara bloğu ya da salon gününün başı.
+- [ ] M2 **Girişim (interference) kuralları:** ağır omuz/sırt itiş-çekiş salonu, eşik/hız yüzme ya da uzun FR/pull
+  gününden önceki gün değil (B5'in planlayıcıya taşınmışı); aynı gün zorunluysa önce yüzme, sonra salon ve
+  arada ≥ 6 saat; kuvvet günü yüzme hafif (aerobik/teknik).
+- [ ] M3 **Ortak yük bütçesi:** haftalık sRPE hedefi, artış ≤ %10/hafta; yüzme + salon aynı birimde; yük oranı
+  0,8–1,3 dışına çıkınca planlayıcı bir sonraki günü otomatik hafifletir.
+- [ ] M4 **Sağlık bütçeleri (eklem başına):** omuz maruziyeti (FR/BF/pull metre + baş üstü/itiş setleri),
+  kalça (BR metre ≤ %10/ay, squat derinliği, tek bacak işleri), diz (BR + derin büküm). Her biri haftalık sınır ve
+  MSI eğilimine bağlı: MSI yükselirse o eklemin bütçesi otomatik daralır, önleyici doz artar.
+- [ ] M5 **Ortak periyotlama:** 4 haftalık blok yüzme ve salonda aynı faz (temel → gelişim → kuvvet/hız → dinlenme);
+  yarış/test haftası varsa salon kuvvetten bakıma iner (taper).
+- [ ] M6 **Salon yüzmeye hizmet eder:** hareket seçiminde "yüzme aktarımı" ağırlığı faza göre (temel: stabilite +
+  core, gelişim: çekiş kuvveti/lat, hız: güç, dinlenme: önleyici). Kas haritası yüzmenin kas yükünü de gösterir
+  (bugün var) → salon zayıf/az çalışan bölgeyi önerir, yüzmenin yorduğunu dinlendirir.
+- [ ] M7 **Hazır olma → günün kararı:** P1 kontrolü + toparlanma + MSI → "planı yap / hafiflet / yer değiştir
+  (salon ↔ yüzme) / dinlen". Değişiklik haftanın kalanını yeniden dengeler.
+- [ ] M8 **Tek ekran "Bu hafta":** 3 gün kartı (yüzme + salon birlikte), bütçeler (süre, yük, omuz, kalça, diz,
+  BR), uyum, form; Haftanın özeti bu modelin raporu olur.
+- [ ] M9 **Tablolara yazım (yalnızca ekleme):** planlayıcı önerisi yüzme Plan'a ve salon `plan`'a **onayla** yazılır
+  (öneri olarak, elle düzeltilebilir); mevcut sütunlar ve akışlar aynen.
+- [ ] M10 **Ölçüm ve geri bildirim:** 4 haftada bir CSS testi + salon tahmini 1RM + MSI eğilimi → modelin
+  katsayıları (yüzme kas yükü, bütçeler) kişiye göre ayarlanır; sporRef'te görünür ve düzenlenebilir.
+Sıra önerisi: önce harita/plan sayfası/P maddeleri (sürüm 12.x), sonra Sürüm 13 (M1–M10) tek seferde.
+Örnek ekranlar istenirse önce onay alınır (görsel üretimi).
 
 ### Sürüm 12 — tek seferde uygulanacak plan (04.10.2026) — **TAMAMLANDI, 12.0.0 yayında (04.10.2026)**
 Kurulum için yapılacaklar (senin tarafında):
