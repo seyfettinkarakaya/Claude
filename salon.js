@@ -260,8 +260,26 @@ export function planHareket(d, ad, { bodyweight = false } = {}) {
   const last = historyOf(d.gecmis, ad)[0];
   const x = last ? fromHistory(last) : hareket({ ad, set: 3, tekrar: 10, sure: isTimed(ad) ? 30 : 0, agirlik: bodyweight ? VUCUT : '' });
   if (isTimed(ad) && !x.sure) { x.sure = 30; x.tekrar = 1; }
-  const o = oneri(d.gecmis, ad);
-  if (o && !o.warn) { x.tekrar = o.tekrar; x.agirlik = o.agirlik; if (o.sure) x.sure = o.sure; }
+  return uygulaOneri(x, oneri(d.gecmis, ad));
+}
+
+/** Öneriyi plan hareketine uygular (⚠ ya da "aynı" ise dokunmaz); geri almak için x._oneri = { text, onceki }. */
+export function uygulaOneri(x, o) {
+  if (!o || o.warn || o.text === 'aynı') return x;
+  const onceki = { tekrar: x.tekrar, agirlik: x.agirlik, sure: x.sure };
+  x.tekrar = o.tekrar; x.agirlik = o.agirlik; if (o.sure) x.sure = o.sure;
+  if (x.tekrar !== onceki.tekrar || x.agirlik !== onceki.agirlik || x.sure !== onceki.sure) x._oneri = { text: o.text, onceki };
+  return x;
+}
+
+/** Son idmanı tekrarlarken: her harekete geçmişe göre öneri uygulanır (kopyalar). */
+export const oneriUygula = (gecmis, hareketler) => hareketler.map((h) => uygulaOneri({ ...h }, oneri(gecmis, h.ad)));
+
+/** Uygulanan öneriyi geri alır (önceki değerler). */
+export function oneriGeriAl(x) {
+  if (!x._oneri) return x;
+  Object.assign(x, x._oneri.onceki);
+  delete x._oneri;
   return x;
 }
 

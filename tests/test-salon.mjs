@@ -113,4 +113,29 @@ t('planlama: dağılım, puan (öncelik × etki × aktarım, ağrı yarıya), s�
   assert.equal(S.tahminSn([row, pl]), 4 * (20 * 3 + 60) + 3 * 60);
 });
 
+t('sürüm 12: öneri uygula / geri al, önleyici doz, rekor, hacim', () => {
+  const gecmis = [
+    { tarih: '2026-09-20', hareket: 'Press', set: 3, tekrar: 10, agirlik: 12.5, rpe: 7.5, msi: 0, aciklama: '' },
+    { tarih: '2026-09-20', hareket: 'Pull', set: 3, tekrar: 9, agirlik: 'Vücut', rpe: 9.5, msi: 0, aciklama: 'Setler: 11-9-9' },
+    { tarih: '2026-10-06', hareket: 'Band External Rotation', set: 3, tekrar: 12, agirlik: 'Vücut', rpe: 5, msi: 0, aciklama: '' },
+    { tarih: '2026-10-05', hareket: 'Front Plank', set: 3, tekrar: 45, agirlik: 'Vücut', rpe: 6, msi: 0, aciklama: '' },
+  ];
+  const [press, pull] = S.oneriUygula(gecmis, [S.fromHistory(gecmis[0]), S.fromHistory(gecmis[1])]);
+  assert.equal(press.agirlik, 15); assert.deepEqual(press._oneri, { text: '+2,5 kg', onceki: { tekrar: 10, agirlik: 12.5, sure: 0 } });
+  assert.equal(pull._oneri, undefined, '⚠ (RPE 9,5): uygulanmaz');
+  S.oneriGeriAl(press); assert.equal(press.agirlik, 12.5); assert.equal(press._oneri, undefined);
+  assert.equal(S.onleyiciKat('Band External Rotation'), 'omuz');
+  assert.equal(S.onleyiciKat('Mystery', { 'Kalça yanı': 0.6 }), 'kalca');
+  assert.equal(S.onleyiciKat('Mystery', { Karın: 0.4 }), null, 'ana grup payı < 0,5');
+  assert.equal(S.haftaBasi('2026-10-11'), '2026-10-05'); assert.equal(S.haftaBasi('2026-10-05'), '2026-10-05');
+  const od = S.onleyiciDurum(gecmis, '2026-10-08');
+  assert.deepEqual(od.map((o) => [o.key, o.yapilan, o.acik]), [['omuz', 1, true], ['kalca', 0, true], ['core', 1, false]]);
+  assert.deepEqual(S.rekorlar(gecmis, { tarih: '2026-10-08', hareket: 'Press', set: 3, tekrar: 10, agirlik: 15, aciklama: '' }).map((r) => r.tur), ['agirlik']);
+  assert.deepEqual(S.rekorlar(gecmis, { tarih: '2026-10-08', hareket: 'Press', set: 3, tekrar: 12, agirlik: 12.5, aciklama: '' }).map((r) => r.tur), ['tekrar', '1rm']);
+  assert.deepEqual(S.rekorlar(gecmis, { tarih: '2026-10-08', hareket: 'Pull', set: 3, tekrar: 10, agirlik: 'Vücut', aciklama: 'Setler: 12-10-8' }).map((r) => r.metin), ['En çok tekrar: 12']);
+  assert.deepEqual(S.rekorlar(gecmis, { tarih: '2026-10-08', hareket: 'Yeni', set: 3, tekrar: 10, agirlik: 5 }), [], 'ilk kez: rekor yok');
+  assert.equal(S.birRM(100, 10), 133.3);
+  assert.equal(S.hacim([{ set: 3, tekrar: 10, agirlik: 15 }, { set: 3, tekrar: 10, agirlik: 'Vücut' }]), 450);
+});
+
 console.log(`salon.js testleri: TAMAM (${n})`);

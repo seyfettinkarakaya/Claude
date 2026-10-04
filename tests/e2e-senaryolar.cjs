@@ -944,7 +944,10 @@ sc('Salon: kurulmadıysa Ayarlar; son idmanı tekrarla → BAŞLA/BİTTİ, tekra
   await p.click('[data-ss="repeat"]'); await s.waitScreen('salon');
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   assert.strictEqual(await slTitle(s), 'Band Bent Over Row');
-  // Önerinin ağırlığı değil son yapılan gösterilir; öneri satırı +2,5 kg
+  // Sürüm 12: son idman tekrarında öneri uygulanır (17,5 kg); "geri al" son yapılan değere döndürür.
+  assert.match(await slText(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 4 × 20 · 17,5 kg · Dinlen 1:30.*öneri uygulandı: \+2,5 kg geri al/);
+  await p.click('#sl-wheel .w-item.is-active [data-sl-geri]');
+  // Geri alındıktan sonra önerinin ağırlığı değil son yapılan gösterilir; öneri satırı +2,5 kg
   assert.match(await slText(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 4 × 20 · 15 kg · Dinlen 1:30.*öneri: \+2,5 kg/);
   assert.strictEqual(await p.getAttribute('#sl-wheel .w-item.is-active .sl-vid', 'href'), 'https://youtu.be/row1');
   assert.strictEqual(await slText(s, '#sl-main-label'), 'BAŞLA');

@@ -113,6 +113,10 @@
         <span class="hc-hd"><span class="hc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span><b class="hc-name">Salon</b><span class="hc-soon" id="home-gym-badge">KURULMADI</span></span>
         <span class="hc-desc" id="home-gym-desc">Ayarlar'dan SalonTakip bağlantısını gir.</span>
       </button>
+      <div class="home-gym-go" id="home-gym-go" hidden>
+        <div class="hgg-info" id="home-gym-info"></div>
+        <div class="hc-btns"><button class="hc-open" id="home-gym-start"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>İdmana başla</button><button class="hc-cal" id="home-gym-planla">Planla</button></div>
+      </div>
       <button class="home-row" id="home-history">
         <span><b>Yapılmış idmanlar</b><small id="home-history-meta"></small></span>
         <em>›</em>
@@ -138,7 +142,7 @@
     </header>
     <div class="sp-steps" id="sp-steps"><i></i><i></i><i></i></div>
     <div class="scroll pad" id="sp-body"></div>
-    <div class="bottom-bar"><button class="btn btn-primary btn-block" id="sp-next"></button></div>
+    <div class="bottom-bar sp-foot"><button class="btn btn-block" id="sp-save" hidden>Kaydet</button><button class="btn btn-primary btn-block" id="sp-next"></button></div>
   </section>
 
   <!-- Salon idmanı: hareketler tekerlekte; BAŞLA / BİTTİ -->

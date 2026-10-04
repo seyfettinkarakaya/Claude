@@ -69,5 +69,34 @@ sc('Kısıt: ağırlıklı squat ve zıplama listede gizli, gösterilince ⊘ + 
   assert.equal(await p.$$eval('.sp-ex.is-yasak [data-sp-ex]', (e) => e.length), 0, 'yasaklı hareket seçilemez');
 });
 
+sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla → Kaydet → "Hazır plan" → İdmana başla; plan tüketilir', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
+  assert.match(await txt(s, '#home-gym-go'), /SON İDMAN · 20 EYLÜL.*Dumbbell Shoulder Press, Band Bent Over Row.*2 hareket · ~.*2 harekette öneri uygulandı/);
+  // Planla → Omuz → hareket → Kaydet
+  await p.click('#home-gym-planla'); await s.waitScreen('salon-plan');
+  await p.click('[data-sp-grup="Shoulders"]'); await p.click('#sp-next');
+  await p.click('[data-sp-ex="Band External Rotation"]'); await p.click('[data-sp-ex="Dumbbell Shoulder Press"]');
+  await p.click('#sp-next');
+  assert.equal(await p.isHidden('#sp-save'), false);
+  await p.click('#sp-save'); await s.waitScreen('home');
+  assert.equal((await s.ls('ysk.salonPlan')).hareketler.length, 2);
+  assert.match(await txt(s, '#home-gym-desc'), /Hazır plan · 2 hareket/);
+  assert.match(await txt(s, '#home-gym-go'), /HAZIR PLAN.*Band External Rotation, Dumbbell Shoulder Press/);
+  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  const ses = await s.ls('ysk.salonSession');
+  assert.deepEqual(ses.hareketler.map((x) => x.ad), ['Band External Rotation', 'Dumbbell Shoulder Press']);
+  assert.deepEqual(ses.oncelik, { Shoulders: 1 });
+  assert.equal(await s.ls('ysk.salonPlan'), null, 'başlayınca plan tüketilir');
+  // Shoulder Press kartında öneri uygulandı, geri al çalışır
+  await s.goTo(1, '#sl-wheel');
+  assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /15 kg.*öneri uygulandı: \+2,5 kg/);
+  await p.click('#sl-wheel .w-item.is-active [data-sl-geri]');
+  assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 3 × 10 · 12,5 kg/);
+  assert.equal((await s.ls('ysk.salonSession')).hareketler[1].agirlik, 12.5);
+});
+
 const only = process.argv[2];
 if (require.main === module) runScenarios('Sürüm 12 senaryoları', only ? S.filter(([n]) => n.toLowerCase().includes(only.toLowerCase())) : S, 8150);

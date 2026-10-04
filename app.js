@@ -2869,7 +2869,45 @@ function renderHomeGym() {
   badge.hidden = true;
   const d = salonData();
   const w = d && salon.lastWorkout(d.gecmis);
-  desc.textContent = w ? `Son idman ${fmtDateTR(w.tarih)} · ${w.rows.length} hareket` : 'İdman planla ya da son idmanı tekrarla.';
+  const hz = salonHazir();
+  desc.textContent = hz && hz.tur === 'plan'
+    ? `Hazır plan · ${hz.hareketler.length} hareket · ~${fmtDur(salon.tahminSn(hz.hareketler))}`
+    : w ? `Son idman ${fmtDateTR(w.tarih)} · ${w.rows.length} hareket` : 'İdman planla ya da son idmanı tekrarla.';
+  renderGymGo(hz);
+}
+
+/** Ana sayfada başlatılabilecek salon idmanı: kaydedilmiş plan, yoksa son idman (öneriler uygulanmış). */
+function salonHazir() {
+  const p = data.loadSalonPlan();
+  if (p) return { tur: 'plan', hareketler: p.hareketler, oncelik: p.oncelik || {}, kaydedildi: p.kaydedildi };
+  const d = salonData();
+  const w = d && salon.lastWorkout(d.gecmis);
+  return w ? { tur: 'son', hareketler: salon.oneriUygula(d.gecmis, w.hareketler), tarih: w.tarih } : null;
+}
+
+function renderGymGo(hz) {
+  const box = $('home-gym-go');
+  if (!hz || !data.isConfigured('salon') || data.loadSalonSession()) { box.hidden = true; return; }
+  const n = hz.hareketler.filter((x) => x._oneri).length;
+  const pay = {};
+  for (const x of hz.hareketler) { const g = grupOf(x.ad); if (g) pay[g] = (pay[g] || 0) + x.set; }
+  $('home-gym-info').innerHTML = `<span class="hgg-k">${hz.tur === 'plan' ? 'HAZIR PLAN' : `SON İDMAN · ${esc(fmtDateTR(hz.tarih).toLocaleUpperCase('tr'))}`}</span>
+    <span class="hgg-t">${esc(hz.hareketler.map((x) => x.ad).join(', '))}</span>
+    <span class="hgg-bar">${Object.entries(pay).map(([g, v]) => `<i data-bg="${grupRenk(g)}" data-grow="${v}"></i>`).join('')}</span>
+    <span class="hgg-m">${hz.hareketler.length} hareket · ~${fmtDur(salon.tahminSn(hz.hareketler))}${n ? ` · ${n} harekette öneri uygulandı` : ''}</span>`;
+  paint($('home-gym-info'));
+  box.hidden = false;
+}
+
+function onGymStart() {
+  if (data.loadSalonSession()) return onHomeGym();
+  const hz = salonHazir();
+  if (!hz) return showSalonStart();
+  if (hz.tur === 'plan') data.clearSalonPlan();
+  sl.ses = salon.newSession(todayKey(), hz.hareketler.map((x) => ({ ...x })));
+  if (hz.oncelik) sl.ses.oncelik = { ...hz.oncelik };
+  slPersist();
+  openSalon();
 }
 
 function onHomeGym() {
@@ -2927,7 +2965,7 @@ function onSalonStartClick(e) {
   if (act === 'retry') { sl.err = null; renderSalonStart(); loadSalon(); }
   else if (act === 'repeat') {
     const w = salon.lastWorkout(salonData().gecmis);
-    if (w) startSalon(w.hareketler);
+    if (w) startSalon(salon.oneriUygula(salonData().gecmis, w.hareketler));
   } else if (act === 'plan') showSalonPlan();
 }
 
@@ -3032,7 +3070,8 @@ function slRenderItem(node, x, h) {
       ${gi ? '' : '<button class="w-plus" data-sl-giris>Nabız · RPE · MSI gir</button>'}`;
   } else {
     const o = salonData() ? salon.oneri(salonData().gecmis, x.ad) : null;
-    const prev = o ? `<div class="sl-prev">Geçen: ${o.rpe != null ? `RPE ${fmtDec(o.rpe)}` : ''}${o.msi ? ` · MSI ${fmtDec(o.msi)}` : ''} · <em class="${o.warn ? 'warn' : ''}">öneri: ${esc(o.text)}</em></div>` : '';
+    const oneriTx = x._oneri ? `<em class="ok">öneri uygulandı: ${esc(x._oneri.text)}</em> <button class="sl-geri" data-sl-geri>geri al</button>` : o ? `<em class="${o.warn ? 'warn' : ''}">öneri: ${esc(o.text)}</em>` : '';
+    const prev = o ? `<div class="sl-prev">Geçen: ${o.rpe != null ? `RPE ${fmtDec(o.rpe)}` : ''}${o.msi ? ` · MSI ${fmtDec(o.msi)}` : ''} · ${oneriTx}</div>` : '';
     const w = x.agirlik === salon.VUCUT ? '' : `<div class="sl-wt"><div><span class="lbl">AĞIRLIK</span><b class="n">${esc(fmtKg(x.agirlik))}</b></div>
       <div class="sl-pm"><button data-sl-w="-1" aria-label="Ağırlığı azalt">−</button><button data-sl-w="1" aria-label="Ağırlığı artır">+</button></div></div>`;
     body = `<div class="w-title sl-ad">${esc(x.ad)}</div>${info}${prev}${slBoxes(h, false)}${w}<div class="w-desc"></div>`;
@@ -3155,6 +3194,14 @@ function onSlWheelClick(e) {
     x.agirlik = Math.max(0, (Number(x.agirlik) || 0) + Number(wBtn.dataset.slW) * 2.5);
     slPersist();
     return slRefreshAll();
+  }
+  if (t.closest('[data-sl-geri]')) {
+    const x = slH()[sl.wheel.index];
+    const tx = x._oneri ? x._oneri.text : '';
+    salon.oneriGeriAl(x);
+    slPersist();
+    slRefreshAll();
+    return toast(`Öneri geri alındı (${tx}): son yapılan değerler`, 2000);
   }
   if (t.closest('[data-sl-plus]')) return slPlusSet();
   if (t.closest('[data-sl-giris]')) return openGiris(sl.wheel.index);
@@ -3635,6 +3682,8 @@ function renderSalonPlan() {
     next.textContent = 'İdmana başla';
     next.disabled = !P.liste.length;
   }
+  $('sp-save').hidden = P.step !== 2;
+  $('sp-save').disabled = !P.liste.length;
   if (P.step === 0) next.disabled = false;
   paint(body);
   for (const el of body.querySelectorAll('[data-w]')) el.style.width = `${el.dataset.w}%`;
@@ -3682,6 +3731,16 @@ function onSalonPlanNext() {
   openSalon();
 }
 
+/** Planı kaydet: ana sayfada "Hazır plan" olarak bekler (yalnızca telefonda). */
+function onSalonPlanSave() {
+  const P = sl.plan;
+  if (!P || !P.liste.length) return;
+  data.saveSalonPlan({ kaydedildi: Date.now(), oncelik: { ...P.oncelik }, hareketler: P.liste.map((x) => ({ ...x })) });
+  sl.plan = null;
+  showHome();
+  toast('Plan kaydedildi: ana sayfada "İdmana başla" ile başlar', 3000);
+}
+
 function onSalonPlanBack() {
   const P = sl.plan;
   if (P && P.step > 0) { P.step -= 1; return renderSalonPlan(); }
@@ -3725,6 +3784,9 @@ function wireSalon() {
   $('sp-back').addEventListener('click', onSalonPlanBack);
   $('sp-body').addEventListener('click', onSalonPlanClick);
   $('sp-next').addEventListener('click', onSalonPlanNext);
+  $('sp-save').addEventListener('click', onSalonPlanSave);
+  $('home-gym-start').addEventListener('click', onGymStart);
+  $('home-gym-planla').addEventListener('click', () => (data.isConfigured('salon') ? showSalonPlan() : showSetup(true)));
 }
 
 function wire() {
