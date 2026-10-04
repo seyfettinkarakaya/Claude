@@ -143,6 +143,26 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
 - [x] P11 **Kilit ekranında dinlenme sayacı / bildirim** (service worker; sürüm 12'den ertelendi). **(13.0.0) (iOS: bildirim yalnızca ana ekrana eklenmiş uygulamada ve izin verilince)**
 - [x] P12 **Dışa aktarma ve yedek:** tüm kayıtların CSV/JSON yedeği (tablo zaten ana kayıt; telefon geçmişi için). **(13.0.0) (JSON; CSV yok)**
 
+### Notlar (04.10.2026, 13.0.0 sonrası)
+- [ ] **Plan süreleri gerçekleşen sürelerden öğrensin.** İdman yapıldıkça planlardaki süre tahmini gerçek
+  sürelere göre ayarlansın. Bugün tahminler sabit formülle:
+  - Salon: `salon.tahminSn` = set × (tekrar × 3 sn + 60 sn) ya da set × (süre + 30 sn).
+    Öneri: hareket başına son 3–5 idmandan gerçek set süresi + gerçek dinlenme (salon oturumunda olaylar var);
+    yoksa kişisel ortalama (tüm hareketlerde tekrar başına sn, set arası dinlenme), o da yoksa bugünkü formül.
+  - Yüzme: günün süresi Plan'daki hedef süre ya da set sürelerinin toplamı (`hedefSureOf`); geçişler, mola,
+    omuz rahatlatma sayılmıyor. Öneri: geçmiş seanslarda planlanan ↔ gerçekleşen oranı (blok/set türüne göre,
+    zaman.js olaylarından) → tahmin bu oranla düzeltilir.
+  - Kullanım: salon planı ve Salon programı (~süre), Bu hafta (süre bütçesi 80/65 dk aşılıyor mu uyarısı,
+    önerilen salon gününde hareket sayısı), yük hedefi (dk × RPE). Ekranda "tahmin: son 5 idmana göre" notu.
+  - Yalnızca okuma; tablolara yazım yok. Test: gerçek süreler varken tahmin değişir, yokken formül.
+- [ ] **Uygulama adı: idmanSK** (yüzme + salon). Değişecek görünen yerler: `index.html` (title, ana ekran adı,
+  başlık, noscript), `manifest.json` (name, short_name), yedek dosyası (`idmansk-yedek-…json`, `uygulama` alanı),
+  README, dosya başı yorumları. **Değişmeyecekler (mevcudu bozmamak için):** `localStorage` anahtarları (`ysk.*`;
+  değişirse telefondaki tüm geçmiş ve ayarlar kaybolur), betiklerin cevaplarındaki ad ve sporRef'e yazılan
+  "YüzmeSK CSS testi" kaynak metni (eski satırlarla tutarlılık; istenirse yalnız yeni satırlar), depo adı ve
+  GitHub Pages adresi. iPhone'da ana ekrandaki ad, uygulama silinip yeniden eklenince güncellenir.
+  Yedek eski adlı (`YüzmeSK`) dosyayı da tanımalı. Testlerdeki ad beklentileri yeni senaryolarla güncellenir.
+
 ### Sürüm 13 — EN ÖNEMLİ: yüzme + salon tam entegre model (sağlık · yüzme · fitness dengesi) — **13.0.0 yayında**
 Amaç: tek haftalık plan, tek yük bütçesi, tek sağlık bütçesi; yüzme ve salon birbirini bozmadan birbirini
 besler. Dayanak: yuzme-idman-modeli (Perthes sağ kalça, sağ omuz rotator manşet + impingement, sağ diz
