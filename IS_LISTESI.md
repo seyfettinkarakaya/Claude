@@ -159,6 +159,7 @@ Talep (03.10.2026, karar bekliyor):
   - [ ] F4 Saat verisi içe aktarma (Garmin FIT dosyası seç): kulaç, nabız, SWOLF otomatik dolar.
   - [ ] F5 Haftalık program iskeleti önerisi: kısıtlar + form + denge → 3 günün odağı (öneri, program sayfasına
     yazmaz).
+  Örnek ekranlar (19 taslak, her madde en az birinde): `tasarim/oneriler/oneriler.html` (kaynak: `kaynak/yap.py`).
   Bozmama kuralı aynı: tablo sütunları ve betikler yalnızca ekleme ile değişir (yeni sayfa/işlem), mevcut akışlar
   aynen; her adımda tüm testler + yeni senaryolar.
 
