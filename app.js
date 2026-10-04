@@ -9,6 +9,7 @@ import * as salon from './salon.js?v=11.0.1';
 import * as grup from './grup.js?v=11.0.1';
 import * as kisit from './kisit.js?v=11.0.1';
 import * as yuk from './yuk.js?v=11.0.1';
+import * as harita from './harita.js?v=11.0.1';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
 export const APP_VERSION = '11.0.1';
@@ -3600,7 +3601,8 @@ const STC_ADIM = [0, 0.5, 0.7, 0.85];
 function showSalonPlan() {
   const d = salonData();
   if (!d) { toast('Salon verisi yok. Bağlantıyı kontrol et.'); loadSalon(); return; }
-  sl.plan = { step: 0, oncelik: {}, amac: [], ekipman: [], stcMin: 0, secili: [], liste: [] };
+  sl.plan = { step: 0, oncelik: {}, amac: [], ekipman: [], stcMin: 0, secili: [], liste: [], hmView: 'front', odak: null };
+  harita.hitYukle().then(() => {}); // dokunma haritası arka planda
   show('salon-plan');
   renderSalonPlan();
 }
@@ -3632,8 +3634,8 @@ function renderSalonPlan() {
     const chips = (key, vals, fmt = (v) => v) => `<div class="es-chips">${vals.map((v) => `<button data-sp-chip="${key}" data-v="${esc(v)}" class="${(key === 'stc' ? P.stcMin === v : P[key].includes(v)) ? 'is-on' : ''}">${esc(fmt(v))}</button>`).join('')}</div>`;
     const amaclar = [...new Set(d.katalog.map((k) => k.amac).filter(Boolean))].sort();
     const ekipmanlar = [...new Set(d.katalog.map((k) => k.ekipman).filter(Boolean))].sort();
-    body.innerHTML = `
-      <p class="sp-lb">KAS GRUBU DAĞILIMI · dokun: öncelik ver</p>
+    body.innerHTML = `${haritaBolumu(d, son4, tum)}
+      <p class="sp-lb">LİSTE · KAS GRUBU DAĞILIMI · dokun: öncelik ver</p>
       <p class="sp-note">Çubuk son 4 hafta, çizgi tüm zaman ortalaması. Önceliğe sen karar verirsin.</p>
       <div class="sp-kas">${grup.sirala(salon.gruplar(d.etki)).map((g) => {
         const o = P.oncelik[g] || 0;
@@ -3686,16 +3688,112 @@ function renderSalonPlan() {
   $('sp-save').disabled = !P.liste.length;
   if (P.step === 0) next.disabled = false;
   paint(body);
+  if (P.step === 0) yerlestirHarita();
   for (const el of body.querySelectorAll('[data-w]')) el.style.width = `${el.dataset.w}%`;
   for (const el of body.querySelectorAll('[data-l]')) el.style.left = `${el.dataset.l}%`;
+}
+
+// --- Planlama: kas haritası (harita.js) ------------------------------------------------------
+/** Haritadaki grup → tablodaki (hkEtki) gruplar. */
+const tabloGruplari = (d, g) => salon.gruplar(d.etki).filter((t) => grup.haritaGruplari(t).includes(g));
+/** Haritadaki grubun önceliği (tablo gruplarının en yükseği). */
+const hmOncelik = (d, g) => Math.max(0, ...tabloGruplari(d, g).map((t) => sl.plan.oncelik[t] || 0));
+/** Dağılım (tablo grubu → %) → haritadaki grup → %. */
+function hmDagilim(dag) {
+  const out = {};
+  for (const [t, v] of Object.entries(dag)) { const hs = grup.haritaGruplari(t); for (const h of hs) out[h] = (out[h] || 0) + v / hs.length; }
+  return out;
+}
+
+function haritaBolumu(d, son4, tum) {
+  const P = sl.plan;
+  const sec = {};
+  for (const g of harita.META.grup) { const p = hmOncelik(d, g); if (p) sec[g] = p; }
+  const say = (v) => Object.keys(sec).filter((g) => harita.gorunumde(v, g)).length || '';
+  const chips = Object.entries(sec).map(([g, p]) => `<button class="hm-chip" data-hm-g="${esc(g)}"><span class="gd" data-bg="${grup.grupRenk(g)}"></span>${esc(g)}<em>${p === 2 ? '★★' : '★'}</em></button>`).join('');
+  return `<div class="hm-top"><p class="sp-lb">KAS HARİTASI · kasa dokun</p>
+      <div class="hm-seg"><button data-hm-v="front" class="${P.hmView === 'front' ? 'on' : ''}">Ön<i>${say('front')}</i></button><button data-hm-v="back" class="${P.hmView === 'back' ? 'on' : ''}">Arka<i>${say('back')}</i></button></div></div>
+    <div class="hm-wrap" id="hm-wrap"></div>
+    ${P.odak ? hmPanel(d, P.odak, son4, tum) : `<p class="hm-hint">Dokun: ★ öncelik · yana kaydır: ön / arka</p>`}
+    ${chips ? `<div class="hm-chips">${chips}</div>` : ''}`;
+}
+
+function hmPanel(d, g, son4, tum) {
+  const s4 = hmDagilim(son4)[g] || 0;
+  const tz = hmDagilim(tum)[g] || 0;
+  const max = Math.max(40, s4, tz);
+  const p = hmOncelik(d, g);
+  const tp = yuk.toparlanma(seansListesi())[g];
+  const fark = Math.round(s4 - tz);
+  const not = fark >= 5 ? ['warn', `Son dönemde fazla çalışılmış (+${fark} puan)`] : fark <= -5 ? ['', `Son dönemde geri kalmış (${fark} puan) · öncelik önerilir`] : ['', 'Dengede'];
+  const ornek = planRows(d, { oncelik: Object.fromEntries(tabloGruplari(d, g).map((t) => [t, 1])) }).rows.slice(0, 3);
+  return `<div class="hm-info"><div class="hm-h"><span class="gd" data-bg="${grup.grupRenk(g)}"></span><div><b>${esc(g)}</b><small>${esc(grup.grupKas(g))}</small></div><button class="hm-x" data-hm-x aria-label="Kapat">×</button></div>
+    <div class="hm-bars"><span>Son 4 hafta</span><div class="hm-tr"><i data-bg="${grup.grupRenk(g)}" data-w="${(s4 / max) * 100}"></i></div><b>%${fmtDec(Math.round(s4 * 10) / 10)}</b>
+      <span>Tüm zaman</span><div class="hm-tr"><i data-bg="#5F6B78" data-w="${(tz / max) * 100}"></i></div><b>%${fmtDec(Math.round(tz * 10) / 10)}</b></div>
+    <p class="hm-not ${not[0]}">${esc(not[1])}${tp ? ` · toparlanma %${tp.toparlanma}${tp.yuzmePay ? ` (yükün %${tp.yuzmePay}'si yüzmeden)` : ''}` : ''}</p>
+    <div class="hm-prio">${[['0', 'Yok'], ['1', '★ Öncelik'], ['2', '★★ Yüksek']].map(([v, t]) => `<button data-hm-p="${v}" class="${String(p) === v ? 'on' : ''}">${t}</button>`).join('')}</div>
+    ${ornek.length ? `<div class="hm-ex">${ornek.map((r) => `<span>${esc(r.ad)}</span>`).join('')}</div>` : ''}</div>`;
+}
+
+/** Figürü yerleştirir (innerHTML'den sonra; durum sl.plan'dan). */
+function yerlestirHarita() {
+  const P = sl.plan;
+  const d = salonData();
+  const wrap = $('hm-wrap');
+  if (!wrap || !d) return;
+  const sec = {};
+  for (const g of harita.META.grup) { const p = hmOncelik(d, g); if (p) sec[g] = p; }
+  wrap.append(harita.figur(P.hmView, { secili: sec, odak: P.odak }));
+}
+
+/** Haritaya dokunma: seçili değilse ★ + odak; seçiliyse yalnızca odak. */
+function onHaritaTap(g) {
+  const P = sl.plan;
+  const d = salonData();
+  const ts = tabloGruplari(d, g);
+  if (!ts.length) { toast(`${g}: tabloda (hkEtki) bu gruba bağlı hareket yok`, 2500); return false; }
+  if (!hmOncelik(d, g)) for (const t of ts) P.oncelik[t] = 1;
+  P.odak = g;
+  return true;
+}
+
+let hmSwipe = null;
+function onSalonPlanPointer(e) {
+  if (e.type === 'pointerdown') { hmSwipe = e.target.closest('#hm-wrap') ? { x: e.clientX, y: e.clientY } : null; return; }
+  if (!hmSwipe || !sl.plan) return;
+  const dx = e.clientX - hmSwipe.x, dy = e.clientY - hmSwipe.y;
+  hmSwipe = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    sl.plan.hmView = sl.plan.hmView === 'front' ? 'back' : 'front';
+    sl.plan.hmSwiped = Date.now();
+    const y = $('sp-body').scrollTop; renderSalonPlan(); $('sp-body').scrollTop = y;
+  }
 }
 
 function onSalonPlanClick(e) {
   const P = sl.plan;
   if (!P || e.target.closest('a')) return;
+  const fig = e.target.closest('#hm-wrap .kf');
+  if (fig) {
+    if (P.hmSwiped && Date.now() - P.hmSwiped < 400) return;
+    const hit = harita.hitEvent(fig, P.hmView, e);
+    if (hit && onHaritaTap(hit.g)) { const y = $('sp-body').scrollTop; renderSalonPlan(); $('sp-body').scrollTop = y; }
+    else if (!hit && P.odak) { P.odak = null; const y = $('sp-body').scrollTop; renderSalonPlan(); $('sp-body').scrollTop = y; }
+    return;
+  }
   const t = e.target.closest('button');
   if (!t) return;
-  if (t.dataset.spGrup) {
+  if (t.dataset.hmV) {
+    P.hmView = t.dataset.hmV;
+  } else if (t.dataset.hmG) {
+    P.odak = t.dataset.hmG;
+    P.hmView = harita.gorunumde(P.hmView, P.odak) ? P.hmView : harita.yuzu(P.odak);
+  } else if (t.dataset.hmX != null) {
+    P.odak = null;
+  } else if (t.dataset.hmP != null && P.odak) {
+    const v = Number(t.dataset.hmP);
+    for (const g of tabloGruplari(salonData(), P.odak)) { if (v) P.oncelik[g] = v; else delete P.oncelik[g]; }
+  } else if (t.dataset.spGrup) {
     const g = t.dataset.spGrup;
     P.oncelik[g] = ((P.oncelik[g] || 0) + 1) % 3;
   } else if (t.dataset.spChip) {
@@ -3783,6 +3881,8 @@ function wireSalon() {
   $('so-save').addEventListener('click', saveSalonForm);
   $('sp-back').addEventListener('click', onSalonPlanBack);
   $('sp-body').addEventListener('click', onSalonPlanClick);
+  $('sp-body').addEventListener('pointerdown', onSalonPlanPointer);
+  $('sp-body').addEventListener('pointerup', onSalonPlanPointer);
   $('sp-next').addEventListener('click', onSalonPlanNext);
   $('sp-save').addEventListener('click', onSalonPlanSave);
   $('home-gym-start').addEventListener('click', onGymStart);

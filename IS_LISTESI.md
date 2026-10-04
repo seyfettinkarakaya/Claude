@@ -297,6 +297,9 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 - [ ] Ayarlar'da yazı boyutu seçimi.
 
 ## İzlenecek
+- Uçtan uca testlerde sahte saatle zaman ilerletmeli uzun yüzme senaryoları ("Tam idman", "Mola") tam takım
+  çalışırken ara sıra bir dokunuşu kaçırıyor (yaklaşık 2–3 tam koşuda bir). 04.10.2026'da sürüm 12 öncesi kodda da
+  (70498a8) aynı görüldü: uygulama hatası değil, test düzeneğinin sahte saat zamanlaması. Tek başına koşunca hep geçer.
 
 - [ ] Telefondaki tarih önbelleğinin neden bozulduğu kesin bulunamadı. Sürüm 3+
   bozuk kaydı atlıyor ve hatayı ekranda gösteriyor. "Tarih listesi beklenmeyen
