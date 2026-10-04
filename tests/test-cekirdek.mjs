@@ -5,6 +5,7 @@ import * as G from '../grup.js';
 import * as K from '../kisit.js';
 import * as Y from '../yuk.js';
 import * as BI from '../bilgi.js';
+import * as A from '../analiz.js';
 
 let n = 0;
 const t = (name, fn) => { try { fn(); n++; } catch (e) { console.error('BAŞARISIZ:', name); throw e; } };
@@ -131,4 +132,30 @@ t('bilgi: hareket adı eşleştirme (ekipman sözcüğü içerik sayılmaz, eşi
   assert.deepEqual([...BI.sozcukler('Chin-Ups with Bands')], ['chinup', 'band']);
   assert.deepEqual(BI.kasYogunluk(['shoulders'], ['triceps', 'shoulders', 'lats']), { Triseps: 0.45, Omuz: 1, 'Sırt': 0.45 });
 });
+t('analiz: tempo, SWOLF, bölge payları, aynı setle kıyas ve rekor, ağrı geçmişi, CSS testi, tahmin, drill, test zamanı', () => {
+  assert.equal(A.lapSn('1:31.2'), 91.2); assert.equal(A.lapSn('58'), 58); assert.equal(A.lapSn('x'), null);
+  assert.equal(A.setImza({ tekrar: 4, mesafe: 100, stil: 'fr', tur: 'Swim' }), '4×100 FR swim');
+  assert.equal(A.swolf(91000, 100, 14), 37); assert.equal(A.kulacBasi(14), 1.79); assert.equal(A.swolf(0, 100, 14), null);
+  const b = A.bolgeSureleri([{ ms: 3000, n: 3, zone: 'EN2' }, { ms: 1000, n: 4, zone: 'EN3' }, { ms: 1000, n: 3, zone: 'EN2' }, { ms: 5, n: null }]);
+  assert.deepEqual(b.map((x) => [x.zone, x.pay]), [['EN2', 80], ['EN3', 20]]);
+  assert.deepEqual(A.denge([{ n: 2, ms: 6 }, { n: 4, ms: 3 }, { n: 6, ms: 1 }]), { kolay: 60, esik: 30, hiz: 10 });
+  const set = (gercek, tarih) => ({ tarih, setler: [{ tekrar: 4, mesafe: 100, stil: 'FR', tur: 'Swim', tamamlandi: true, gercek }], seans: { rpe: 5, msi: '' } });
+  const hist = [set('1:33.0', '2026-09-29'), set('1:35.0', '2026-09-22'), { tur: 'salon', tarih: '2026-09-30' }];
+  assert.deepEqual(A.kiyas(hist, '4×100 FR swim', '2026-10-06', 91), { tarih: '2026-09-29', onceki: 93, fark: -2 });
+  assert.deepEqual(A.setRekor(hist, '4×100 FR swim', '2026-10-06', 91), { onceki: 93 });
+  assert.equal(A.setRekor(hist, '4×100 FR swim', '2026-10-06', 94), null);
+  assert.deepEqual(A.msiParse('sag omuz 1; bel 0.5'), { 'sag omuz': 1, bel: 0.5 });
+  const ag = A.agriGecmisi([{ tarih: '2026-10-01', seans: { msi: 'sag omuz 1' } }, { tarih: '2026-10-03', seans: { msi: 'sag omuz 0.5; bel 1' } }, { tarih: '2026-08-01', seans: { msi: 'sag diz 2' } }], '2026-09-08');
+  assert.deepEqual(ag, { 'sag omuz': { n: 2, max: 1, ort: 0.8 }, bel: { n: 1, max: 1, ort: 1 } });
+  assert.equal(A.cssTesti(456, 224), 116, '7:36 ve 3:44 → 1:56'); assert.equal(A.cssTesti(456, 400), null, 'mantıksız süreler');
+  assert.equal(A.cssTesti(477, 224), 126.5);
+  assert.deepEqual(A.dereceTahmini(117), { 100: 105, 200: 222, 400: 460 });
+  assert.equal(A.drillBul('4×50 Catch-up drill, snorkel', [{ ad: 'Catch-up', video: 'v' }, { ad: 'Fist', video: 'f' }]).video, 'v');
+  assert.equal(A.drillBul('serbest', [{ ad: 'Fist' }]), null);
+  assert.ok(A.aerobikBlok('ms') && !A.aerobikBlok('CD'));
+  const esik = [set('1:53.0', '2026-10-01'), set('1:54.0', '2026-10-03'), set('1:52.0', '2026-10-05')];
+  assert.deepEqual(A.cssTestiZamani(esik, 117, '2026-10-06'), { setSayisi: 3, ortTempo: 113, rpe: 5 });
+  assert.equal(A.cssTestiZamani(esik, 114, '2026-10-06'), null, 'hedefin 2 sn altında değil');
+});
+
 console.log(`çekirdek testleri: TAMAM (${n})`);
