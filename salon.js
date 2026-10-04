@@ -267,3 +267,83 @@ export function planHareket(d, ad, { bodyweight = false } = {}) {
 
 /** Süre tahmini (sn): set × (tekrar × 3 sn + 60 sn); süreli harekette set × (süre + 30 sn). */
 export const tahminSn = (list) => list.reduce((a, x) => a + x.set * (x.sure ? x.sure + 30 : x.tekrar * 3 + 60), 0);
+
+// ---------------------------------------------------------------------------
+// Sürüm 12: önleyici doz (haftalık en az), rekor, hacim
+// ---------------------------------------------------------------------------
+
+/** Yüzücü için haftalık önleyici kategoriler. grup: haritadaki grup anahtarları (grup.js). */
+export const ONLEYICI = [
+  { key: 'omuz', ad: 'Omuz önleyici', hedef: 2, grup: [], re: /external rotation|internal rotation|face pull|pull[- ]?apart|\by[- ]?t[- ]?w\b|scap|rotator|dislocat|prone [ytw]\b/i },
+  { key: 'kalca', ad: 'Kalça stabilite', hedef: 1, grup: ['Kalça yanı'], re: /abduct|clam|monster|lateral walk|side plank|hip hike|glute med/i },
+  { key: 'core', ad: 'Core', hedef: 1, grup: ['Karın'], re: /plank|dead bug|pallof|bird dog|hollow|crunch|\bab\b/i },
+];
+
+/** Hareketin önleyici kategorisi ('omuz' | 'kalca' | 'core' | null). hpay: haritadaki grup payları. */
+export function onleyiciKat(ad, hpay = {}) {
+  for (const o of ONLEYICI) if (o.re.test(String(ad || ''))) return o.key;
+  const ana = Object.entries(hpay).sort((a, b) => b[1] - a[1])[0];
+  if (ana && ana[1] >= 0.5) for (const o of ONLEYICI) if (o.grup.includes(ana[0])) return o.key;
+  return null;
+}
+
+/** Pazartesi (YYYY-MM-DD). */
+export function haftaBasi(tarih) {
+  const [y, m, d] = tarih.split('-').map(Number);
+  const x = new Date(Date.UTC(y, m - 1, d));
+  x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7));
+  return x.toISOString().slice(0, 10);
+}
+
+/**
+ * Bu haftanın önleyici durumu: [{ key, ad, hedef, yapilan, acik }]. Bir gün içinde kategori bir kez sayılır.
+ * rows: [{ tarih, hareket }] (tablo geçmişi + bugünün idmanı); hpayOf(ad) → haritadaki grup payları.
+ */
+export function onleyiciDurum(rows, bugun, hpayOf = () => ({})) {
+  const bas = haftaBasi(bugun);
+  const gun = {};
+  for (const r of rows || []) {
+    if (!r || r.tarih < bas || r.tarih > bugun) continue;
+    const k = onleyiciKat(r.hareket, hpayOf(r.hareket));
+    if (k) (gun[k] = gun[k] || new Set()).add(r.tarih);
+  }
+  return ONLEYICI.map((o) => { const y = gun[o.key] ? gun[o.key].size : 0; return { key: o.key, ad: o.ad, hedef: o.hedef, yapilan: y, acik: y < o.hedef }; });
+}
+
+/** Tahmini 1 tekrar maksimum (Epley): ağırlık × (1 + tekrar/30); ağırlık yoksa null. */
+export const birRM = (kg, tekrar) => (typeof kg === 'number' && kg > 0 && tekrar > 0 ? Math.round(kg * (1 + tekrar / 30) * 10) / 10 : null);
+
+/** Satırın en iyi tekrarı / süresi ("Setler: 11-9-9" varsa en büyüğü). */
+const enIyi = (r) => { const s = parseSetler(r.aciklama); return s && s.length ? Math.max(...s) : Number(r.tekrar) || 0; };
+
+/**
+ * Bugünkü hareket satırı (payload satırı) geçmişe göre rekor mu? [{ tur, metin, onceki }]
+ * tur: 'agirlik' (en ağır), 'tekrar' (aynı ya da daha ağır ağırlıkta en çok tekrar), 'sure', '1rm'.
+ */
+export function rekorlar(gecmis, x) {
+  const h = (gecmis || []).filter((r) => r.hareket === x.hareket && r.tarih < x.tarih);
+  if (!h.length) return [];
+  const out = [];
+  const kg = typeof x.agirlik === 'number' ? x.agirlik : null;
+  const best = enIyi(x);
+  const timed = isTimed(x.hareket, x.aciklama);
+  const kgs = h.map((r) => (typeof r.agirlik === 'number' ? r.agirlik : null)).filter((v) => v != null);
+  if (kg != null && kgs.length && kg > Math.max(...kgs)) out.push({ tur: 'agirlik', metin: `En ağır: ${fmtN(kg)} kg × ${fmtN(best)}`, onceki: `${fmtN(Math.max(...kgs))} kg` });
+  else if (timed) {
+    const prev = Math.max(...h.map(enIyi));
+    if (best > prev) out.push({ tur: 'sure', metin: `En uzun: ${fmtN(best)} sn`, onceki: `${fmtN(prev)} sn` });
+  } else {
+    const ayni = h.filter((r) => (kg == null ? typeof r.agirlik !== 'number' : typeof r.agirlik === 'number' && r.agirlik >= kg));
+    if (ayni.length) {
+      const prev = Math.max(...ayni.map(enIyi));
+      if (best > prev) out.push({ tur: 'tekrar', metin: `En çok tekrar: ${fmtN(best)}${kg != null ? ` @ ${fmtN(kg)} kg` : ''}`, onceki: `${fmtN(prev)}` });
+    }
+  }
+  const rm = birRM(kg, best);
+  const prevRm = Math.max(0, ...h.map((r) => birRM(typeof r.agirlik === 'number' ? r.agirlik : null, enIyi(r)) || 0));
+  if (rm && prevRm && rm > prevRm && !out.some((o) => o.tur === 'agirlik')) out.push({ tur: '1rm', metin: `Tahmini 1RM: ${fmtN(rm)} kg`, onceki: `${fmtN(prevRm)} kg` });
+  return out;
+}
+
+/** Hacim (kg): Σ set × tekrar × ağırlık (yalnızca kilolu hareketler). */
+export const hacim = (rows) => Math.round((rows || []).reduce((a, r) => a + (typeof r.agirlik === 'number' ? (Number(r.set) || 0) * (Number(r.tekrar) || 0) * r.agirlik : 0), 0));

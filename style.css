@@ -1250,6 +1250,17 @@ button {
 .sp-m b { display: block; font-size: 17px; overflow-wrap: anywhere; }
 .sp-m small { display: block; font-size: 13px; font-weight: 600; color: #7A8694; }
 .sp-tag { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 6px; background: #1E2731; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #C3CCD6; vertical-align: 2px; }
+/* Sürüm 12: kısıt, önleyici borç, dinlenen kas */
+.sp-borc { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 10px; padding: 10px 12px; border-radius: 14px; background: rgba(245, 165, 36, 0.08); border: 1px solid rgba(245, 165, 36, 0.35); font-size: 13px; font-weight: 700; }
+.sp-borc b { width: 100%; font-size: 11px; letter-spacing: 1px; color: #F5A524; text-transform: uppercase; }
+.sp-borc span { padding: 3px 8px; border-radius: 8px; background: #1C242E; }
+.sp-borc span.is-ok { color: var(--done); }
+.sp-m small.sp-ok { color: var(--done); }
+.sp-m small.warn, .sp-m small.sp-kn { color: var(--warn); }
+.sp-kg { width: 100%; margin: 4px 0 8px; padding: 10px 12px; border-radius: 14px; background: transparent; border: 1px dashed #3A2A2A; color: #FCA5A5; font-size: 14px; font-weight: 700; text-align: left; }
+.sp-ex.is-yasak { opacity: 0.7; border-style: dashed; }
+.sp-ex.is-yasak .sp-m > b { text-decoration: line-through; text-decoration-color: #F87171; }
+.sp-ex.is-yasak .sp-sc b { color: #F87171; }
 .sp-stk { display: flex; gap: 2px; height: 7px; margin: 7px 0 5px; border-radius: 4px; overflow: hidden; }
 .sp-add { flex: none; width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; border: 1.5px solid #2A3440; font-size: 24px; font-weight: 700; }
 .sp-ex.is-on .sp-add { background: var(--accent); border-color: var(--accent); color: #1A0E04; }

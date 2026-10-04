@@ -6,6 +6,9 @@ import * as zaman from './zaman.js?v=11.0.1';
 import * as ref from './ref.js?v=11.0.1';
 import * as duzen from './duzen.js?v=11.0.1';
 import * as salon from './salon.js?v=11.0.1';
+import * as grup from './grup.js?v=11.0.1';
+import * as kisit from './kisit.js?v=11.0.1';
+import * as yuk from './yuk.js?v=11.0.1';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
 export const APP_VERSION = '11.0.1';
@@ -2792,10 +2795,6 @@ function slPersist() {
   if (sl.ses) data.saveSalonSession(sl.ses);
 }
 
-const GRUP = {
-  Back: ['SIRT', '#60A5FA'], Chest: ['GÖĞÜS', '#F87171'], Core: ['GÖVDE', '#A78BFA'], Abs: ['KARIN', '#A78BFA'],
-  Legs: ['BACAK', '#34D399'], Glutes: ['KALÇA', '#2DD4BF'], Shoulders: ['OMUZ', '#F5A524'], Arms: ['KOL', '#FB923C'],
-};
 /** Hareketin ana kas grubu (hkEtki'de en yüksek oranlı). */
 function grupOf(ad) {
   const d = salonData();
@@ -2805,8 +2804,49 @@ function grupOf(ad) {
   for (const r of rows) by[r.grup] = (by[r.grup] || 0) + (Number(r.oran) || 0);
   return Object.entries(by).sort((a, b) => b[1] - a[1])[0][0];
 }
-const grupInfo = (ad) => { const g = grupOf(ad); return { ad: (GRUP[g] || [g.toLocaleUpperCase('tr')])[0], renk: (GRUP[g] || [0, '#94A3B8'])[1] }; };
+// Grup adı ve rengi grup.js'ten (10 grup; eski adlar da tanınır).
+const grupInfo = (ad) => { const g = grupOf(ad); return { ad: grup.grupAd(g).toLocaleUpperCase('tr'), renk: grup.grupRenk(g) }; };
+/** Hareketin kas grubu payları Türkçe adlarla, büyükten küçüğe: [[ad, oran], …] */
+const etkiTR = (ad) => {
+  const by = {};
+  for (const e of (salonData() ? salonData().etki : []).filter((x) => x.ad === ad)) by[grup.grupAd(e.grup)] = (by[grup.grupAd(e.grup)] || 0) + (Number(e.oran) || 0);
+  return Object.entries(by).sort((a, b) => b[1] - a[1]);
+};
 const katalogOf = (ad) => { const d = salonData(); return d ? d.katalog.find((k) => k.ad === ad) : null; };
+
+// --- Sürüm 12: kısıt, önleyici doz, yük -------------------------------------------------
+/** Kısıt kuralları (sporRef "kisit" sayfası ya da varsayılan). */
+const kurallar = () => kisit.kurallar(sporRef());
+/** Hareketin haritadaki kas grubu payları (Omuz … Bacak). */
+const hPay = (ad) => { const d = salonData(); return d ? grup.haritaPay(salon.grupPay(d.etki, ad)) : {}; };
+/** Yüzme + salon seansları (yük hesapları için). */
+function seansListesi() {
+  const d = salonData();
+  return yuk.seanslar({ hist: data.getHistory(), salonGecmis: d ? d.gecmis : [], etkiPay: (ad) => (d ? salon.grupPay(d.etki, ad) : {}), katsayi: yuk.yuzmeKatsayi(sporRef()) });
+}
+/** Hareketin kısıt durumu (katalog satırı + kurallar). */
+const kisitOf = (ad) => kisit.hareketKisit(katalogOf(ad) || { ad }, kurallar());
+
+/**
+ * Planlama listesi: salon.puanla + kısıt (yasaklılar ayrı), açık önleyici borç ×1,25, toparlanmamış kas ×0,8.
+ * { rows (uygun/dikkat, puana göre), yasak, borc }
+ */
+function planRows(d, opts) {
+  const borc = salon.onleyiciDurum(d.gecmis, todayKey(), hPay);
+  const acik = new Set(borc.filter((b) => b.acik).map((b) => b.key));
+  const tp = yuk.toparlanma(seansListesi());
+  const all = salon.puanla(d, opts).map((r) => {
+    const h = hPay(r.ad);
+    const kat = salon.onleyiciKat(r.ad, h);
+    const yorgun = Object.entries(h).filter(([g, p]) => p >= 0.3 && tp[g] && tp[g].toparlanma < 50).map(([g]) => g);
+    return { ...r, ks: kisitOf(r.ad), hpay: h, kat, borcAcik: Boolean(kat && acik.has(kat)), yorgun, ham: r.ham * (kat && acik.has(kat) ? 1.25 : 1) * (yorgun.length ? 0.8 : 1) };
+  });
+  const rows = all.filter((r) => r.ks.durum !== 'yasak');
+  const max = Math.max(0, ...rows.map((r) => r.ham));
+  for (const r of rows) r.puan = max ? Math.round((r.ham / max) * 100) : 0;
+  rows.sort((a, b) => b.ham - a.ham || a.ad.localeCompare(b.ad));
+  return { rows, yasak: all.filter((r) => r.ks.durum === 'yasak'), borc };
+}
 
 // --- Ana sayfa kartı ve başlangıç ---------------------------------------------------
 
@@ -3191,7 +3231,7 @@ function openSlDetail(h) {
   const x = slH()[h];
   const st = slst();
   const k = katalogOf(x.ad);
-  const etki = (salonData() ? salonData().etki : []).filter((e) => e.ad === x.ad).sort((a, b) => b.oran - a.oran);
+  const etki = etkiTR(x.ad);
   const started = st.per[h].sets.length > 0;
   const working = st.phase === 'work';
   const stat = salon.status(st, slH(), h);
@@ -3204,7 +3244,7 @@ function openSlDetail(h) {
     <div class="dt-title sl-dt">${esc(x.ad)}</div>
     <p class="dt-row">Hedef <b>${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}</b> · ${esc(fmtKg(x.agirlik))} · Dinlen <b>${fmtDur(x.dinlen)}</b></p>
     ${k ? `<p class="dt-row">${esc([k.amac, k.ekipman].filter(Boolean).join(' · '))}${k.stc != null ? ` · Yüzme katsayısı ${fmtDec(k.stc)}` : ''}</p>` : '<p class="dt-why">Katalogda (H) yok: v2 formülü bu hareketi hesaplamaz.</p>'}
-    ${etki.length ? `<p class="dt-row sl-etki">${etki.slice(0, 4).map((e) => `${esc(e.kas || e.grup)} <b>${fmtDec(e.oran)}</b>`).join(' · ')}</p>` : ''}
+    ${etki.length ? `<p class="dt-row sl-etki">${etki.slice(0, 4).map(([g, o]) => `${esc(g)} <b>${fmtDec(Math.round(o * 100) / 100)}</b>`).join(' · ')}</p>` : ''}
     ${k && k.video ? `<p class="dt-row"><a class="sl-vid is-inline" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer">▶ Videoyu YouTube'da aç</a></p>` : ''}
     <div class="dt-acts sl-acts">${b('edit', '✎', 'Düzenle', !working && stat !== 'tamam')}${b('swap', '⇄', 'Değiştir', !working && !started)}${b('add', '＋', 'Sonrasına ekle', !working)}${b('del', '🗑', 'Sil', !working && !started && slH().length > 1, 'del')}</div>
     ${working ? '<p class="dt-why">Set sürerken düzenlenemez</p>' : started ? '<p class="dt-why">Başlanan hareket silinemez ya da değiştirilemez</p>' : ''}
@@ -3518,8 +3558,8 @@ function showSalonPlan() {
   renderSalonPlan();
 }
 
-const grupAd = (g) => (GRUP[g] ? GRUP[g][0].charAt(0) + GRUP[g][0].slice(1).toLocaleLowerCase('tr') : g);
-const grupRenk = (g) => (GRUP[g] ? GRUP[g][1] : '#94A3B8');
+const grupAd = (g) => grup.grupAd(g);
+const grupRenk = (g) => grup.grupRenk(g);
 const planOpts = () => ({ oncelik: sl.plan.oncelik, amac: sl.plan.amac, ekipman: sl.plan.ekipman, stcMin: sl.plan.stcMin });
 
 function payBar(pay) {
@@ -3548,7 +3588,7 @@ function renderSalonPlan() {
     body.innerHTML = `
       <p class="sp-lb">KAS GRUBU DAĞILIMI · dokun: öncelik ver</p>
       <p class="sp-note">Çubuk son 4 hafta, çizgi tüm zaman ortalaması. Önceliğe sen karar verirsin.</p>
-      <div class="sp-kas">${salon.gruplar(d.etki).map((g) => {
+      <div class="sp-kas">${grup.sirala(salon.gruplar(d.etki)).map((g) => {
         const o = P.oncelik[g] || 0;
         return `<button class="sp-k${o ? ' is-on' : ''}" data-sp-grup="${esc(g)}"><b>${esc(grupAd(g))}<em>${o === 2 ? 'ÖNCELİK ×2' : o ? 'ÖNCELİK' : ''}</em></b>
           <span class="sp-bar"><i data-bg="${grupRenk(g)}" data-w="${Math.min(100, (son4[g] || 0) * 2.5)}"></i><s data-l="${Math.min(100, (tum[g] || 0) * 2.5)}"></s></span>
@@ -3560,14 +3600,22 @@ function renderSalonPlan() {
     next.textContent = `Hareketleri getir · ${salon.puanla(d, planOpts()).length} uygun`;
   } else if (P.step === 1) {
     $('sp-title').textContent = 'Hareket seç';
-    const rows = salon.puanla(d, planOpts());
+    const { rows, yasak, borc } = planRows(d, planOpts());
+    const ac = borc.filter((b) => b.acik);
     body.innerHTML = `<p class="sp-note">Sıralama: öncelikli kas × hareketin etkisi × yüzme aktarımı. ⚠: son iki idmanda ağrı (MSI ≥ 1,5).</p>
+      ${ac.length ? `<div class="sp-borc"><b>Önleyici borç · bu hafta</b>${borc.map((b) => `<span class="${b.acik ? '' : 'is-ok'}">${esc(b.ad)} ${b.yapilan}/${b.hedef}${b.acik ? '' : ' ✓'}</span>`).join('')}</div>` : ''}
       ${rows.map((r) => `<button class="sp-ex${P.secili.includes(r.ad) ? ' is-on' : ''}" data-sp-ex="${esc(r.ad)}">
         <span class="sp-sc"><b class="n">${r.puan}</b><small>PUAN</small></span>
         <span class="sp-m"><b>${esc(r.ad)}${r.amac ? `<span class="sp-tag">${esc(r.amac.toLocaleUpperCase('tr'))}</span>` : ''}${r.oneri && r.oneri.warn ? ' <span class="warn">⚠</span>' : ''}</b>
-          ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))}</small></span>
+          ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))}</small>
+          ${r.borcAcik ? `<small class="sp-ok">Önleyici: ${esc(salon.ONLEYICI.find((o) => o.key === r.kat).ad.toLocaleLowerCase('tr'))} borcu</small>` : ''}
+          ${r.yorgun.length ? `<small class="warn">Dinleniyor: ${esc(r.yorgun.join(', '))}</small>` : ''}
+          ${r.ks.notlar.map((t) => `<small class="sp-kn">⚠ ${esc(t)}</small>`).join('')}</span>
         ${r.video ? `<a class="sp-vid" href="${esc(r.video)}" target="_blank" rel="noopener noreferrer" aria-label="Video">▶</a>` : ''}
-        <span class="sp-add">${P.secili.includes(r.ad) ? '✓' : '+'}</span></button>`).join('') || '<p class="empty">Süzgeçlere uyan hareket yok.</p>'}`;
+        <span class="sp-add">${P.secili.includes(r.ad) ? '✓' : '+'}</span></button>`).join('') || '<p class="empty">Süzgeçlere uyan hareket yok.</p>'}
+      ${yasak.length ? `<button class="sp-kg" data-sp-kg>⊘ ${yasak.length} hareket sağlık kısıtı nedeniyle ${P.kisitGoster ? 'gösteriliyor · gizle' : 'gizlendi · göster'}</button>
+        ${P.kisitGoster ? yasak.map((r) => `<div class="sp-ex is-yasak"><span class="sp-sc"><b class="n">⊘</b></span>
+          <span class="sp-m"><b>${esc(r.ad)}</b><small class="sp-kn">${esc(r.ks.neden.join(' · '))}</small>${r.ks.alternatif ? `<small>Yerine: <b>${esc(r.ks.alternatif)}</b></small>` : ''}</span></div>`).join('') : ''}` : ''}`;
     next.textContent = `Plana geç · ${P.secili.length} hareket`;
     next.disabled = !P.secili.length;
   } else {
@@ -3605,6 +3653,8 @@ function onSalonPlanClick(e) {
     const key = t.dataset.spChip;
     if (key === 'stc') P.stcMin = Number(t.dataset.v);
     else P[key] = P[key].includes(t.dataset.v) ? P[key].filter((v) => v !== t.dataset.v) : [...P[key], t.dataset.v];
+  } else if (t.dataset.spKg != null) {
+    P.kisitGoster = !P.kisitGoster;
   } else if (t.dataset.spEx) {
     const ad = t.dataset.spEx;
     P.secili = P.secili.includes(ad) ? P.secili.filter((x) => x !== ad) : [...P.secili, ad];
@@ -3645,7 +3695,7 @@ async function pickHareket(ctx) {
   const cur = slH()[ctx.h];
   const g = grupOf(cur.ad);
   const oncelik = ctx.mode === 'swap' ? (g ? { [g]: 1 } : {}) : (sl.ses.oncelik || {});
-  const rows = salon.puanla(d, { oncelik, haric: slH().map((x) => x.ad) }).slice(0, 20);
+  const rows = planRows(d, { oncelik, haric: slH().map((x) => x.ad) }).rows.slice(0, 20); // yasaklılar önerilmez
   const body = document.createElement('div');
   body.className = 'pick-list sp-pick';
   body.innerHTML = rows.map((r) => `<button class="pick" data-value="${esc(r.ad)}"><b>${r.puan} · ${esc(r.ad)}${r.oneri && r.oneri.warn ? ' ⚠' : ''}</b><small>${esc(Object.keys(r.pay).map(grupAd).join(', '))} · ${esc(sonText(r.son))}</small></button>`).join('') || '<p class="empty">Uygun hareket yok.</p>';
