@@ -3075,7 +3075,9 @@ function slRenderItem(node, x, h) {
     const prev = o ? `<div class="sl-prev">Geçen: ${o.rpe != null ? `RPE ${fmtDec(o.rpe)}` : ''}${o.msi ? ` · MSI ${fmtDec(o.msi)}` : ''} · ${oneriTx}</div>` : '';
     const w = x.agirlik === salon.VUCUT ? '' : `<div class="sl-wt"><div><span class="lbl">AĞIRLIK</span><b class="n">${esc(fmtKg(x.agirlik))}</b></div>
       <div class="sl-pm"><button data-sl-w="-1" aria-label="Ağırlığı azalt">−</button><button data-sl-w="1" aria-label="Ağırlığı artır">+</button></div></div>`;
-    body = `<div class="w-title sl-ad">${esc(x.ad)}</div>${info}${prev}${slBoxes(h, false)}${w}<div class="w-desc"></div>`;
+    const kn = kisitOf(x.ad).notlar;
+    const kisitTx = kn.length ? `<div class="sl-kn">${kn.map((t) => `<span>⚠ ${esc(t)}</span>`).join('')}</div>` : '';
+    body = `<div class="w-title sl-ad">${esc(x.ad)}</div>${info}${prev}${kisitTx}${slBoxes(h, false)}${w}<div class="w-desc"></div>`;
   }
   node.classList.add('w-item');
   node.classList.toggle('is-done', stat === 'tamam' || stat === 'eksik');
@@ -3654,6 +3656,7 @@ function renderSalonPlan() {
     body.innerHTML = `<p class="sp-note">Sıralama: öncelikli kas × hareketin etkisi × yüzme aktarımı. ⚠: son iki idmanda ağrı (MSI ≥ 1,5).</p>
       ${ac.length ? `<div class="sp-borc"><b>Önleyici borç · bu hafta</b>${borc.map((b) => `<span class="${b.acik ? '' : 'is-ok'}">${esc(b.ad)} ${b.yapilan}/${b.hedef}${b.acik ? '' : ' ✓'}</span>`).join('')}</div>` : ''}
       ${rows.map((r) => `<button class="sp-ex${P.secili.includes(r.ad) ? ' is-on' : ''}" data-sp-ex="${esc(r.ad)}">
+        <span class="sp-mb" data-mb data-mb-ad="${esc(r.ad)}"></span>
         <span class="sp-sc"><b class="n">${r.puan}</b><small>PUAN</small></span>
         <span class="sp-m"><b>${esc(r.ad)}${r.amac ? `<span class="sp-tag">${esc(r.amac.toLocaleUpperCase('tr'))}</span>` : ''}${r.oneri && r.oneri.warn ? ' <span class="warn">⚠</span>' : ''}</b>
           ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))}</small>
@@ -3664,7 +3667,9 @@ function renderSalonPlan() {
         <span class="sp-add">${P.secili.includes(r.ad) ? '✓' : '+'}</span></button>`).join('') || '<p class="empty">Süzgeçlere uyan hareket yok.</p>'}
       ${yasak.length ? `<button class="sp-kg" data-sp-kg>⊘ ${yasak.length} hareket sağlık kısıtı nedeniyle ${P.kisitGoster ? 'gösteriliyor · gizle' : 'gizlendi · göster'}</button>
         ${P.kisitGoster ? yasak.map((r) => `<div class="sp-ex is-yasak"><span class="sp-sc"><b class="n">⊘</b></span>
-          <span class="sp-m"><b>${esc(r.ad)}</b><small class="sp-kn">${esc(r.ks.neden.join(' · '))}</small>${r.ks.alternatif ? `<small>Yerine: <b>${esc(r.ks.alternatif)}</b></small>` : ''}</span></div>`).join('') : ''}` : ''}`;
+          <span class="sp-m"><b>${esc(r.ad)}</b><small class="sp-kn">${esc(r.ks.neden.join(' · '))}</small>${r.ks.alternatif ? `<small>Yerine: <b>${esc(r.ks.alternatif)}</b></small>` : ''}</span></div>`).join('') : ''}` : ''}
+      ${P.secili.length ? (() => { const sx = P.secili.map((ad) => P.liste.find((x) => x.ad === ad) || salon.planHareket(d, ad)); const k = kapsam(sx); return `<div class="sp-tray"><span class="sp-mb" data-mb data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(k))}"></span>
+        <span class="sp-m"><b>${sx.length} hareket · ~${fmtDur(salon.tahminSn(sx))}</b><small>${esc(Object.entries(k).slice(0, 3).map(([g, v]) => `${g} %${v}`).join(' · '))}</small></span></div>`; })() : ''}`;
     next.textContent = `Plana geç · ${P.secili.length} hareket`;
     next.disabled = !P.secili.length;
   } else {
@@ -3672,11 +3677,15 @@ function renderSalonPlan() {
     if (P.liste.length !== P.secili.length || P.liste.some((x, i) => x.ad !== P.secili[i])) {
       P.liste = P.secili.map((ad) => P.liste.find((x) => x.ad === ad) || salon.planHareket(d, ad, { bodyweight: (katalogOf(ad) || {}).ekipman === 'Bodyweight' }));
     }
+    const kp = kapsam(P.liste);
     body.innerHTML = `<p class="sp-sum">${P.liste.length} hareket · ~${fmtDur(salon.tahminSn(P.liste))} <small>(set × (tekrar × 3 sn + 60 sn))</small></p>
+      ${P.liste.length ? `<div class="sp-kapsam"><span class="sp-mb big" data-mb data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(kp))}"></span>
+        <div><p class="sp-lb">PLANIN KAPSAMI</p>${Object.entries(kp).slice(0, 5).map(([g, v]) => `<p class="sp-kp"><span class="gd" data-bg="${grup.grupRenk(g)}"></span>${esc(g)}<b>%${v}</b></p>`).join('')}</div></div>` : ''}
       ${P.liste.map((x, i) => {
         const o = salon.oneri(d.gecmis, x.ad);
+        const kn = kisitOf(x.ad).notlar;
         return `<div class="sp-pl"><span class="sp-n n">${i + 1}</span>
-          <span class="sp-m"><b>${esc(x.ad)}</b><small>${esc(grupAd(grupOf(x.ad)))}${o ? ` · öneri: <em class="${o.warn ? 'warn' : ''}">${esc(o.text)}</em>` : ''}</small></span>
+          <span class="sp-m"><b>${esc(x.ad)}</b><small>${esc(grupAd(grupOf(x.ad)))}${o ? ` · öneri: <em class="${o.warn ? 'warn' : ''}">${esc(o.text)}</em>` : ''}</small>${kn.map((t) => `<small class="sp-kn">⚠ ${esc(t)}</small>`).join('')}</span>
           <span class="sp-v n">${x.set} × ${x.sure ? `${x.sure} sn` : x.tekrar}<small>${esc(fmtKg(x.agirlik))}</small></span>
           <span class="sp-mv"><button data-sp-mv="${i}:-1" aria-label="Yukarı" ${i ? '' : 'disabled'}>↑</button><button data-sp-mv="${i}:1" aria-label="Aşağı" ${i < P.liste.length - 1 ? '' : 'disabled'}>↓</button><button data-sp-rm="${i}" aria-label="Çıkar">✕</button></span></div>`;
       }).join('')}
@@ -3689,6 +3698,7 @@ function renderSalonPlan() {
   if (P.step === 0) next.disabled = false;
   paint(body);
   if (P.step === 0) yerlestirHarita();
+  yerlestirMini(body);
   for (const el of body.querySelectorAll('[data-w]')) el.style.width = `${el.dataset.w}%`;
   for (const el of body.querySelectorAll('[data-l]')) el.style.left = `${el.dataset.l}%`;
 }
@@ -3703,6 +3713,26 @@ function hmDagilim(dag) {
   const out = {};
   for (const [t, v] of Object.entries(dag)) { const hs = grup.haritaGruplari(t); for (const h of hs) out[h] = (out[h] || 0) + v / hs.length; }
   return out;
+}
+
+/** Hareket listesinin kas kapsamı (set ağırlıklı %): { grup: % } büyükten küçüğe. */
+function kapsam(list) {
+  const tot = {};
+  let all = 0;
+  for (const x of list) for (const [g, p] of Object.entries(hPay(x.ad))) { tot[g] = (tot[g] || 0) + p * (x.set || 1); all += p * (x.set || 1); }
+  return Object.fromEntries(Object.entries(tot).map(([g, v]) => [g, Math.round((v / (all || 1)) * 100)]).sort((a, b) => b[1] - a[1]));
+}
+/** Kapsam → figür yoğunluğu (en büyük 1). */
+const yogunlukOf = (k) => { const m = Math.max(1, ...Object.values(k)); return Object.fromEntries(Object.entries(k).map(([g, v]) => [g, 0.25 + 0.75 * (v / m)])); };
+/** [data-mb] yer tutucularına mini figür; data-mb-ad: hareket ya da data-mb-k: kapsam JSON, data-mb-v: front|back|ikisi. */
+function yerlestirMini(root) {
+  for (const el of root.querySelectorAll('[data-mb]')) {
+    const k = el.dataset.mbAd ? kapsam([{ ad: el.dataset.mbAd, set: 1 }]) : JSON.parse(el.dataset.mbK || '{}');
+    const y = yogunlukOf(k);
+    const ana = Object.keys(k)[0];
+    const views = el.dataset.mbV === 'ikisi' ? ['front', 'back'] : [el.dataset.mbV || (ana ? harita.yuzu(ana) : 'front')];
+    el.replaceChildren(...views.map((v) => harita.figur(v, { yogunluk: y, rozet: false, cls: 'mini' })));
+  }
 }
 
 function haritaBolumu(d, son4, tum) {

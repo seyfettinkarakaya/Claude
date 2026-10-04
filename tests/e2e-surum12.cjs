@@ -70,7 +70,7 @@ sc('Kısıt: ağırlıklı squat ve zıplama listede gizli, gösterilince ⊘ + 
 });
 
 sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla → Kaydet → "Hazır plan" → İdmana başla; plan tüketilir', async ({ launch }) => {
-  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  const s = await launch({ salonSheets: salonV12(), ref: true, viewport: { width: 390, height: 844 } }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
   assert.match(await txt(s, '#home-gym-go'), /SON İDMAN · 20 EYLÜL.*Dumbbell Shoulder Press, Band Bent Over Row.*2 hareket · ~.*2 harekette öneri uygulandı/);
@@ -78,7 +78,9 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
   await p.click('#home-gym-planla'); await s.waitScreen('salon-plan');
   await p.click('[data-sp-grup="Shoulders"]'); await p.click('#sp-next');
   await p.click('[data-sp-ex="Band External Rotation"]'); await p.click('[data-sp-ex="Dumbbell Shoulder Press"]');
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/p2.png` });
   await p.click('#sp-next');
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/p3.png` });
   assert.equal(await p.isHidden('#sp-save'), false);
   await p.click('#sp-save'); await s.waitScreen('home');
   assert.equal((await s.ls('ysk.salonPlan')).hareketler.length, 2);

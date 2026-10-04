@@ -1380,3 +1380,17 @@ button {
 .hm-chip .gd { width: 11px; height: 11px; border-radius: 6px; }
 .hm-chip em { font-style: normal; color: #F5A524; font-size: 12px; }
 
+
+/* Sürüm 12: mini vücut, plan tepsisi, planın kapsamı, kart üstü kısıt */
+.sp-mb { flex: none; display: flex; gap: 2px; height: 64px; }
+.sp-mb .kf.mini { height: 100%; }
+.sp-mb.big { height: 150px; }
+.sp-tray { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border-radius: 18px; background: #1A2230; border: 1px solid #2A3644; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45); }
+.sp-tray .sp-mb { height: 52px; }
+.sp-kapsam { display: flex; gap: 14px; align-items: center; margin: 4px 0 12px; padding: 10px 12px; border-radius: 18px; background: #12181F; border: 1px solid #1E2731; }
+.sp-kapsam > div { flex: 1; min-width: 0; }
+.sp-kp { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; margin: 3px 0; }
+.sp-kp .gd { width: 10px; height: 10px; border-radius: 5px; flex: none; }
+.sp-kp b { margin-left: auto; }
+.sl-kn { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; }
+.sl-kn span { padding: 3px 8px; border-radius: 8px; background: rgba(255, 176, 32, 0.12); color: var(--warn); font-size: 12px; font-weight: 800; }
