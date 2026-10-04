@@ -61,6 +61,17 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
   kişisel bir kaynaktan (ör. Google Drive) indirilir.
 - Not: gymvisual.com bu ortamdan açılamadı; koşullar arama sonuçlarındaki lisans/fiyat sayfası özetlerinden.
   Satın almadan önce https://gymvisual.com/content/9-license ve /content/6-price-rules okunmalı.
+**Serbest video araştırması (04.10.2026):** uygulamada serbestçe kullanılabilen büyük bir hareket video kütüphanesi yok.
+- Vector Fitness ücretsiz paket (305 video): uygulama/web uygulamasında kullanım **yasak** (yalnız sosyal medya, eğitim).
+- Your Move (ymove) ücretsiz 25 video: uygulamada kullanım **serbest**, atıf isteğe bağlı; yalnız 25 hareket.
+- Wikimedia Commons "Fitness animations" (~57) ve "Videos of exercise" (~25): CC BY-SA (atıf + aynı lisans); az ve dağınık.
+- Mixkit / Videezy stok videoları: hareket öğretmek için çekilmemiş (atmosfer görüntüsü).
+- **YouTube gömme (önerilen):** YouTube'un kendi oynatıcısıyla gömmek, sahibi gömmeye izin verdiği sürece serbest;
+  dosya bizde durmaz, lisans gerekmez. Fizyoterapist/antrenör kanallarından hareket başına bir video seçilir,
+  H'deki Video sütununa yazılır; uygulama içinde youtube-nocookie ile oynar (CSP frame-src eklenir), istenen
+  saniyeden başlar. İnternetsizken açılmaz. Esneme/nefes/rehab hareketleri için de en iyi kaynak.
+- [ ] Karar: YouTube gömme + exercises-dataset metinleri (MIT) + free-exercise-db fotoğrafları; ymove'un 25 videosundan
+  senin hareketlerine uyanlar uygulamaya gömülebilir.
 
 ### Kas haritası notları (04.10.2026, sürüm 12 sonrası) — 12.1.0'da yapıldı (yukarıda)
 - [ ] **Seçince renkler gidiyor:** bir kas seçilince seçilmeyen gruplar griye dönüyor (`harita.js` → `guncelle`:
