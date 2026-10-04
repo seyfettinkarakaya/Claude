@@ -111,6 +111,7 @@ export function getPrefs() {
     if (typeof p.ses === 'boolean') out.ses = p.ses;
     if (p.css === null || (typeof p.css === 'number' && p.css > 0)) out.css = p.css;
     if (p.havuz === 25 || p.havuz === 50) out.havuz = p.havuz;
+    if (typeof p.blokBas === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.blokBas)) out.blokBas = p.blokBas; // yalnızca ayarlandıysa
   }
   return out;
 }

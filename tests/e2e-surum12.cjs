@@ -214,6 +214,7 @@ sc('İdman: set sırasında ağrı 2 → hareket durur (yapılan setle), hareket
   await p.click('#modal-body [data-value="2"]');
   await p.waitForSelector('#sl-giris:not([hidden])');
   assert.match(await txt(s, '#sg-body'), /SETLER\s*10-10/);
+  assert.equal(await p.$eval('#sg-body .sg-set b', (b) => getComputedStyle(b).whiteSpace), 'nowrap', 'SETLER bölünmez');
   assert.equal(await p.getAttribute('#sg-body [data-sg="msi"][data-v="2"]', 'class'), 'is-on');
   assert.match(await p.inputValue('#sg-not'), /MSI 2 \(2\. set\) · durduruldu/);
   assert.equal((await s.ls('ysk.salonSession')).hareketler[0].set, 2);
@@ -386,6 +387,76 @@ sc('Yüzme ayrıntısı: aynı setin son seferleri tempo grafiği (CSS çizgisiy
   const t = await p.$$eval('#detail-body svg.hg circle.hit title', (e) => e.map((x) => x.textContent));
   assert.deepEqual(t.map((x) => x.slice(0, 5)), ['02.09', '09.09', '16.09']);
   assert.equal(await p.$$eval('#detail-body svg.hg line.ref', (e) => e.length), 1, 'CSS çizgisi');
+});
+
+// --- 12.5: ana sayfa haftalık şerit, Form ve denge, Haftanın özeti, takvim ekleri ---
+const yz = (tarih, metre, rpe, msi = '', stil = 'FR') => ({ id: tarih, tarih, endedAt: Date.parse(`${tarih}T08:00:00`), seans: { sure: '01:00:00', rpe, msi }, setler: [{ blok: 'MS', tekrar: metre / 100, mesafe: 100, stil, tur: 'Swim', tamamlandi: true, gercek: '1:58.0', yapilan: metre / 100 }] });
+const hist12 = () => [yz('2026-09-21', 2000, 6, 'sag omuz 1'), yz('2026-09-18', 2400, 7, '', 'BR'), yz('2026-09-16', 2200, 6), yz('2026-09-09', 2000, 5), yz('2026-09-02', 1800, 5), yz('2026-08-26', 1600, 5)];
+
+sc('Ana sayfa: haftalık şerit (gün halkası, form, bugünün önerisi, kurbağalama) → Form ve denge (grafik, toparlanma, iskelet, blok başlat); takvimde ekler', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true, storage: { 'ysk.history': hist12() } }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => /bu hafta gün/.test(document.getElementById('home-week').textContent));
+  const hw = await txt(s, '#home-week');
+  assert.match(hw, /1\/3\s*bu hafta gün/);
+  assert.match(hw, /FORM\s*[+−-]?\d+\s*veri birikiyor/);
+  assert.match(hw, /BUGÜN ÖNERİ/);
+  assert.match(hw, /Kurbağalama bu ay %\d/);
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/home.png`, fullPage: true });
+  await p.click('[data-hw="form"]'); await s.waitScreen('form');
+  const fm = await txt(s, '#fm-body');
+  assert.match(fm, /FORM · SON 8 HAFTA/);
+  assert.match(fm, /YÜK ARTIŞ ORANI/);
+  assert.match(fm, /KAS TOPARLANMASI/);
+  assert.match(fm, /HAFTANIN İSKELETİ.*Pzt\s*Yüzme 60 dk.*Çar\s*Yüzme programı.*Per\s*Yüzme programı/);
+  assert.match(fm, /BLOK · 4 HAFTA/);
+  if (process.env.SHOT) { await p.screenshot({ path: `${process.env.SHOT}/form1.png` }); await p.$eval('#fm-body', (e) => { e.scrollTop = 700; }); await p.screenshot({ path: `${process.env.SHOT}/form2.png` }); await p.$eval('#fm-body', (e) => { e.scrollTop = 1600; }); await p.screenshot({ path: `${process.env.SHOT}/form3.png` }); }
+  assert.ok(await p.evaluate(() => document.getElementById('fm-body').scrollWidth <= document.getElementById('fm-body').clientWidth), 'yatay taşma yok');
+  assert.equal(await p.$$eval('#fm-body svg.hg.cg polyline', (e) => e.length), 2, 'kondisyon + yorgunluk');
+  await p.click('[data-fm="blok"]');
+  assert.equal((await s.ls('ysk.prefs')).blokBas, '2026-09-21');
+  assert.match(await txt(s, '#fm-body'), /1\. hafta · Hacim/);
+  await p.click('#fm-back'); await s.waitScreen('home');
+  await p.click('#home-swim'); await s.waitScreen('days');
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/takvim.png` });
+  const ek = await p.$eval('#wk-track .wd[data-day="2026-09-21"]', (b) => ({ y: Boolean(b.querySelector('.wd-ek .wd-y i')), a: Boolean(b.querySelector('.wd-ek .wd-a')), cls: b.className }));
+  assert.ok(ek.y && ek.a, JSON.stringify(ek));
+  assert.ok(!/wd-ek/.test(ek.cls), 'gün düğmesinin sınıfları değişmez');
+});
+
+sc('Haftanın özeti: bu hafta (km, seans, ağrı, notlar) → önceki hafta (salon seti, kıyas); sonraki düğmesi bu haftada kapalı', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true, storage: { 'ysk.history': hist12() } }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
+  await p.click('#home-hafta'); await s.waitScreen('hafta');
+  assert.match(await txt(s, '#hz-title'), /21 Eylül Pazartesi – 27 Eylül Pazar/);
+  assert.equal(await p.isDisabled('#hz-next'), true);
+  let b = await txt(s, '#hz-body');
+  assert.match(b, /YÜZME\s*2\s*km/);
+  assert.match(b, /SEANS\s*1\/3/);
+  assert.match(b, /Sağ omuz: MSI en çok 1/);
+  assert.match(b, /HAFTANIN NOTLARI.*Omuz önleyici 0\/2/);
+  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/hafta.png` });
+  await p.click('#hz-prev');
+  assert.match(await txt(s, '#hz-title'), /14 Eylül/);
+  assert.equal(await p.isDisabled('#hz-next'), false);
+  b = await txt(s, '#hz-body');
+  assert.match(b, /YÜZME\s*4,6\s*km/);
+  assert.match(b, /SALON\s*9\s*set/);
+  assert.match(b, /KURBAĞALAMA %52/);
+  await p.click('#hz-next');
+  assert.match(await txt(s, '#hz-title'), /21 Eylül/);
+});
+
+sc('Pazar: ana sayfada "Haftanın özeti hazır" → özet ekranı; Ayarlar\'da kaynak ve lisans notu', async ({ launch }) => {
+  const s = await launch({ ref: true, time: '2026-09-27T10:00:00', storage: { 'ysk.history': hist12() } }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForSelector('[data-hw="hafta"]');
+  await p.click('[data-hw="hafta"]'); await s.waitScreen('hafta');
+  assert.match(await txt(s, '#hz-title'), /21 Eylül/);
+  await p.click('#hz-back'); await s.waitScreen('home');
+  await p.click('#home-settings'); await s.waitScreen('setup');
+  assert.match(await txt(s, '#pref-lisans'), /free-exercise-db \(Unlicense.*SIL Open Font License/);
 });
 
 const only = process.argv[2];

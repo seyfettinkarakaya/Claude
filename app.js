@@ -32,7 +32,7 @@ const MSI_BOLGELER = [
   { key: 'boyun', label: 'Boyun' },
 ];
 
-const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'rpe', 'msi', 'ozet', 'done', 'salon-start', 'salon', 'salon-ozet', 'salon-plan'];
+const SCREENS = ['setup', 'home', 'days', 'history', 'program', 'rpe', 'msi', 'ozet', 'done', 'salon-start', 'salon', 'salon-ozet', 'salon-plan', 'form', 'hafta'];
 const WAKE_SCREENS = new Set(['program', 'rpe', 'msi', 'ozet', 'salon']); // salon: dinlenme sayacı görünür kalsın
 
 const state = {
@@ -761,6 +761,7 @@ function renderDays() {
     return `<button class="${cls.join(' ')}" data-day="${k}" aria-label="${esc(fmtDateTR(k))}">
       <small>${GUN_KISA[dt.getDay()]}</small><b>${dt.getDate()}</b><i></i></button>`;
   }).join('');
+  try { takvimEk(); } catch (err) { console.warn('takvim ekleri', err); }
 
   // Seçili günün kartı
   const sel = state.selDate;
@@ -1040,8 +1041,269 @@ function renderHome() {
   const q = data.getQueue().length;
   $('home-history-meta').textContent = (n ? `${n} kayıt` : 'Henüz kayıt yok') + (q ? ` · ${q} gönderilmeyi bekliyor` : '');
   renderHomeGym();
+  try { renderHafta(); } catch (err) { $('home-week').innerHTML = ''; console.warn('haftalık şerit', err); }
   fitListLines();
 }
+
+// ===========================================================================
+// Sürüm 12 — ortak ekranlar: ana sayfa haftalık şeridi, Form ve denge, Haftanın özeti
+// ===========================================================================
+
+/** Çizgi grafiği (tek eksen, 2 px, doğrudan etiket, noktada başlık). series: [{ ad, cls, v: [] }] */
+function cizgiGrafik(series, { xl = [], yfmt = (v) => fmtDec(Math.round(v)), w = 320, h = 140, ref: rf = null } = {}) {
+  const all = series.flatMap((s) => s.v).concat(rf ? [rf.v] : []);
+  const lo = Math.min(...all), hi = Math.max(...all);
+  const pad = (hi - lo) * 0.12 || 1;
+  const pl = 30, pr = 100, pt = 8, pb = 18;
+  const n = series[0].v.length;
+  const X = (i) => pl + ((w - pl - pr) * i) / Math.max(1, n - 1);
+  const Y = (v) => pt + (h - pt - pb) * (1 - (v - (lo - pad)) / (hi - lo + 2 * pad));
+  const o = [`<svg class="hg cg" viewBox="0 0 ${w} ${h}" role="img">`];
+  for (const t of [lo, (lo + hi) / 2, hi]) o.push(`<line x1="${pl}" x2="${w - pr}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}" class="gl"/><text x="${pl - 5}" y="${(Y(t) + 4).toFixed(1)}" text-anchor="end" class="ax">${esc(yfmt(t))}</text>`);
+  if (rf) o.push(`<line x1="${pl}" x2="${w - pr}" y1="${Y(rf.v).toFixed(1)}" y2="${Y(rf.v).toFixed(1)}" class="ref"/><text x="${w - pr + 4}" y="${(Y(rf.v) + 4).toFixed(1)}" class="ax">${esc(rf.ad)}</text>`);
+  xl.forEach((l, i) => { if (l) o.push(`<text x="${X(i).toFixed(1)}" y="${h - 4}" text-anchor="middle" class="ax">${esc(l)}</text>`); });
+  for (const s of series) {
+    o.push(`<polyline points="${s.v.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')}" class="ln ${s.cls}"/>`);
+    o.push(s.v.map((v, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="6" class="hit"><title>${esc(s.ad)} ${esc(xl[i] || '')}: ${esc(yfmt(v))}</title></circle>`).join(''));
+    const lv = s.v[n - 1];
+    o.push(`<circle cx="${X(n - 1).toFixed(1)}" cy="${Y(lv).toFixed(1)}" r="4" class="last ${s.cls}"/><text x="${(X(n - 1) + 8).toFixed(1)}" y="${(Y(lv) + 4).toFixed(1)}" class="dl">${esc(s.ad)} ${esc(yfmt(lv))}</text>`);
+  }
+  o.push('</svg>');
+  return o.join('');
+}
+
+/** Çubuk grafiği (sıfır çizgili; + ve − değerler). */
+function cubukGrafik(v, { xl = [], ad = '', w = 320, h = 70 } = {}) {
+  const m = Math.max(1, ...v.map(Math.abs));
+  const pl = 30, pr = 100, pt = 6, pb = 16;
+  const bw = (w - pl - pr) / v.length;
+  const Y0 = pt + (h - pt - pb) / 2, sc = (h - pt - pb) / 2 / m;
+  const o = [`<svg class="hg cb" viewBox="0 0 ${w} ${h}" role="img"><line x1="${pl}" x2="${w - pr}" y1="${Y0}" y2="${Y0}" class="gl"/><text x="${pl - 5}" y="${Y0 + 4}" text-anchor="end" class="ax">0</text>`];
+  v.forEach((x, i) => {
+    const hh = Math.max(1, Math.abs(x) * sc);
+    o.push(`<rect x="${(pl + i * bw + 1).toFixed(1)}" y="${(x >= 0 ? Y0 - hh : Y0).toFixed(1)}" width="${Math.max(1, bw - 2).toFixed(1)}" height="${hh.toFixed(1)}" rx="1.5" class="br"><title>${esc(ad)} ${esc(xl[i] || '')}: ${x > 0 ? '+' : ''}${x}</title></rect>`);
+  });
+  const last = v[v.length - 1];
+  o.push(`<text x="${w - pr + 4}" y="${(Y0 - last * sc + 4).toFixed(1)}" class="dl">${esc(ad)} ${last > 0 ? '+' : ''}${last}</text></svg>`);
+  return o.join('');
+}
+
+/** Ortak durum: seanslar, günlük yük, form, oran, toparlanma, kurallar. */
+function genelDurum() {
+  const L = seansListesi();
+  const g = yuk.gunluk(L);
+  const bugun = todayKey();
+  const f = yuk.formEgrisi(g, bugun, 56);
+  const son = f[f.length - 1] || { kondisyon: 0, yorgunluk: 0, form: 0 };
+  // Kondisyon 42 günlük ortalama: 6 haftadan kısa kayıtta form yanıltıcı derecede eksi çıkar
+  const az = !L.length || L[0].tarih > yuk.gunEkle(bugun, -42);
+  return { L, g, bugun, f, son, az, oran: yuk.yukOrani(g, bugun), tp: yuk.toparlanma(L), K: kurallar() };
+}
+const formDurum = (v) => (v >= 5 ? ['ok', 'taze'] : v <= -15 ? ['warn', 'yorgun'] : ['', 'dengeli']);
+
+/** Bugünün önerisi (süre bütçesi, program, toparlanma, önleyici borç). */
+function bugunOnerisi(G) {
+  const now = new Date();
+  const b = kisit.sureButcesi(now, G.K);
+  const butce = b.dk ? `${b.dilim === 'sabah' ? 'sabah' : b.dilim === 'ogle' ? 'öğle' : 'akşam'} ${b.dk} dk bütçe` : `${b.dilim === 'aksam' ? 'akşam' : b.dilim} sınırsız`;
+  const gun = yuk.haftaGunleri(G.L, G.bugun);
+  if (G.L.some((x) => x.tarih === G.bugun)) return { metin: 'Bugün idman yapıldı · dinlen ve toparlan', butce: '' };
+  if (gun >= G.K.gunHafta) return { metin: `Haftalık ${G.K.gunHafta} gün tamam · dinlenme`, butce: '' };
+  if (state.homeNext === G.bugun) return { metin: 'Yüzme programı var', butce };
+  const yorgun = Object.entries(G.tp).filter(([, o]) => o.toparlanma < 60).map(([k]) => k);
+  const d = salonData();
+  const borc = d ? salon.onleyiciDurum(d.gecmis, G.bugun, hPay).filter((o) => o.acik).map((o) => o.ad.toLocaleLowerCase('tr')) : [];
+  const odak = borc.length ? borc.join(' + ') : 'dengeye göre';
+  return { metin: `Salon: ${odak}${yorgun.length ? ` · ${yorgun.slice(0, 2).join(', ')} dinleniyor` : ''}`, butce };
+}
+
+/** Ana sayfa: haftalık şerit (gün halkası, form, bugünün önerisi, göstergeler, uyarılar). */
+function renderHafta() {
+  const box = $('home-week');
+  const G = genelDurum();
+  const gun = yuk.haftaGunleri(G.L, G.bugun);
+  const [fc, ft] = G.az ? ['', 'veri birikiyor'] : formDurum(G.son.form);
+  const ay = yuk.stilAy(G.L, G.bugun.slice(0, 7));
+  const d = salonData();
+  const omuz = d ? salon.onleyiciDurum(d.gecmis, G.bugun, hPay).find((o) => o.key === 'omuz') : null;
+  const o = bugunOnerisi(G);
+  const od = yuk.oranDurum(G.oran);
+  const testZ = analiz.cssTestiZamani(data.getHistory(), guncelCss(), G.bugun);
+  const ring = (v, t, l, cls) => { const p = Math.min(1, v / t); const c = 2 * Math.PI * 20; return `<div class="hw-ring ${cls}"><svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="20" class="tr"/><circle cx="24" cy="24" r="20" class="fg" stroke-dasharray="${(c * p).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 24 24)"/><text x="24" y="29" text-anchor="middle">${v}/${t}</text></svg><small>${l}</small></div>`; };
+  box.innerHTML = `<div class="hw-top">${ring(gun, G.K.gunHafta, 'bu hafta gün', 'a')}${omuz ? ring(omuz.yapilan, omuz.hedef, 'omuz önleyici', 't') : ''}
+      <button class="hw-form" data-hw="form"><small>FORM</small><b class="n ${fc}">${G.son.form > 0 ? '+' : ''}${G.son.form}</b><span class="${fc}">${ft}</span><small>kondisyon ${G.son.kondisyon} · yorgunluk ${G.son.yorgunluk}</small></button></div>
+    <div class="hw-today"><small>BUGÜN ÖNERİ${o.butce ? ` · ${esc(o.butce.toLocaleUpperCase('tr'))}` : ''}</small><b>${esc(o.metin)}</b></div>
+    ${ay.toplam ? `<p class="hw-g ${ay.brOran >= G.K.brAyMax * 0.8 ? 'warn' : ''}">Kurbağalama bu ay <b>%${fmtDec(ay.brOran)}</b> / ${G.K.brAyMax}</p>` : ''}
+    ${od.durum === 'yuksek' || od.durum === 'sinirda' ? `<p class="hw-g warn">⚠ Yük artış oranı ${fmtDec(G.oran)}: ${esc(od.metin)}</p>` : ''}
+    ${new Date().getDay() === 0 && gun ? '<button class="hw-g hw-oz" data-hw="hafta">📋 Haftanın özeti hazır ›</button>' : ''}
+    ${testZ ? '<button class="hw-g hw-test" data-hw="css">💡 CSS testi zamanı: eşik setleri hedefin altında · testi yap ›</button>' : ''}`;
+}
+
+// --- Form ve denge ekranı -------------------------------------------------------------------
+
+function showForm() { show('form'); renderForm(); }
+
+function renderForm() {
+  const G = genelDurum();
+  const son = G.f.slice(-57);
+  const hafta = [];
+  for (let i = son.length - 1; i >= 0; i -= 7) hafta.unshift(son[i]);
+  const xl = hafta.map((x, i) => (i % 2 === hafta.length % 2 ? `${x.tarih.slice(8, 10)}.${x.tarih.slice(5, 7)}` : ''));
+  const od = yuk.oranDurum(G.oran);
+  const top = Object.entries(G.tp).sort((a, b) => a[1].toparlanma - b[1].toparlanma);
+  const yorgunluk = Object.fromEntries(top.map(([g, o]) => [g, Math.round(100 - o.toparlanma)]));
+  // Denge: son 4 hafta / tümü (yüzme setleri: set ortalaması × yapılan tekrar)
+  const hist = data.getHistory();
+  const bas4 = yuk.gunEkle(G.bugun, -28);
+  const reps = (from) => {
+    const out = [];
+    for (const r of hist) {
+      if (!r || r.tur === 'salon' || r.tarih < from) continue;
+      for (const s of r.setler || []) {
+        const sn = analiz.lapSn(s.gercek);
+        if (!s.tamamlandi || sn == null) continue;
+        const z = zoneOf(pacePer100(sn, s.mesafe), s);
+        if (z) out.push({ ms: sn * 1000 * (Number(s.yapilan) || Number(s.tekrar) || 1), n: z.n, zone: z.zone });
+      }
+    }
+    return analiz.denge(analiz.bolgeSureleri(out));
+  };
+  const d4 = reps(bas4), dt = reps('');
+  const st4 = {};
+  let stTop = 0;
+  for (const x of G.L) if (x.tur === 'yuzme' && x.tarih >= bas4) for (const [k, m] of Object.entries(x.stil || {})) { st4[k] = (st4[k] || 0) + m; stTop += m; }
+  const ay = yuk.stilAy(G.L, G.bugun.slice(0, 7));
+  const dengeSatir = (ad, a, b, cls) => `<div class="fd-r"><span>${ad}</span><div class="fd-t"><i class="${cls}" data-w="${a}"></i><s data-l="${b}"></s></div><b class="n">%${a}</b></div>`;
+  // Blok (periyotlama): 4 haftalık döngü, başlangıç tercihte
+  const p = prefs();
+  const blokBas = p.blokBas || salon.haftaBasi(G.bugun);
+  const hf = Math.floor((Date.parse(salon.haftaBasi(G.bugun)) - Date.parse(blokBas)) / (7 * 86400000));
+  const bh = ((hf % 4) + 4) % 4;
+  const BLOK = [['Hacim', 'Salon 3 × 12–15, yüzmede aerobik hacim'], ['Hacim+', 'Salon 3–4 × 10–12, eşik setleri artar'], ['Kuvvet', 'Salon 3 × 6–8, dinlenme 2 dk; yüzmede hacim −%10'], ['Dinlenme', 'Hacim %40 az, yoğunluk aynı']];
+  const ondeDinlenme = od.durum === 'yuksek' && bh !== 3;
+  $('fm-body').innerHTML = `
+    <p class="sp-lb">FORM · SON 8 HAFTA <small>(günlük yük = RPE × dakika; yüzme + salon)</small></p>
+    ${hafta.length >= 2 ? cizgiGrafik([{ ad: 'Kondisyon', cls: 's1', v: hafta.map((x) => x.kondisyon) }, { ad: 'Yorgunluk', cls: 's2', v: hafta.map((x) => x.yorgunluk) }], { xl })
+      + cubukGrafik(hafta.map((x) => x.form), { xl, ad: 'Form' }) : '<p class="empty">Grafik için en az iki haftalık kayıt gerekli.</p>'}
+    <div class="fm-kv"><div><small>YÜK ARTIŞ ORANI</small><b class="n ${od.durum === 'yuksek' ? 'warn' : od.durum === 'sinirda' ? 'warn' : ''}">${G.oran == null ? '—' : fmtDec(G.oran)}</b><span>${esc(od.metin)}</span></div>
+      <div><small>FORM</small><b class="n">${G.son.form > 0 ? '+' : ''}${G.son.form}</b><span>${G.az ? 'veri birikiyor: 6 hafta gerekli' : formDurum(G.son.form)[1]}</span></div></div>
+    <p class="sp-lb">KAS TOPARLANMASI · SON 4 GÜN <small>(tahmin)</small></p>
+    ${top.length ? `<div class="sp-kapsam"><span class="sp-mb big" data-mb data-mb-abs="1" data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(yorgunluk))}"></span><div>${top.slice(0, 5).map(([g, o]) => `<p class="sp-kp"><span class="gd" data-bg="${grup.grupRenk(g)}"></span>${esc(g)}<b class="${o.toparlanma < 60 ? 'warn' : 'ok'}">%${o.toparlanma}</b></p><p class="fm-src">yüzme %${o.yuzmePay} · salon %${o.salonPay}</p>`).join('')}</div></div>` : '<p class="empty">Son 4 günde idman yok: hepsi toparlanmış.</p>'}
+    <p class="sp-lb">DENGE · ÇUBUK SON 4 HAFTA, ÇİZGİ TÜM ZAMAN</p>
+    ${dengeSatir('Kolay', d4.kolay, dt.kolay, 'z3')}${dengeSatir('Eşik', d4.esik, dt.esik, 'z4')}${dengeSatir('Hız', d4.hiz, dt.hiz, 'z6')}
+    ${stTop ? `<p class="sp-lb">STİL · FR → BK → BF → BR</p><div class="fm-stil">${['FR', 'BK', 'BF', 'BR'].filter((k) => st4[k]).map((k) => `<i class="st-${k}" data-grow="${st4[k]}"></i>`).join('')}</div>
+      <p class="oz-bl">${['FR', 'BK', 'BF', 'BR'].filter((k) => st4[k]).map((k) => `<span><i class="st-${k}"></i>${k} %${Math.round((st4[k] / stTop) * 100)}</span>`).join('')}</p>` : ''}
+    <p class="fd-br ${ay.brOran >= G.K.brAyMax * 0.8 ? 'warn' : ''}">Kurbağalama bu ay %${fmtDec(ay.brOran)} / sınır %${G.K.brAyMax}</p>
+    <p class="sp-lb">HAFTANIN İSKELETİ <small>(öneri; program sayfasına yazmaz)</small></p>
+    ${iskelet(G)}
+    <p class="sp-lb">BLOK · 4 HAFTA</p>
+    <div class="fm-blok">${BLOK.map(([a], i) => `<div class="${i === bh ? 'on' : ''}${i === 3 ? ' dl' : ''}"><b>${i + 1}</b><small>${a}</small></div>`).join('')}</div>
+    <p class="fm-bt"><b>${bh + 1}. hafta · ${BLOK[bh][0]}</b> — ${esc(BLOK[bh][1])}</p>
+    ${ondeDinlenme ? '<p class="fm-bt warn">⚠ Yük oranı yüksek: dinlenme haftasını öne al.</p>' : ''}
+    <button class="btn btn-block" data-fm="blok">Bloğu bu hafta başlat</button>`;
+  paint($('fm-body'));
+  yerlestirMini($('fm-body'));
+  for (const el of $('fm-body').querySelectorAll('[data-w]')) el.style.width = `${el.dataset.w}%`;
+  for (const el of $('fm-body').querySelectorAll('[data-l]')) el.style.left = `${el.dataset.l}%`;
+}
+
+/** Haftanın iskeleti: bu haftanın günleri — yapılan, planlı yüzme, kalan yuvalar için öneri (kısıt + toparlanma). */
+function iskelet(G) {
+  const bas = salon.haftaBasi(G.bugun);
+  const planli = new Set(visibleDates().map((x) => x.tarih));
+  const ad = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  const yapilan = yuk.haftaGunleri(G.L, G.bugun);
+  let kalan = Math.max(0, G.K.gunHafta - yapilan);
+  const rows = [];
+  for (let i = 0; i < 7; i++) {
+    const t = yuk.gunEkle(bas, i);
+    const ss = G.L.filter((x) => x.tarih === t);
+    let tx = '', cls = '';
+    if (ss.length) { tx = ss.map((x) => `${x.tur === 'yuzme' ? 'Yüzme' : 'Salon'} ${x.dk} dk`).join(' + '); cls = 'ok'; }
+    else if (planli.has(t) && t >= G.bugun) { tx = 'Yüzme programı'; cls = 't'; if (kalan) kalan--; }
+    else if (t >= G.bugun && kalan && (i >= 1 && i <= 4)) {
+      const slot = i === 4 ? 'akşam · sınırsız' : `sabah ${G.K.sure.sabah} / öğle ${G.K.sure.ogle} dk`;
+      tx = `Öneri: ${i === 4 ? 'yüzme (eşik + hız)' : 'salon (önleyici + core)'} · ${slot}`; cls = 'a'; kalan--;
+    }
+    rows.push(`<div class="fm-gun ${cls}${t === G.bugun ? ' today' : ''}"><b>${ad[i]}</b><span>${esc(tx || '—')}</span></div>`);
+  }
+  return `<div class="fm-isk">${rows.join('')}</div>`;
+}
+
+// --- Haftanın özeti ------------------------------------------------------------------------
+
+function showHaftaOzeti(bas) { state.haftaBas = bas || salon.haftaBasi(todayKey()); show('hafta'); renderHaftaOzeti(); }
+
+function haftaVeri(L, bas) {
+  const son = yuk.gunEkle(bas, 6);
+  const w = L.filter((x) => x.tarih >= bas && x.tarih <= son);
+  const km = w.filter((x) => x.tur === 'yuzme').reduce((a, x) => a + (x.metre || 0), 0) / 1000;
+  const set = w.filter((x) => x.tur === 'salon').reduce((a, x) => a + (x.set || 0), 0);
+  const yk = w.reduce((a, x) => a + x.yuk, 0);
+  const st = {};
+  let top = 0;
+  for (const x of w) if (x.tur === 'yuzme') for (const [k, m] of Object.entries(x.stil || {})) { st[k] = (st[k] || 0) + m; top += m; }
+  return { w, km, set, yk, st, top, gun: new Set(w.map((x) => x.tarih)).size };
+}
+
+function renderHaftaOzeti() {
+  const G = genelDurum();
+  const bas = state.haftaBas;
+  const H = haftaVeri(G.L, bas), O = haftaVeri(G.L, yuk.gunEkle(bas, -7));
+  const son = yuk.gunEkle(bas, 6);
+  const fEnd = G.f.find((x) => x.tarih === (son < G.bugun ? son : G.bugun)) || G.son;
+  const ag = analiz.agriGecmisi(data.getHistory().filter((r) => r.tarih >= bas && r.tarih <= son));
+  const salonAgri = H.w.filter((x) => x.tur === 'salon' && x.msiMax >= 1);
+  const d = salonData();
+  const od = d ? salon.onleyiciDurum(d.gecmis, son < G.bugun ? son : G.bugun, hPay) : [];
+  const kiy = (a, b, f) => (b ? ` <em class="${a >= b ? 'ok' : 'mu'}">${a >= b ? '↑' : '↓'} geçen ${f(b)}</em>` : '');
+  const notlar = [];
+  for (const o of od) notlar.push(`${o.ad} ${o.yapilan}/${o.hedef}${o.acik ? '' : ' ✓'}`);
+  const testZ = analiz.cssTestiZamani(data.getHistory(), guncelCss(), son < G.bugun ? son : G.bugun);
+  if (testZ) notlar.push('Eşik setleri hedefin altında → CSS testi önerilir');
+  const or = yuk.oranDurum(yuk.yukOrani(G.g, son < G.bugun ? son : G.bugun));
+  if (or.durum === 'yuksek' || or.durum === 'sinirda') notlar.push(`Yük artış oranı: ${or.metin}`);
+  const sag = { 'sag omuz': 'Omuz', 'sol omuz': 'Omuz', 'sag diz': 'Bacak', 'sol diz': 'Bacak', kalca: 'Kalça', bel: 'Sırt', boyun: 'Sırt' };
+  const agK = {};
+  for (const k of Object.keys(ag)) if (sag[k]) agK[sag[k]] = 100;
+  $('hz-title').textContent = `${fmtDateTR(bas)} – ${fmtDateTR(son)}`;
+  $('hz-next').disabled = son >= G.bugun;
+  $('hz-body').innerHTML = `
+    <div class="stats4"><div><small>YÜZME</small><b class="n">${fmtDec(Math.round(H.km * 10) / 10)}<span>km</span></b>${kiy(H.km, O.km, (v) => `${fmtDec(Math.round(v * 10) / 10)} km`)}</div>
+      <div><small>SALON</small><b class="n">${H.set}<span>set</span></b>${kiy(H.set, O.set, (v) => `${v}`)}</div>
+      <div><small>SEANS</small><b class="n">${H.gun}/${G.K.gunHafta}</b></div>
+      <div><small>FORM</small><b class="n">${fEnd.form > 0 ? '+' : ''}${fEnd.form}</b></div></div>
+    <p class="hz-yk">Haftalık yük <b>${fmtNum(H.yk)}</b>${O.yk ? ` · geçen hafta ${fmtNum(O.yk)} (${H.yk >= O.yk ? '+' : ''}${Math.round(((H.yk - O.yk) / O.yk) * 100)}%)` : ''}</p>
+    ${H.top ? `<p class="sp-lb">STİL · KURBAĞALAMA %${fmtDec(Math.round(((H.st.BR || 0) / H.top) * 1000) / 10)}</p><div class="fm-stil">${['FR', 'BK', 'BF', 'BR'].filter((k) => H.st[k]).map((k) => `<i class="st-${k}" data-grow="${H.st[k]}"></i>`).join('')}</div>
+      <p class="oz-bl">${['FR', 'BK', 'BF', 'BR'].filter((k) => H.st[k]).map((k) => `<span><i class="st-${k}"></i>${k} %${Math.round((H.st[k] / H.top) * 100)}</span>`).join('')}</p>` : ''}
+    <p class="sp-lb">AĞRI</p>
+    ${Object.keys(ag).length || salonAgri.length ? `<div class="sp-kapsam"><span class="sp-mb" data-mb data-mb-v="front" data-mb-k="${esc(JSON.stringify(agK))}"></span><div>${Object.entries(ag).map(([k, o]) => `<p>${esc((MSI_BOLGELER.find((x) => x.key === k) || { label: k }).label)}: MSI en çok ${fmtDec(o.max)} · ${o.n} seans</p>`).join('')}${salonAgri.map((x) => `<p>Salon ${esc(fmtDateTR(x.tarih))}: MSI ${fmtDec(x.msiMax)}</p>`).join('')}</div></div>` : '<p class="hz-ok">Ağrı kaydı yok ✓</p>'}
+    <p class="sp-lb">GÜNLER</p>
+    <div class="fm-isk">${H.w.length ? H.w.map((x) => `<div class="fm-gun ok"><b>${esc(fmtDateTR(x.tarih).split(' ').slice(0, 2).join(' '))}</b><span>${x.tur === 'yuzme' ? `Yüzme ${fmtNum(x.metre)} m` : `Salon ${x.set} set`} · ${x.dk} dk · RPE ${x.rpe == null ? '—' : fmtDec(x.rpe)}</span></div>`).join('') : '<p class="empty">Bu hafta kayıt yok.</p>'}</div>
+    ${notlar.length ? `<p class="sp-lb">HAFTANIN NOTLARI</p><ul class="hz-not">${notlar.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`;
+  paint($('hz-body'));
+  yerlestirMini($('hz-body'));
+}
+
+/** Takvim gün düğmelerinin içine: salon simgesi, günlük yük çubuğu, ağrı işareti (sınıflar değişmez). */
+function takvimEk() {
+  const L = seansListesi();
+  const g = yuk.gunluk(L);
+  const msi = {};
+  for (const r of data.getHistory()) if (r && r.tur !== 'salon' && Object.values(analiz.msiParse(r.seans && r.seans.msi)).some((v) => v >= 1)) msi[r.tarih] = true;
+  for (const x of L) if (x.tur === 'salon' && x.msiMax >= 1) msi[x.tarih] = true;
+  for (const b of document.querySelectorAll('#wk-track .wd')) {
+    const t = b.dataset.day;
+    const salonVar = L.some((x) => x.tarih === t && x.tur === 'salon');
+    if (!salonVar && !g[t] && !msi[t]) continue;
+    const ek = document.createElement('span');
+    ek.className = 'wd-ek';
+    ek.innerHTML = `${salonVar ? '<em class="wd-s" title="Salon">⊢⊣</em>' : ''}${msi[t] ? '<em class="wd-a" title="Ağrı (MSI ≥ 1)">⚠</em>' : ''}${g[t] ? `<u class="wd-y"><i data-h="${Math.min(100, Math.round(g[t] / 6))}"></i></u>` : ''}`;
+    for (const el of ek.querySelectorAll('[data-h]')) el.style.height = `${el.dataset.h}%`;
+    b.append(ek);
+  }
+}
+
 
 // ---------------------------------------------------------------------------
 // Telefonda yapılmış idmanlar
@@ -3175,7 +3437,7 @@ async function loadSalon() {
   sl.loading = data.getSalon().then(() => { sl.err = null; }).catch((err) => { sl.err = err; }).finally(() => {
     sl.loading = null;
     if (state.screen === 'salon-start') renderSalonStart();
-    if (state.screen === 'home') renderHomeGym();
+    if (state.screen === 'home') { renderHomeGym(); try { renderHafta(); } catch { /* şerit bir sonraki çizimde */ } }
   });
   return sl.loading;
 }
@@ -3901,7 +4163,8 @@ function openGiris(h) {
   $('sg-tag').textContent = `${grupInfo(x.ad).ad} · ${h + 1}/${slH().length} · HAREKET BİTTİ`;
   $('sg-title').textContent = x.ad;
   const avg = reps.length ? reps.reduce((a, b) => a + b, 0) / reps.length : 0;
-  sl.giris.sum = `<div class="sg-sum"><div><small>SETLER</small><b class="n">${esc(reps.map(fmtDec).join('-'))}${x.sure ? ' sn' : ''}</b></div><div><small>ORT.</small><b class="n">${fmtDec(Math.round(avg * 100) / 100)}</b></div><div><small>SÜRE</small><b class="n">${fmtShort(salon.hareketMs(st, h))}</b></div></div>`;
+  const setMetin = `${reps.map(fmtDec).join('-')}${x.sure ? ' sn' : ''}`;
+  sl.giris.sum = `<div class="sg-sum"><div class="sg-set${setMetin.length > 13 ? ' xl' : setMetin.length > 8 ? ' l' : ''}"><small>SETLER</small><b class="n">${esc(setMetin)}</b></div><div><small>ORT.</small><b class="n">${fmtDec(Math.round(avg * 100) / 100)}</b></div><div><small>SÜRE</small><b class="n">${fmtShort(salon.hareketMs(st, h))}</b></div></div>`;
   renderGiris();
   $('sl-giris').hidden = false;
 }
@@ -4230,7 +4493,8 @@ const yogunlukOf = (k) => { const m = Math.max(1, ...Object.values(k)); return O
 function yerlestirMini(root) {
   for (const el of root.querySelectorAll('[data-mb]')) {
     const k = el.dataset.mbAd ? kapsam([{ ad: el.dataset.mbAd, set: 1 }]) : JSON.parse(el.dataset.mbK || '{}');
-    const y = yogunlukOf(k);
+    // data-mb-abs: değerler 0–100 mutlak (toparlanma yorgunluğu); yoksa en büyüğe göre
+    const y = el.dataset.mbAbs ? Object.fromEntries(Object.entries(k).map(([g, v]) => [g, v > 0 ? Math.max(0.12, Math.min(1, v / 100)) : 0])) : yogunlukOf(k);
     const ana = Object.keys(k)[0];
     const views = el.dataset.mbV === 'ikisi' ? ['front', 'back'] : [el.dataset.mbV || (ana ? harita.yuzu(ana) : 'front')];
     el.replaceChildren(...views.map((v) => harita.figur(v, { yogunluk: y, rozet: false, cls: 'mini' })));
@@ -4452,6 +4716,26 @@ function wire() {
   });
   wireSalon();
   $('home-history').addEventListener('click', showHistory);
+  $('home-form').addEventListener('click', showForm);
+  $('home-hafta').addEventListener('click', () => showHaftaOzeti());
+  $('fm-back').addEventListener('click', showHome);
+  $('hz-back').addEventListener('click', showHome);
+  $('hz-prev').addEventListener('click', () => { state.haftaBas = yuk.gunEkle(state.haftaBas, -7); renderHaftaOzeti(); });
+  $('hz-next').addEventListener('click', () => { state.haftaBas = yuk.gunEkle(state.haftaBas, 7); renderHaftaOzeti(); });
+  $('home-week').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-hw]');
+    if (!b) return;
+    if (b.dataset.hw === 'form') showForm();
+    else if (b.dataset.hw === 'hafta') showHaftaOzeti();
+    else if (b.dataset.hw === 'css') cssTestiAc();
+  });
+  $('fm-body').addEventListener('click', (e) => {
+    if (!e.target.closest('[data-fm="blok"]')) return;
+    data.setPrefs({ blokBas: salon.haftaBasi(todayKey()) });
+    state.prefs = null;
+    renderForm();
+    toast('Blok bu hafta başladı: 1. hafta · Hacim');
+  });
   $('hist-back').addEventListener('click', () => showHome());
   $('hist-list').addEventListener('click', onHistoryClick);
   $('hist-clear').addEventListener('click', clearHistory);
