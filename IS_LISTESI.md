@@ -48,8 +48,19 @@ free-exercise-db yedek. Karar: hangi kaynak?
 hedef kas + yardımcı kaslar; adımlar madde madde, Türkçe dahil. **Veri ve metinler MIT** (serbest). **GIF'ler
 Gym visual'ın**: depoyu kopyalamak lisans vermez; kullanım Gym visual koşullarına bağlı (sitesi buradan açılamadı),
 gerekirse izin/lisans alınmalı. Kapsam: senin 16 hareketinden 5 birebir, 5 yakın, 6 yok (esneme/nefes/asılma).
-Bant hareketleri 61, esneme 57. Örnek ekranlar: `tasarim/v28/ornek.html` (kütüphane, kart, seçim, eşleme;
-GIF'ler depoya konmadı, kaynağından gösterilir; üretici `kaynak/yap.py`).
+Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/kaynak/yap.py`; çıktı depoya konmaz).
+**Lisans araştırması (04.10.2026):**
+- Veri + Türkçe adımlar: MIT → serbest; MIT telif satırı korunur (uygulamada "Kaynaklar ve lisanslar").
+- GIF'ler: © Gym visual. Veri setinin izni yalnızca o depoya; "depoyu kopyalamak lisans değildir". Kaynağından
+  göstermek (hotlink) de lisans sayılmaz. Gym visual sitesindeki filigranlı önizlemeler de tam telifli.
+- Yasal yol: Gym visual'dan satın alma (N-CRFL: tek seferlik, süresiz, dünya çapında; mobil uygulama ve web sayfasında
+  kullanım **izinli**; yeniden satış/dağıtım, stok sitesi, yapay zekâ platformu **yasak**). Fiyat (fiyat sayfasından
+  arama özetine göre): GIF başı 1–9 adet 3,6 $, 10+ adet 0,9 $ → 16–60 hareket ≈ 15–55 $.
+- Açık soru (satın almadan önce Gym visual'a yazılmalı): GIF'lerin **herkese açık GitHub deposunda** durması
+  "yeniden dağıtım" sayılır mı? Sayılırsa: depo özel + yayın başka yerden, ya da GIF'ler uygulamaya ilk açılışta
+  kişisel bir kaynaktan (ör. Google Drive) indirilir.
+- Not: gymvisual.com bu ortamdan açılamadı; koşullar arama sonuçlarındaki lisans/fiyat sayfası özetlerinden.
+  Satın almadan önce https://gymvisual.com/content/9-license ve /content/6-price-rules okunmalı.
 
 ### Kas haritası notları (04.10.2026, sürüm 12 sonrası) — 12.1.0'da yapıldı (yukarıda)
 - [ ] **Seçince renkler gidiyor:** bir kas seçilince seçilmeyen gruplar griye dönüyor (`harita.js` → `guncelle`:

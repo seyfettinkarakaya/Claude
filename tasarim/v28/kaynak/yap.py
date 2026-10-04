@@ -1,6 +1,6 @@
 # Hareket kütüphanesi örnek ekranları (exercises-dataset tabanlı). Çıktı: tasarim/v28/ornek.html
-# Veri: exercises-dataset (MIT) — data/exercises.json yolu argüman. Animasyonlar depoya KONMAZ; kaynağından
-# (raw.githubusercontent.com) gösterilir: © Gym visual (yalnız 180×180, atıf zorunlu).
+# Veri: exercises-dataset (MIT) — data/exercises.json yolu argüman. Animasyonlar © Gym visual: lisanssız kullanılamaz.
+# Bu yüzden ornek.html depoya konmaz (.gitignore); yalnızca yerelde, değerlendirme için üretilir.
 #   python3 yap.py /yol/exercises-dataset/data/exercises.json
 import html
 import json
