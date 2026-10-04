@@ -70,8 +70,12 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
   dosya bizde durmaz, lisans gerekmez. Fizyoterapist/antrenör kanallarından hareket başına bir video seçilir,
   H'deki Video sütununa yazılır; uygulama içinde youtube-nocookie ile oynar (CSP frame-src eklenir), istenen
   saniyeden başlar. İnternetsizken açılmaz. Esneme/nefes/rehab hareketleri için de en iyi kaynak.
-- [ ] Karar: YouTube gömme + exercises-dataset metinleri (MIT) + free-exercise-db fotoğrafları; ymove'un 25 videosundan
-  senin hareketlerine uyanlar uygulamaya gömülebilir.
+- [x] Karar (04.10.2026): YouTube gömme + exercises-dataset metinleri (MIT) + free-exercise-db fotoğrafları.
+- [ ] Video listesi (16 hareket, öneri + yedek): `tasarim/video/liste.csv` → kullanıcı kontrol eder → H'deki Video
+  sütununa yazılır. Videolar buradan izlenemedi (YouTube bu ortamda kapalı); yalnızca adı ve kanalıyla seçildi.
+  Sahibi gömmeyi kapattıysa uygulama YouTube bağlantısına düşer. H'deki diğer hareketler için liste genişletilecek.
+- [ ] Uygulama: video kartta youtube-nocookie ile gömülü (CSP frame-src), başlangıç saniyesi (`?t=`) desteklenir,
+  internet yoksa bağlantı.
 
 ### Kas haritası notları (04.10.2026, sürüm 12 sonrası) — 12.1.0'da yapıldı (yukarıda)
 - [ ] **Seçince renkler gidiyor:** bir kas seçilince seçilmeyen gruplar griye dönüyor (`harita.js` → `guncelle`:
