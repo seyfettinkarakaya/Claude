@@ -1394,3 +1394,27 @@ button {
 .sp-kp b { margin-left: auto; }
 .sl-kn { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; }
 .sl-kn span { padding: 3px 8px; border-radius: 8px; background: rgba(255, 176, 32, 0.12); color: var(--warn); font-size: 12px; font-weight: 800; }
+
+/* Sürüm 12: ısınma, set sırasında ağrı, özet ekleri */
+.sl-warm { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 8px; padding: 8px 12px; border-radius: 12px; border: 1px solid rgba(45, 212, 191, 0.4); background: rgba(45, 212, 191, 0.08); color: #9BE7DB; font-size: 14px; font-weight: 700; }
+.sl-warm b { color: #2DD4BF; }
+.sl-warm small { margin-left: auto; color: #6B8F8A; }
+.isn { display: grid; gap: 6px; }
+.isn-i { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid #1E2731; background: #141B23; color: var(--text); font-size: 15px; text-align: left; }
+.isn-i i { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid #3A4552; display: grid; place-items: center; font-style: normal; font-weight: 900; color: #062a26; }
+.isn-i.on i { background: #2DD4BF; border-color: #2DD4BF; }
+.isn-i span { margin-left: auto; color: #8B97A5; font-weight: 700; }
+.sl-row2 { display: flex; gap: 8px; align-items: center; }
+.sl-row2 .w-plus { margin-top: 6px; min-height: 40px; padding: 4px 12px; font-size: 15px; }
+.sl-agri { border-color: rgba(255, 176, 32, 0.5) !important; color: var(--warn) !important; }
+.msi-g { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.msi-g button { height: 52px; border-radius: 12px; border: 1px solid #1E2731; background: #141B23; color: var(--text); font-family: var(--num); font-size: 22px; font-weight: 700; }
+.msi-g button.r { color: #F87171; }
+.msi-l { display: flex; gap: 4px; margin-top: 8px; font-size: 11px; font-weight: 800; }
+.msi-l span { flex: 1; padding: 5px 3px; border-radius: 6px; background: #1C2530; text-align: center; }
+.msi-l .g { color: var(--done); } .msi-l .y { color: var(--warn); } .msi-l .r { color: #F87171; }
+.so-pr { margin: 4px 0 10px; padding: 10px 12px; border-radius: 16px; background: linear-gradient(135deg, rgba(255, 210, 63, 0.14), rgba(245, 165, 36, 0.06)); border: 1px solid rgba(255, 210, 63, 0.35); }
+.so-pr > b { font-size: 15px; }
+.so-pr p { font-size: 14px; margin-top: 3px; }
+.so-pr p span { margin-left: 6px; font-size: 12px; color: #8B97A5; }
+.so-kiyas { margin: 0 0 10px; padding: 10px 12px; border-radius: 16px; background: #12181F; border: 1px solid #1E2731; font-size: 14px; }

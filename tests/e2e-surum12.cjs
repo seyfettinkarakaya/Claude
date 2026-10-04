@@ -147,5 +147,76 @@ sc('Kas haritası: dokun → ★ + panel; öncelik ★★; çipler ve ön/arka s
   assert.ok(names.includes('Dumbbell Shoulder Press') && names.includes('Front Plank') && !names.includes('Band Bent Over Row'), JSON.stringify(names));
 });
 
+const slPress = (s) => s.page.$eval('#sl-main', (b) => b.click());
+/** Aktif hareketin n setini yapar (set 20 sn, dinlenme 70 sn). */
+async function setler(s, n) {
+  for (let k = 0; k < n; k++) { await slPress(s); await s.adv(20); await slPress(s); if (k < n - 1) await s.adv(70); }
+}
+
+sc('İdman: ısınma (kayda sayılmaz), set sırasında ağrı 1,5 → hafiflet; hareket sonu MSI ve not hazır; rekor; özet hacim + kaslar + rekor + kıyas', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
+  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  // Isınma
+  assert.match(await txt(s, '#sl-warm'), /Isınma 0\/4 kayda sayılmaz/);
+  await p.click('#sl-warm'); await s.waitModal('Isınma · 6 dk');
+  await p.click('[data-isn="0"]'); await p.click('[data-isn="1"]');
+  await s.modalClick('Bitti');
+  assert.equal(await p.isHidden('#sl-warm'), true);
+  assert.deepEqual((await s.ls('ysk.salonSession')).isinma, { tamam: [0, 1], bitti: true });
+  // Shoulder Press (öneri: 15 kg) 1. set sırasında ağrı 1,5 → hafiflet
+  assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /Dumbbell Shoulder Press.*15 kg/);
+  await slPress(s); await s.adv(10);
+  await p.click('#sl-wheel .w-item.is-active [data-sl-agri]'); await s.waitModal('Ağrı · Dumbbell Shoulder Press');
+  await p.click('#modal-body [data-value="1.5"]'); await s.waitModal('MSI 1,5 · hafiflet');
+  assert.match(await txt(s, '#modal-body'), /Kalan setler: 12,5 kg \(önce 15 kg\) · 8 tekrar/);
+  await s.modalClick('Hafifleterek devam');
+  let x = (await s.ls('ysk.salonSession')).hareketler[0];
+  assert.deepEqual([x.agirlik, x.tekrar], [12.5, 8]);
+  await s.adv(10); await slPress(s); await s.adv(70);
+  await setler(s, 2);
+  await p.waitForSelector('#sl-giris:not([hidden])');
+  assert.equal(await p.getAttribute('#sg-body [data-sg="msi"][data-v="1.5"]', 'class'), 'is-on', 'set sırasındaki ağrı hazır gelir');
+  assert.match(await p.inputValue('#sg-not'), /MSI 1,5 \(1\. set\) · hafifletildi: 12,5 kg \(önce 15 kg\) · 8 tekrar/);
+  await p.click('#sg-save');
+  // Row: 17,5 kg (öneri) → en ağır rekor
+  await p.waitForFunction(() => document.querySelector('#sl-wheel .w-item.is-active .sl-ad').textContent.trim() === 'Band Bent Over Row');
+  await p.waitForFunction(() => /^1\. set/.test(document.getElementById('sl-main-sub').textContent));
+  await s.adv(3);
+  await setler(s, 3);
+  await p.waitForSelector('#sl-giris:not([hidden])');
+  await p.click('#sg-save');
+  await p.waitForFunction(() => /🏆 Rekor · Band Bent Over Row: En ağır: 17,5 kg × 15/.test(document.getElementById('toast').textContent));
+  await s.waitScreen('salon-ozet');
+  const oz = await txt(s, '#so-body');
+  assert.match(oz, /HACİM\s*1\.\d{3}\s*kg/);
+  assert.match(oz, /ÇALIŞAN KASLAR.*Omuz.*Sırt/);
+  assert.match(oz, /🏆 Rekor\s*Band Bent Over Row · En ağır: 17,5 kg × 15\s*önceki 15 kg/);
+  assert.match(oz, /GEÇEN BENZER İDMANA GÖRE · 20 Eylül.*Hacim .* kg · geçen 1\.050 kg/);
+  await p.click('#so-save'); await s.waitScreen('home');
+  const I = s.envs.SALON.sheets.idman;
+  assert.deepEqual(I.data.slice(1, 3).map((r) => [r[2], r[5], r[8]]), [['Dumbbell Shoulder Press', 12.5, 1.5], ['Band Bent Over Row', 17.5, '']]);
+  assert.match(I.data[1][9], /hafifletildi/);
+});
+
+sc('İdman: set sırasında ağrı 2 → hareket durur (yapılan setle), hareket sonu MSI 2 ve "durduruldu" notu', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
+  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  await setler(s, 1); await s.adv(70);
+  await slPress(s); await s.adv(10);
+  await p.click('#sl-wheel .w-item.is-active [data-sl-agri]'); await s.waitModal('Ağrı');
+  await p.click('#modal-body [data-value="2"]');
+  await p.waitForSelector('#sl-giris:not([hidden])');
+  assert.match(await txt(s, '#sg-body'), /SETLER\s*10-10/);
+  assert.equal(await p.getAttribute('#sg-body [data-sg="msi"][data-v="2"]', 'class'), 'is-on');
+  assert.match(await p.inputValue('#sg-not'), /MSI 2 \(2\. set\) · durduruldu/);
+  assert.equal((await s.ls('ysk.salonSession')).hareketler[0].set, 2);
+});
+
 const only = process.argv[2];
 if (require.main === module) runScenarios('Sürüm 12 senaryoları', only ? S.filter(([n]) => n.toLowerCase().includes(only.toLowerCase())) : S, 8150);
