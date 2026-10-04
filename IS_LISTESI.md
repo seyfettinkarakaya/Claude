@@ -22,6 +22,17 @@ Tamamlandı (sürüm 8), bkz. Tamamlanan. Kalan: Code.gs'in yeniden dağıtılma
   Görünüm önerisi: alt panelde 5 noktalı seçici (●●●○○), rozette rakam (①–⑤ ya da "★3"); çipler aynı.
   Dokunuşla döngü yok (1→2→…→5 yavaş olur): dokun = seç (varsayılan 3) / tekrar dokun = kaldır.
   Test: eski senaryolar (★/★★) ve yeni senaryo: seç → kaldır, 5 kademe → sıralama değişir.
+- [ ] **Hareket seçerken resim, bilgi ve video görünsün** (04.10.2026). Bugün: öneri kartında küçük "ⓘ nasıl"
+  yazısı bilgi kartını açıyor (fotoğraf, adımlar, kaslar); video yalnızca H'de Video doluysa YouTube'a çıkan ▶.
+  İstenen: seçim sırasında hareketi görerek karar vermek. Öneri:
+  - Kartta hareket fotoğrafı küçük resim olarak (başlangıç ↔ bitiş geçişi); mini vücut yanında kalır.
+    Fotoğrafı olmayan harekette mini vücut.
+  - Küçük resme dokun → bilgi kartı (büyük fotoğraf, Türkçe adımlar, kaslar, kısıt notu) ve kartın altında
+    **"Planla ekle"** düğmesi (kart kapanmadan seçilir). Kartın kendisine dokunmak yine seçer/kaldırır.
+  - Video uygulama içinde oynasın (youtube-nocookie gömme; CSP'ye `frame-src https://www.youtube-nocookie.com`
+    eklenir); internet yoksa bağlantı olarak kalır. Video yoksa "Video ekle: H → Video sütunu" notu.
+  - Fotoğraflar: 36 hareket uygulamada; diğerleri free-exercise-db'den yüklenir (çevrimdışıysa mini vücut).
+  - Test: kartta küçük resim, dokun → bilgi kartı → "Planla ekle" seçer; video gömülü/bağlantı; 320 px taşma yok.
 
 ### Sürüm 12 — tek seferde uygulanacak plan (04.10.2026) — **TAMAMLANDI, 12.0.0 yayında (04.10.2026)**
 Kurulum için yapılacaklar (senin tarafında):
