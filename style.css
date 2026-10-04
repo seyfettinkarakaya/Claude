@@ -1679,3 +1679,12 @@ svg.hg .by { fill: #3987e5; }
 svg.hg .bs { fill: #F5A524; }
 .fd-r > small { width: 66px; flex: none; font-size: 11px; color: #7A8694; font-weight: 600; }
 .sp-kp b.warn { color: var(--warn); }
+
+/* --- 13.1: hareket videoları --- */
+.bi-vid { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden; background: #000; margin-bottom: 6px; }
+.bi-vid.dik { aspect-ratio: 9 / 14; max-height: 62vh; margin-left: auto; margin-right: auto; width: auto; height: min(62vh, 520px); }
+.bi-vid iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.bi-vk { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; color: #8B97A5; margin-bottom: 8px; }
+.bi-vk a { flex: none; padding: 7px 12px; border-radius: 12px; background: #141B23; border: 1px solid #1E2731; color: #C2CBD5; font-weight: 800; text-decoration: none; }
+.bi-off { margin: 4px 0 8px; padding: 10px 12px; border-radius: 14px; border: 1px dashed #3A4656; font-size: 13.5px; color: #C2CBD5; }
+button.sl-vform { border: 0; font-family: inherit; cursor: pointer; }

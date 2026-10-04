@@ -89,7 +89,10 @@ async function launch(opts = {}) {
   const net = { offline: Boolean(opts.offline), delay: {}, override: null, calls: [], external: [] };
   const browser = opts.browser;
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 440, height: 956 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
-  ctx.on('request', (r) => { const u = new URL(r.url()); if (u.hostname !== 'localhost' && u.hostname !== 'script.google.com') net.external.push(r.url()); });
+  // YouTube gömme (sürüm 13): gerçek ağa çıkmaz, sahte sayfa döner; dış istek sayılmaz, adresleri net.video'da
+  net.video = [];
+  ctx.on('request', (r) => { const u = new URL(r.url()); if (u.hostname === 'www.youtube-nocookie.com') { net.video.push(r.url()); return; } if (u.hostname !== 'localhost' && u.hostname !== 'script.google.com') net.external.push(r.url()); });
+  await ctx.route('https://www.youtube-nocookie.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>video</title><body style="background:#000"></body>' }));
   await ctx.addInitScript(() => {
     window.__beeps = [];
     window.AudioContext = class {

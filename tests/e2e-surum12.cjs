@@ -558,3 +558,4 @@ sc('Hareket seçimi: "Nasıl yapılır" düğmesi büyük, uygulamadaki fotoğra
 
 const only = process.argv[2];
 if (require.main === module) runScenarios('Sürüm 12 senaryoları', only ? S.filter(([n]) => n.toLowerCase().includes(only.toLowerCase())) : S, 8150);
+exports.toPlanList = toPlanList;

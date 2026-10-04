@@ -6,6 +6,8 @@ import * as K from '../kisit.js';
 import * as Y from '../yuk.js';
 import * as BI from '../bilgi.js';
 import * as A from '../analiz.js';
+import * as V from '../video.js';
+import { VIDEOLAR } from '../videolar.js';
 
 let n = 0;
 const t = (name, fn) => { try { fn(); n++; } catch (e) { console.error('BAŞARISIZ:', name); throw e; } };
@@ -183,6 +185,27 @@ t('yuk: normal hafta tabanlı oran (aradan dönüş), haftalar, hafta durumu', (
   assert.deepEqual(H.map((x) => [x.bas, x.yuzme, x.salon, x.seans]), [['2026-09-07', 0, 0, 0], ['2026-09-14', 400, 0, 1], ['2026-09-21', 300, 200, 2]]);
   assert.deepEqual(Y.haftaDurumu(500, 1170), { pay: 43, durum: 'az', metin: 'Normalin altında' });
   assert.equal(Y.haftaDurumu(1200, 1170).durum, 'normal'); assert.equal(Y.haftaDurumu(1600, 1170).durum, 'yuksek');
+});
+
+t('video: YouTube adresi, gömme adresi, H önceliği, liste (büyük/küçük harf), özet', () => {
+  assert.deepEqual(V.ytAyir('https://www.youtube.com/watch?v=MDAk3N1wEfI'), { id: 'MDAk3N1wEfI', bicim: 'w', bas: 0 });
+  assert.deepEqual(V.ytAyir('https://youtube.com/shorts/fpU6PrR0Urg?si=x'), { id: 'fpU6PrR0Urg', bicim: 's', bas: 0 });
+  assert.deepEqual(V.ytAyir('https://youtu.be/MDAk3N1wEfI?t=42'), { id: 'MDAk3N1wEfI', bicim: 'w', bas: 42 });
+  assert.equal(V.ytAyir('https://www.youtube.com/watch?v=MDAk3N1wEfI&t=1m5s').bas, 65);
+  assert.equal(V.ytAyir('https://evil.example/watch?v=MDAk3N1wEfI'), null, 'yalnız YouTube');
+  assert.equal(V.ytAyir(''), null);
+  const g = V.gommeAdresi({ id: 'MDAk3N1wEfI', bas: 3, bit: 15 });
+  assert.ok(g.startsWith('https://www.youtube-nocookie.com/embed/MDAk3N1wEfI?'));
+  assert.match(g, /mute=1/); assert.match(g, /loop=1/); assert.match(g, /playlist=MDAk3N1wEfI/); assert.match(g, /start=3/); assert.match(g, /end=15/); assert.match(g, /autoplay=1/);
+  assert.equal(V.izleAdresi({ id: 'fpU6PrR0Urg', bicim: 's' }), 'https://www.youtube.com/shorts/fpU6PrR0Urg');
+  const L = { 'Band Lat Pulldown': ['MDAk3N1wEfI', 'w', 'OPEX', 0, 0] };
+  assert.equal(V.videoBul('band lat pulldown', '', L).kaynak, 'OPEX');
+  assert.equal(V.videoBul('Band Lat Pulldown', 'https://youtu.be/AAAAAAAAAAA', L).nereden, 'tablo', 'H önce');
+  assert.equal(V.videoBul('Band Lat Pulldown', 'https://vimeo.com/1', L).nereden, 'liste', 'geçersiz H → liste');
+  assert.equal(V.videoBul('Yok', '', L), null);
+  const o = V.ozet(VIDEOLAR);
+  assert.equal(o.toplam, 61); assert.equal(o.opex, 33);
+  assert.equal(V.videoBul('DB Pullover (Lat Focus)', '', VIDEOLAR).id, '7ee9w2zYFr0');
 });
 
 console.log(`çekirdek testleri: TAMAM (${n})`);

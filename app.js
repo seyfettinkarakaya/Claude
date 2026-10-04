@@ -12,6 +12,8 @@ import * as yuk from './yuk.js?v=12.1.0';
 import * as harita from './harita.js?v=12.1.0';
 import * as bilgi from './bilgi.js?v=12.1.0';
 import * as analiz from './analiz.js?v=12.1.0';
+import * as video from './video.js?v=12.1.0';
+import { VIDEOLAR } from './videolar.js?v=12.1.0';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
 export const APP_VERSION = '12.1.0';
@@ -521,6 +523,7 @@ function renderPrefs() {
   }
   const css = fromRef ? c && c.css : p.css;
   const tah = css ? analiz.dereceTahmini(css) : null;
+  { const o = video.ozet(VIDEOLAR); $('pref-video').textContent = `Hareket videoları: uygulama listesinde ${o.toplam} hareket (OPEX ${o.opex}, diğer ${o.diger}). H sayfasının Video sütunu doluysa o önce gelir. Video kartta sessiz ve döngüde oynar; internet yoksa fotoğraf gösterilir.`; }
   $('pref-tahmin').innerHTML = tah ? `Derece tahmini (kaba, CSS'ten): 100 FR <b>${fmtDur(tah[100])}</b> · 200 FR <b>${fmtDur(tah[200])}</b> · 400 FR <b>${fmtDur(tah[400])}</b>` : '';
   $('pref-zones').innerHTML = css
     ? zones().map((z) => {
@@ -3589,7 +3592,8 @@ function slRenderItem(node, x, h) {
   if (isnN) tag = `${tag} · ISINMA ${isnN}`;
   if (stat === 'tamam') tag = `✓ TAMAMLANDI · ${tag}`;
   else if (stat === 'eksik') tag = `${salon.doneSets(st, h)}/${x.set} · ERKEN BİTTİ · ${tag}`;
-  const vid = k && k.video ? `<a class="sl-vid" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer" aria-label="Videoyu YouTube'da aç">▶ Video</a>` : '';
+  const vid = k && k.video ? `<a class="sl-vid" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer" aria-label="Videoyu YouTube'da aç">▶ Video</a>`
+    : videoOf(x.ad) ? `<button class="sl-vid sl-vform" data-bilgi="${esc(x.ad)}" aria-label="Formu izle">▶ Form</button>` : '';
   const info = `<div class="w-info">Hedef <b>${esc(hedef)}</b> · ${esc(fmtKg(x.agirlik))}${x.dinlen ? ` · Dinlen <b>${fmtDur(x.dinlen)}</b>` : ''}</div>`;
   const timer = '<div class="w-timer"><span class="w-tmode"></span><b class="w-tbig n"></b><span class="w-tsub n"></span></div>';
   let body;
@@ -3739,6 +3743,8 @@ function onSlUndo() {
 function onSlWheelClick(e) {
   const t = e.target;
   if (t.closest('a.sl-vid')) return; // video YouTube'da açılır
+  const vf = t.closest('[data-bilgi]');
+  if (vf) { e.stopPropagation(); bilgiKarti(vf.dataset.bilgi); return; } // form videosu (uygulama içinde)
   const st = slst();
   const repBtn = t.closest('[data-sl-rep]');
   if (repBtn) {
@@ -3846,6 +3852,9 @@ let hdb = null; // hareketdb.js (yalnızca kart açılınca yüklenir)
 const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=12.1.0'));
 let bilgiTimer = null;
 
+/** Hareketin videosu (H · Video önce, sonra uygulamadaki liste) ya da null. */
+const videoOf = (ad) => video.videoBul(ad, (katalogOf(ad) || {}).video, VIDEOLAR);
+
 /** Hareket adı → free-exercise-db kimliği (eşleştirme pahalı: 876 kayıt; sonuç önbellekte). */
 const kimlikCache = new Map();
 function hareketKimligi(H, ad) {
@@ -3885,14 +3894,20 @@ async function bilgiKarti(ad) {
   const kasY = r ? bilgi.kasYogunluk(r[3], r[4]) : grup.haritaPay(salonData() ? salon.grupPay(salonData().etki, ad) : {});
   const src = (i) => (H.YEREL.has(id) ? `img/hareket/${id}_${i}.webp` : `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${id}/${i}.jpg`);
   const g = grupOf(ad);
+  const v = videoOf(ad);
+  const cevrimici = navigator.onLine !== false;
   const box = $('bilgi');
   box.style.setProperty('--c', grup.grupRenk(g));
   $('bi-tag').textContent = `${grup.grupAd(g).toLocaleUpperCase('tr') || 'HAREKET'}${ks.durum !== 'uygun' ? ' · KISITLI' : ''}`;
   $('bi-title').textContent = tr ? tr.ad : ad;
   $('bi-body').innerHTML = `${tr && tr.ad !== ad ? `<p class="bi-en">${esc(ad)}</p>` : r && r[1] !== ad ? `<p class="bi-en">${esc(ad)} · ${esc(r[1])}</p>` : ''}
-    ${id ? `<div class="bi-media" id="bi-media"><img src="${src(0)}" alt="${esc(ad)}: başlangıç"><img class="b" src="${src(1)}" alt="${esc(ad)}: bitiş">
+    ${v && cevrimici ? `<div class="bi-vid${v.bicim === 's' ? ' dik' : ''}"><iframe src="${esc(video.gommeAdresi(v))}" title="${esc(ad)} videosu" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      <p class="bi-vk"><span>${v.kaynak ? `${esc(v.kaynak)} · ` : ''}${v.nereden === 'tablo' ? 'H · Video sütunundan' : 'uygulama listesinden'} · sessiz · döngü</span><a href="${esc(video.izleAdresi(v))}" target="_blank" rel="noopener noreferrer">↗ YouTube'da aç</a></p>` : ''}
+    ${v && !cevrimici ? '<p class="bi-off">📶 Çevrimdışı: video internet gelince oynar. Şimdilik fotoğraf ve adımlar.</p>' : ''}
+    ${!v ? '<p class="bi-off">Bu hareketin videosu yok: H sayfasının Video sütununa YouTube bağlantısı ekleyebilirsin.</p>' : ''}
+    ${id && (!v || !cevrimici) && (cevrimici || H.YEREL.has(id)) ? `<div class="bi-media" id="bi-media"><img src="${src(0)}" alt="${esc(ad)}: başlangıç"><img class="b" src="${src(1)}" alt="${esc(ad)}: bitiş">
       <div class="bi-ph"><button data-bi-p="0" class="on">1 · Başlangıç</button><button data-bi-p="1">2 · Bitiş</button><button data-bi-p="a" class="play">⏸ durdur</button></div></div>`
-    : '<p class="dt-why">Bu hareket için fotoğraf bulunamadı. Tablodaki H sayfasına "Görsel" sütunu ekleyip free-exercise-db kimliğini yazabilirsin.</p>'}
+    : id && !cevrimici ? '' : !v ? '<p class="dt-why">Bu hareket için fotoğraf bulunamadı. Tablodaki H sayfasına "Görsel" sütunu ekleyip free-exercise-db kimliğini yazabilirsin.</p>' : ''}
     <div class="bi-row"><span class="sp-mb big" data-mb data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(Object.fromEntries(Object.entries(kasY).map(([gg, v]) => [gg, Math.round(v * 100)]))))}"></span>
       <div><p class="sp-lb">ÇALIŞAN KAS</p>${r ? `<p><b>${esc(r[3].map(bilgi.kasAdi).join(', '))}</b></p>${r[4].length ? `<p class="mu">İkincil: ${esc(r[4].map(bilgi.kasAdi).join(', '))}</p>` : ''}` : etkiTR(ad).map(([gg, o]) => `<p>${esc(gg)} <b>${fmtDec(Math.round(o * 100) / 100)}</b></p>`).join('')}</div></div>
     ${ks.durum === 'yasak' ? `<p class="bi-k red">⊘ ${esc(ks.neden.join(' · '))}${ks.alternatif ? ` · yerine: ${esc(ks.alternatif)}` : ''}</p>` : ''}
@@ -3902,7 +3917,7 @@ async function bilgiKarti(ad) {
       <p class="sp-lb">SIK HATA</p><ul class="bi-err">${tr.hata.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
       <div class="bi-swim"><b>Yüzmeye katkısı</b><p>${esc(tr.yuzme)}</p></div>`
     : r ? `<p class="sp-lb">NASIL YAPILIR <small>(kaynak İngilizce)</small></p><ol class="bi-ol" lang="en">${r[5].map((a) => `<li>${esc(a)}</li>`).join('')}</ol>` : ''}
-    ${k.video ? `<p><a class="sl-vid is-inline" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer">▶ Videoyu YouTube'da aç</a></p>` : ''}
+    ${k.video && !video.ytAyir(k.video) ? `<p><a class="sl-vid is-inline" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer">▶ Videoyu YouTube'da aç</a></p>` : ''}
     ${id ? `<p class="bi-src">Fotoğraf ve İngilizce anlatım: free-exercise-db (kamu malı)${H.YEREL.has(id) ? '' : ' · fotoğraf internetten yüklenir'}</p>` : ''}`;
   paint($('bi-body'));
   yerlestirMini($('bi-body'));
@@ -3920,7 +3935,7 @@ async function bilgiKarti(ad) {
     });
   }
 }
-function bilgiKapat() { $('bilgi').hidden = true; clearInterval(bilgiTimer); }
+function bilgiKapat() { $('bilgi').hidden = true; clearInterval(bilgiTimer); $('bi-body').replaceChildren(); /* video durur */ }
 
 /** Hareketin son 8 idmanı: ağırlık (kg) ya da en iyi tekrar/süre; tek çizgi, noktada RPE. */
 function hareketGrafik(ad) {
@@ -4505,7 +4520,7 @@ function renderSalonPlan() {
         <span class="sp-sc"><b class="n">${r.puan}</b><small>PUAN</small></span>
         <span class="sp-m"><b>${esc(r.ad)}${r.amac ? `<span class="sp-tag">${esc(r.amac.toLocaleUpperCase('tr'))}</span>` : ''}${r.oneri && r.oneri.warn ? ' <span class="warn">⚠</span>' : ''}</b>
           ${payBar(r.pay)}<small>Yüzme ${r.stc == null ? '—' : fmtDec(r.stc)} · ${esc(sonText(r.son))}</small>
-          <span class="sp-nasil" data-sp-info="${esc(r.ad)}" role="button" aria-label="${esc(r.ad)}: nasıl yapılır"><span class="sp-th" data-sp-th="${esc(r.ad)}"></span><span>ⓘ Nasıl yapılır</span></span>
+          <span class="sp-nasil" data-sp-info="${esc(r.ad)}" role="button" aria-label="${esc(r.ad)}: nasıl yapılır"><span class="sp-th" data-sp-th="${esc(r.ad)}"></span><span>${videoOf(r.ad) ? '▶ Video · nasıl yapılır' : 'ⓘ Nasıl yapılır'}</span></span>
           ${r.borcAcik ? `<small class="sp-ok">Önleyici: ${esc(salon.ONLEYICI.find((o) => o.key === r.kat).ad.toLocaleLowerCase('tr'))} borcu</small>` : ''}
           ${r.yorgun.length ? `<small class="warn">Dinleniyor: ${esc(r.yorgun.join(', '))}</small>` : ''}
           ${r.ks.notlar.map((t) => `<small class="sp-kn">⚠ ${esc(t)}</small>`).join('')}</span>

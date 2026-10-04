@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <!-- Yalnızca kendi dosyalarımız yüklenir; ağ bağlantısı yalnızca Apps Script'e. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https://raw.githubusercontent.com; manifest-src 'self'; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https://raw.githubusercontent.com; frame-src https://www.youtube-nocookie.com; manifest-src 'self'; connect-src https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>YüzmeSK</title>
@@ -89,7 +89,8 @@
       </div>
       <div class="lisans" id="pref-lisans">
         <p class="lbl">KAYNAKLAR VE LİSANSLAR</p>
-        <p class="muted">Kas haritası görseli: kullanıcının kendi görselinden üretildi.<br>Hareket fotoğrafları ve açıklamaları: free-exercise-db (Unlicense, kamu malı).<br>Yazı tipleri Archivo ve Barlow Condensed (uygulamayla birlikte): SIL Open Font License.</p>
+        <p class="muted" id="pref-video"></p>
+        <p class="muted">Kas haritası görseli: kullanıcının kendi görselinden üretildi.<br>Hareket fotoğrafları ve açıklamaları: free-exercise-db (Unlicense, kamu malı).<br>Hareket videoları: YouTube'un kendi oynatıcısıyla (çerezsiz gömme); videolar sahiplerine ait, uygulamada dosya tutulmaz.<br>Yazı tipleri Archivo ve Barlow Condensed (uygulamayla birlikte): SIL Open Font License.</p>
       </div>
     </div>
   </section>
