@@ -76,6 +76,11 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
   Sahibi gömmeyi kapattıysa uygulama YouTube bağlantısına düşer. H'deki diğer hareketler için liste genişletilecek.
 - [x] Video listesi (04.10.2026): idman sayfasındaki 61 hareketin tamamı, OPEX öncelikli (33 OPEX, 4 beğenilen,
   24 diğer kısa video) → `tasarim/video/liste.csv`. Kullanıcı onayladı: **uygulamada kaynak olarak kullanılacak.**
+- [ ] **Video kaynak kanalları** (04.10.2026): 1. OPEX (shorts, en beğenilen), yedek: **KAIFIT** (@KAIFIT-ch) ve
+  **Yuryfit** (kullanıcı önerisi: iyi videolar). OPEX'te olmayan 28 hareket (`liste.csv`'de Kaynak boş) için önce
+  bu iki kanaldan kısa (10–15 sn) video aranır; bulunanlar listeye yazılıp `videolar.js` yeniden üretilir.
+  Not: YouTube bu ortamda kapalı; kanal içeriği buradan taranamıyor → kullanıcı bağlantı verirse doğrudan eklenir,
+  ya da arama sonuçlarından ad + kanal ile seçilir ve telefonda kontrol edilir.
 - [x] **Uygulamada hareket videoları** (örnek ekranlar: `tasarim/v29/ornek.html`): **(13.0.0: yapıldı — kart, seçim, idman "▶ Form", çevrimdışı fotoğraf, Ayarlar özeti)**
   - Kaynak: liste uygulamaya gömülü (`videolar.js`, CSV'den üretilir); H'deki Video sütunu doluysa o önce gelir.
   - Oynatıcı: YouTube'un kendi oynatıcısı (youtube-nocookie gömme; CSP `frame-src` eklenir), sessiz, döngü,
