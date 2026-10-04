@@ -155,6 +155,19 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
   - Kullanım: salon planı ve Salon programı (~süre), Bu hafta (süre bütçesi 80/65 dk aşılıyor mu uyarısı,
     önerilen salon gününde hareket sayısı), yük hedefi (dk × RPE). Ekranda "tahmin: son 5 idmana göre" notu.
   - Yalnızca okuma; tablolara yazım yok. Test: gerçek süreler varken tahmin değişir, yokken formül.
+- [ ] **İdman anında biten seti düzeltme** (04.10.2026). Bugün:
+  - Yüzme: biten sete dokununca yalnız "Seti sıfırla" (tekrar süreleri silinir, set baştan yapılır); süre/tekrar
+    elle düzeltilemez.
+  - Salon: yalnız **son** setin tekrarı ± ile değişir; önceki setler değişmez; hareket "tamam" olunca Düzenle kapalı;
+    ağırlık set başına değil hareket başına.
+  Öneri: biten sete dokun → küçük düzeltme penceresi:
+  - Salon: o setin tekrarı (ya da süresi), ağırlığı (set başına; kayıtta Açıklama'ya `Setler: 11@20-9@20-9@17,5`,
+    Ağırlık sütunu bugünkü gibi), set türü/RIR; "seti sil" (yanlışlıkla BAŞLA). Tamamlanan hareket de düzeltilebilir.
+  - Yüzme: tekrar sayısı (yapılan), tekrar süresi (yanlış dokunuşu düzelt: süreyi elle gir ya da bir dokunuşu
+    geri al), kulaç/nabız; "sıfırla" kalır. Düzeltilen süre nota "düzeltildi" diye işlenir (plan farkı notu gibi).
+  - Seans bitip gönderilmeden önce özet ekranında da aynı düzeltme. Gönderilen kayıt değişmez (tabloda elle).
+  - Eski olay kaydı biçimi bozulmaz (düzeltme ayrı alan: `duzelt[set]`); zamanlama hesapları (zaman.js) önce
+    düzeltmeyi uygular. Test: düzelt → özet ve tabloya giden satır doğru; eski senaryolar aynen geçer.
 - [ ] **Uygulama adı: idmanSK** (yüzme + salon). Değişecek görünen yerler: `index.html` (title, ana ekran adı,
   başlık, noscript), `manifest.json` (name, short_name), yedek dosyası (`idmansk-yedek-…json`, `uygulama` alanı),
   README, dosya başı yorumları. **Değişmeyecekler (mevcudu bozmamak için):** `localStorage` anahtarları (`ysk.*`;
