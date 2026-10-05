@@ -155,6 +155,16 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
   - Kullanım: salon planı ve Salon programı (~süre), Bu hafta (süre bütçesi 80/65 dk aşılıyor mu uyarısı,
     önerilen salon gününde hareket sayısı), yük hedefi (dk × RPE). Ekranda "tahmin: son 5 idmana göre" notu.
   - Yalnızca okuma; tablolara yazım yok. Test: gerçek süreler varken tahmin değişir, yokken formül.
+- [ ] **25/75 gibi karışık mesafeli setler** (05.10.2026, test düzeneğinde doğrulandı). Mesafe hücresine `25/75`
+  yazılınca `Code.gs` (`toNumber_`) sayı göremez → mesafe 0: kartta "8 × 0 FR", tempo/bölge yok, gün toplamı eksik
+  (örnekte 1400 yerine 600 m), `seans`/yük/stil paylarında metre 0. Zamanlama (dokunuşlar) çalışıyor.
+  - Şimdilik yol: Mesafe `100`, Açıklama `25 hızlı / 75 kolay` (tempo tekrarın ortalamasıdır).
+  - Düzeltme önerisi (yalnızca ekleme): Code.gs Mesafe metnini de gönderir (`mesafeMetin`) ve `25/75`, `25+75`,
+    `50/50` gibi yazımı toplar (100) + parçaları verir; `eski`'ye hücrenin özgün metni aynen yazılır. Uygulama başlıkta
+    "8 × 100 (25/75)" gösterir; karışık tekrarda bölge "karışık" (ya da yalnız kolay parçaya göre değil, hiç) verilir;
+    isteğe bağlı **ara dokunuş** (25'te bir dokunuş → hızlı parçanın süresi ayrı ölçülür, Not'a `25: 0:16`).
+  - Benzer: Hedef'te aralık (`1:30–1:35`) ve çıkış saati (`@1:50`) okunmuyor → aynı işte ele alınır.
+  - Code.gs yeniden dağıtım gerektirir. Test: 25/75, 25+75, aralıklı hedef; eski Plan satırları aynen.
 - [ ] **İdman anında biten seti düzeltme** (04.10.2026). Bugün:
   - Yüzme: biten sete dokununca yalnız "Seti sıfırla" (tekrar süreleri silinir, set baştan yapılır); süre/tekrar
     elle düzeltilemez.
