@@ -1,6 +1,6 @@
 # YüzmeSK (idmanSK) — idman içeriği oturumu için uygulama rehberi
 
-Sürüm 13.0.0 · 05.10.2026. Bu metin, idman içeriğini konuştuğum Claude oturumu için yazıldı.
+Sürüm 13.0.0 · 05.10.2026 (idman oturumunun yorumlarıyla güncellendi). Bu metin, idman içeriğini konuştuğum Claude oturumu için yazıldı.
 Amaç: yazdığın programlar uygulamanın bütün yeteneklerini kullansın, uygulamanın topladığı
 veriyi de doğru okuyup yorumlayabilesin.
 
@@ -18,7 +18,7 @@ Telefonda çalışan bir web uygulaması (PWA). Üç Google tablosuyla konuşur:
 
 Yüzme ve salon **tek yük modelinde** birleşir:
 - Yük = süre (dk) × RPE.
-- Normal hafta = 3 seans × 65 dk × RPE 6 = 1170.
+- Normal hafta = 3 seans × 65 dk × RPE 6 = 1170. (Bugün salon da bu 3 güne sayılıyor; bkz. bölüm 8.)
 - "Bu hafta" ekranı haftalık planı, yük hedefini ve eklem bütçelerini gösterir.
 
 ---
@@ -34,8 +34,13 @@ Yüzme ve salon **tek yük modelinde** birleşir:
   - 1–1,5: hafiflet.
   - 2: dur.
   - 3+: tıbbi değerlendirme.
-- **Gün ve süre:** Haftada 3 gün. Cuma akşamı süre sınırsız. Salı/Çarşamba/Perşembe'den ikisi: sabah 75–80 dk ya da öğle 65 dk.
-- **Stil sırası:** FR → BK → BF → BR. CSS yaklaşık 1:57 /100 m.
+- **Gün ve süre:** Haftada 3 **yüzme** günü (salon ayrı; bkz. bölüm 8). Cuma akşamı süre sınırsız. Salı/Çarşamba/Perşembe'den ikisi: sabah 75–80 dk ya da öğle 65 dk.
+- **Stil sırası:** FR → BK → BF → BR.
+- **CSS:**
+  - Ekipmansız yaklaşık **2:06 /100 m (126 sn)**.
+  - 1:57 (117 sn) **Paddle + PB** ile ölçülen değerdir; ekipmansız sette kullanılmaz.
+  - Uygulama CSS'i sporRef `css` sayfasından aletine göre seçer: alet sütunu boş satır ekipmansız setler için, `Paddle+PB` satırı o aletle yüzülen setler için.
+  - 09.10 testine kadar ekipmansız değer 126'dır.
 
 ---
 
@@ -56,10 +61,27 @@ Sütunlar (başlık adına göre bulunur, sıra önemli değil):
 | Stil | `FR`, `BK`, `BF`, `BR`, `IM` (Türkçe/İngilizce adlar da tanınır) | Kas yükü, kurbağalama payı. IM yük hesabında FR sayılır, içindeki BR kurbağalama payına girmez |
 | Tür | `Swim`, `Drill`, `Kick`, `Pull` (ve "race/sprint" geçen açıklama) | Drill ve Kick setlerinde tempo bölgesi verilmez. Pull: pull kulaç normu ve pull kas yükü. Kick: bacak yükü |
 | Açıklama | Serbest metin; **ilk satır** kartta görünür | Drill adı sporRef `drill` sayfasındaki adla geçerse ▶ video. "race/sprint/SP1" kelimeleri yarış kulaç normunu seçer |
-| Hedef | **Bir tekrarın** yüzme süresi `m:ss` (ör. 4×100 için `1:30`) | Tempo /100 ve bölge (REC, EN1–3, SP1–3), toplam hedef süre |
-| Dinlen | Tekrar arası dinlenme `m:ss` (ör. `0:20`) | Geri sayım, bip, toplam süre = tekrar × (hedef + dinlen) |
+| Hedef | **Bir tekrarın** yüzme süresi, **`00:01:30` biçiminde** (ss:dd:sn) | Tempo /100 ve bölge (REC, EN1–3, SP1–3), toplam hedef süre |
+| Dinlen | Tekrar arası dinlenme, **`00:00:20` biçiminde** | Geri sayım, bip, toplam süre = tekrar × (hedef + dinlen) |
 | Alet | sporRef `alet` sayfasındaki kod/ad (ör. `PB`/`Pullbuoy`, palet, paddle) | Alete özel CSS; şamandıra pull sayılır |
 | Gerçek, Kulaç, Nabız, RPE, MSI, Not | **Boş bırak** | Uygulama yazar |
+
+**Süre biçimi:**
+- Hedef ve Dinlen'e `00:01:30` yaz.
+- Sheets, `1:30`'u 1 saat 30 dakika diye okur ve uygulama da tabloda görünen metni okur. Bu yüzden `1:30` yanlış sonuç verir.
+- `00:01:30` hem Sheets'te hem uygulamada 90 sn'dir.
+
+### Telefon tek uçta: tekrarlar yakın duvarda bitmeli
+
+Telefon havuzun bir ucunda durur. Her tekrar bitince o uçta düğmeye basılır.
+- **25 m havuzda:** 25, 75, 125 … m'lik tekrar karşı duvarda biter ve ölçülemez.
+- **50 m havuzda:** 50, 150 … m'lik tekrar karşı duvarda biter.
+
+Program yazarken:
+- Tekrar mesafesi havuz boyunun **çift katı** olsun: 25 m havuzda 50, 100, 150 …
+- **25'ler:** çift yaz. `8×25 hızlı` yerine `4×50 · Açıklama: 25 hızlı + 25 kolay` ya da `4×50 · 2×25, karşıda 0:15 dinlen`.
+- **75'ler:** `100 · 75 + 25 kolay dönüş` olarak yaz.
+- Uzak duvarda dinlenmeli set gerekiyorsa tekrar karşı duvarda bitecektir. Bunu ölçecek "çift ölçüm" özelliği iş listesinde; o gelene kadar böyle setleri çift tekrar olarak yaz.
 
 ### Yapılmaması gerekenler (bugünkü sürümde bozuk sonuç verir)
 
@@ -67,8 +89,8 @@ Sütunlar (başlık adına göre bulunur, sıra önemli değil):
   - **Doğrusu:** Mesafe `100`, Açıklama `25 hızlı / 75 kolay`.
   - Tempo bölgesi tekrarın ortalamasından hesaplanır, yani karışık tekrarda bölge "ortalama" olur. Bunu Açıklama'da belirt.
 - **Hedef veya Dinlen'e aralık ya da çıkış saati yazma:** `1:30–1:35`, `@1:50`, `send-off 2:00` gibi değerler okunmaz (0 sayılır).
-  - **Doğrusu:** Hedef'e tek değer (ör. `1:32`), aralığı Açıklama'ya yaz.
-  - Çıkış saatli (send-off) setlerde Hedef + Dinlen = çıkış süresi olacak şekilde böl. Örnek: @1:50, hedef 1:35 → Hedef `1:35`, Dinlen `0:15`.
+  - **Doğrusu:** Hedef'e tek değer (ör. `00:01:32`), aralığı Açıklama'ya yaz.
+  - Çıkış saatli (send-off) setlerde Hedef + Dinlen = çıkış süresi olacak şekilde böl. Örnek: @1:50, hedef 1:35 → Hedef `00:01:35`, Dinlen `00:00:15`.
 - **İç içe yapı tek satıra yazılmaz:** `3 × (4×50 + 100)` → her parçayı **ayrı satır** olarak, sırayla yaz (turları tekrarla). Örnek: Sıra 5: 4×50, Sıra 6: 1×100, Sıra 7: 4×50, …
 - **Piramit, merdiven, kırık setler:** Her basamak ayrı satır (ör. 50, 100, 150, 100, 50).
 - **Aynı tekrar içinde stil değişimi** (ör. 25 BF + 75 FR): Mesafe tekrarın toplamı, Stil baskın stil, ayrıntı Açıklama'da.
@@ -142,7 +164,7 @@ Uygulamanın kendi hesapladıkları (sorarsam bunlara göre konuş):
 
 ## 5. Haftalık model (sürüm 13 "Bu hafta" ekranı)
 
-- **4 haftalık ortak döngü** (Form ve denge ekranında başlatılır), yüzme ve salonda aynı faz:
+- **4 haftalık ortak döngü** (Form ve denge ekranında elle başlatılır), yüzme ve salonda aynı faz. **Faz takviminden haberi yok; şimdilik başlatılmayacak** (bkz. bölüm 8):
   1. **Hacim:**
      - Yüzme: EN1–EN2 aerobik hacim + teknik.
      - Salon: stabilite + core + omuz önleyici, 3 × 12–15.
@@ -220,8 +242,20 @@ Program önerirken:
 
 ## 8. Bilinen sınırlar (sürüm 13.0.0)
 
-- Mesafe sütununa metin (25/75 vb.) yazılamaz. Düzeltme iş listesinde.
-- Tekrar içinde ara süre (25'te ara dokunuş) yok: tekrar tek süre olarak ölçülür.
+- **Gün sayımı:** "Haftada 3 gün" uygulamada bugün yüzme + salon **toplam** günü sayıyor.
+  - Normal hafta salonu ayrı tanımlamıyor; bu yüzden Faz 1 (3 yüzme + 2 salon) "normalin üstünde" ve "3 gün tamam" görünür.
+  - Yük uyarısını bu hafta için yorumlarken bunu hesaba kat.
+  - Düzeltme iş listesinde: 3 gün yüzme için, salon ayrı (2 gün, ~50 dk, RPE ~5).
+- **Faz takvimi ile döngü:**
+  - Döngü bugün sabit 4 hafta: Hacim, Hacim+, Kuvvet, Dinlenme. Faz takvimini (Faz 0–4) tanımıyor.
+  - Plan: faz takvimi üstte (sporRef `fazBilgi`), döngü onun içinde ve faza göre. Örnek: Faz 1 = Hacim, Hacim+, Hacim+, Dinlenme. Faz 0–1'de SP ve salon kuvveti yok.
+  - O gelene kadar uygulamadaki döngüyü başlatma; fazı programda sen yönet.
+- **MSI:** Uygulamada 1 ve 1,5 tek eylem: "hafiflet". "1,5 → ana set yarıya" kuralı uygulamada yok.
+- **Seans süresi:** Seans süresi molalar hariç ölçülür (ilk YÜZ'den bitişe).
+- **Mesafe:** Mesafe sütununa metin yazılamaz.
+- **Ölçüm:**
+  - Karşı duvarda biten tekrar ölçülemez (yukarıda).
+  - Tekrar içinde ara süre yok: tekrar tek süre olarak ölçülür.
 - Biten set havuzda yalnız sıfırlanabilir, süresi elle düzeltilemez (iş listesinde).
 - Plan süreleri sabit formülle tahmin ediliyor, gerçekleşen sürelerden henüz öğrenmiyor (iş listesinde).
 - Garmin/saat verisi yok.

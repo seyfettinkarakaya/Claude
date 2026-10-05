@@ -155,16 +155,36 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
   - Kullanım: salon planı ve Salon programı (~süre), Bu hafta (süre bütçesi 80/65 dk aşılıyor mu uyarısı,
     önerilen salon gününde hareket sayısı), yük hedefi (dk × RPE). Ekranda "tahmin: son 5 idmana göre" notu.
   - Yalnızca okuma; tablolara yazım yok. Test: gerçek süreler varken tahmin değişir, yokken formül.
-- [ ] **25/75 gibi karışık mesafeli setler** (05.10.2026, test düzeneğinde doğrulandı). Mesafe hücresine `25/75`
-  yazılınca `Code.gs` (`toNumber_`) sayı göremez → mesafe 0: kartta "8 × 0 FR", tempo/bölge yok, gün toplamı eksik
-  (örnekte 1400 yerine 600 m), `seans`/yük/stil paylarında metre 0. Zamanlama (dokunuşlar) çalışıyor.
-  - Şimdilik yol: Mesafe `100`, Açıklama `25 hızlı / 75 kolay` (tempo tekrarın ortalamasıdır).
-  - Düzeltme önerisi (yalnızca ekleme): Code.gs Mesafe metnini de gönderir (`mesafeMetin`) ve `25/75`, `25+75`,
-    `50/50` gibi yazımı toplar (100) + parçaları verir; `eski`'ye hücrenin özgün metni aynen yazılır. Uygulama başlıkta
-    "8 × 100 (25/75)" gösterir; karışık tekrarda bölge "karışık" (ya da yalnız kolay parçaya göre değil, hiç) verilir;
-    isteğe bağlı **ara dokunuş** (25'te bir dokunuş → hızlı parçanın süresi ayrı ölçülür, Not'a `25: 0:16`).
-  - Benzer: Hedef'te aralık (`1:30–1:35`) ve çıkış saati (`@1:50`) okunmuyor → aynı işte ele alınır.
-  - Code.gs yeniden dağıtım gerektirir. Test: 25/75, 25+75, aralıklı hedef; eski Plan satırları aynen.
+- [ ] **Uzak duvarda biten tekrarlar (25, 75, 125 … m; 50 m havuzda 50, 150 …)** (05.10.2026). Telefon havuzun bir
+  ucunda; tekrar karşı duvarda bitince DUR'a basılamaz. Öneri (uygulama havuz boyunu biliyor: 25/50):
+  - Uygulama her tekrarın hangi duvarda bittiğini toplam metreden hesaplar. Karşıda biten tekrarda düğme
+    "karşıda dinlen · dönüşte dokun" der; dokunuş beklemez.
+  - **Çift ölçüm:** 2 tekrar (gidiş + dönüş) tek dokunuşla kapanır: süre = tekrar1 + karşı dinlenme + tekrar2.
+    Tekrar süresi = (ölçülen − planlanan dinlenme) / 2, "tahmini" işaretli; Not'a `2×25 tek ölçüm`.
+  - Karşıdaki dinlenme için uygulama planlanan süreden geri sayar ve bip verir (duyulursa); duvardaki saat yedek.
+  - Toplamı karşıda biten set (ör. 3×75) için son tekrardan sonra **dönüş 25 kolay** otomatik eklenir (Not'a
+    yazılır, mesafeye sayılır) ya da plan yazarken önlenir.
+  - Program yazım kuralı (rehbere eklendi): tekrarlar mümkünse yakın duvarda bitsin; 25'ler çift
+    (`4×50 · 25 hızlı + 25 kolay`), 75 yerine 100 (`75 + 25 kolay dönüş`).
+  - Uzun vade: saat verisi (otomatik tur) bunu tamamen çözer (F4, sonra).
+- [ ] **CSS ekipmansız 126 sn, 117 ise Paddle + PB** (idman oturumu 05.10.2026). Uygulamada varsayılan CSS 117
+  (`data.js` DEFAULT_PREFS, CSS testi başlangıcı, README). sporRef bağlıyken `css` sayfası kullanılır: alet sütunu
+  boş satır ekipmansız setlere, `Paddle+PB` satırı o aletle yüzülen setlere; tarihi kapsayan satır yoksa en son
+  satır ("CSS güncel değil"). Yapılacak: varsayılan 126; kullanıcı sporRef'e 09.10'a kadar `126 · alet boş` satırı
+  ekler, 09.10 testinden sonra test sonucu. Ayarlar'da hangi satırın kullanıldığı (alet, tarih) açık yazsın.
+- [ ] **"Haftada 3 gün" yüzme içindir; salon ayrı** (idman oturumu 05.10.2026). Bugün uygulama tüm günleri
+  sayıyor (`yuk.haftaGunleri` yüzme + salon), normal hafta 3 × 65 dk × RPE 6 = 1170 → Faz 1 (3 yüzme + 2 salon)
+  sürekli "normalin üstünde / 3 gün tamam" görünür, Bu hafta 3. günden sonra öneri vermez. Yapılacak:
+  sporRef `kisit`'e `gun_hafta_yuzme` (3), `gun_hafta_salon` (2), `salon_dk` (50), `salon_rpe` (5); normal hafta =
+  yüzme 3 × 65 × 6 + salon 2 × 50 × 5; ana sayfa halkası yüzme ve salon ayrı; planlayıcı yüzme ve salon
+  yuvalarını ayrı doldurur (salon yüzmeye bitişik olmayan güne). Eski `gun_hafta` okunmaya devam eder.
+- [ ] **Faz takvimi üstte, 4 haftalık döngü onun içinde** (idman oturumu 05.10.2026). sporRef `fazBilgi`
+  (Sezon, Faz, Tarih_ilk, Tarih_son, Ad, Odak) betikten zaten okunuyor ama uygulama kullanmıyor. Yapılacak:
+  - `fazBilgi`'ye isteğe bağlı iki sütun: **Döngü** (ör. `Hacim, Hacim+, Hacim+, Dinlenme`) ve **Yasak**
+    (ör. `SP, Kuvvet`). SporRef.gs bunları da okur (yalnızca ekleme; yeniden dağıtım).
+  - Döngü fazın başladığı haftadan kendiliğinden işler (elle "başlat" gerekmez; elle başlatma faz yoksa kalır).
+  - Faz bir işi yasaklıyorsa döngü onu önermez (Faz 0–1: SP yok, salon kuvvet yok; Kuvvet haftası ilk Faz 3'te).
+  - Bu hafta ve Form ve denge: "Faz 1 · Hacim+ (2/4)" gibi; faz sonu yaklaşınca ölçüm/test hatırlatması.
 - [ ] **İdman anında biten seti düzeltme** (04.10.2026). Bugün:
   - Yüzme: biten sete dokununca yalnız "Seti sıfırla" (tekrar süreleri silinir, set baştan yapılır); süre/tekrar
     elle düzeltilemez.
