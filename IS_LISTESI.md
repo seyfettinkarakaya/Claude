@@ -143,6 +143,44 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
 - [x] P11 **Kilit ekranında dinlenme sayacı / bildirim** (service worker; sürüm 12'den ertelendi). **(13.0.0) (iOS: bildirim yalnızca ana ekrana eklenmiş uygulamada ve izin verilince)**
 - [x] P12 **Dışa aktarma ve yedek:** tüm kayıtların CSV/JSON yedeği (tablo zaten ana kayıt; telefon geçmişi için). **(13.0.0) (JSON; CSV yok)**
 
+### Hata listesi (idman oturumu, 06.10.2026) — kodla karşılaştırıldı
+Kaynak: 30.09, 02.10, 06.10 yüzme ve 04.10 salon kayıtları. Her maddede: bulgu → yapılacak.
+- [ ] **P1-1 CSS.** Uygulama zaten tarih + alet + havuzla `css` sayfasından okuyor; gömülü 117 yalnız sporRef yokken
+  (`data.js` DEFAULT_PREFS) ve CSS testi başlangıcında. Tarihi kapsayan satır yoksa son satırı "güncel değil" notuyla
+  kullanıyor. → Gömülü varsayılan kalkar; geçerli satır yoksa bölge verilmez, uyarı çıkar. Aletli sette o aletin satırı
+  yoksa bugün bölge yok — ekipmansız CSS'e düşmek paddle/PB setlerini olduğundan zor gösterir, bu yüzden bölge yok kalır
+  (oturumla teyit edilecek).
+- [ ] **P1-2 Süre biçimi.** `Code.gs` Gerçek'i gerçek süre değeri olarak yazıyor (değer doğru), yalnız görünüm `[mm]:ss.0`.
+  Hedef/Dinlen `eski`'ye Plan'daki hücreden aynen (değer + biçim) kopyalanıyor → Plan'da `07:00` yazılmışsa Sheets onu
+  7 saat sanıyor (uygulama görünen metni okuduğu için 7 dk anlıyor). → Code.gs: planlanan `[h]:mm:ss`, ölçülen
+  `[h]:mm:ss.0`; idmanda değişen Hedef/Dinlen de `[h]:mm:ss`. Plan yazımı `00:07:00` (rehberde).
+- [ ] **P1-3 Mikro tur.** "Turlar: …" notunu yalnızca sürüm ≤ 9'dan kalan eski seansı taşıyan kod yazıyor
+  (`migrateSession`): 30.09 seansı telefonda **eski bir uygulama sürümüyle** başlamış. Yeni modelde 1 tekrarlık sette
+  ikinci dokunuş sonraki seti başlatır. P3-2 (Gerçek boş) de aynı nedenden. → Telefonda Ayarlar'da sürüm 13.0.0
+  görünmeli. Yine de koruma: hedefin %20'sinden kısa tekrar yok sayılır ve Not'a "yoksayıldı: 0:02.3" yazılır.
+- [ ] **P1-4 Ağırlık +3.** SalonTakip `idman` 04.10 satırları: Band Bent Over Row **15**, Pallof **9** — uygulama planı
+  doğru yazmış. 18/12'nin görüldüğü yer sorulacak. Olası karışıklık: otomatik ilerleme (son RPE ≤ 8 → +2,5 kg)
+  "Son idmanı tekrarla"da 15 → 17,5 önerir; tam sayı biçimli hücrede 18 görünür. → Bantta ve vücut ağırlığında kg
+  ilerlemesi yok (+1 tekrar); öneri planda açıkça "öneri: +2,5 kg" diye işaretli, tek dokunuşla geri alınır (var).
+- [ ] **P2-1 Set Mesafe / Set Süre / Sıra.** `Code.gs` bu üç sütunu bilerek **boş** yazıyor (eski karar: "tablo
+  doldurur"); değerler `eski`'deki tablo formülünden geliyor. Sıra da boş olduğu için Sıra/satır konumuna dayanan
+  formül kayıyor. → Öneri: Code.gs değerleri kendisi yazar: Sıra = plan sırası, Set Mesafe = Tekrar × Mesafe,
+  Set Süre = Tekrar × (Hedef + Dinlen) (`[h]:mm:ss`), formül gerekmez. (Kullanıcı kararı bekliyor.)
+- [ ] **P2-2 Hafta.** Uygulama Hafta yazmıyor; tablo formülü sporRef `takvim`'de "Bu Hafta" satırını okuyor.
+  → Formülde "Sezon Hafta" satırına geçilecek (tabloda, kullanıcı/oturum). İstenirse Code.gs yazar.
+- [ ] **P2-3 Kick/Drill bölgesi.** Uygulama Drill/Kick setlerinde bölge vermiyor (`ref.isDrill`); tablodaki
+  REC/SP1 tablo formülünden ("Hedef Zone" sütunu, uygulama okumaz/yazmaz). → Formül düzeltilir; uygulamada
+  `Scull` da drill sayılır, ekranda "TEC" yazar, yoğunluk dağılımına girmez (bugün de girmiyor).
+- [ ] **P2-4 Nabız hepsi 113.** Doğrulandı. Neden: salonda nabız alanı bir önceki hareketin değeriyle hazır geliyor,
+  dokunup geçince kopyalanıyor. → Nabız boş başlar; yalnız girilirse yazılır.
+- [ ] **P3-1 Süreli harekette +1 sn.** Kodda süreli set tam `başlangıç + süre`de bitiyor, Tekrar'a planlanan saniye
+  yazılıyor; +1 üreten yer bulunamadı. → 04.10 satırlarının Tekrar/Süre/Açıklama değerleri görülecek (Drive aracı
+  yalnız örnek satır döndürdü); kaynak bulununca düzeltilir.
+- [ ] **P3-2 Gerçek boş.** P1-3 ile aynı neden (eski sürüm seansı). → Kaydetmeden önce süresi olmayan tamamlanmış
+  set varsa uyarı.
+- [ ] **P3-3 Test setine bölge.** Tablo formülü. → Uygulamada Tür `Test` olan sete bölge verilmez, hız payına girmez.
+- [ ] **P3-4 Mesafeye metin.** Bilinen (yukarıda); karşı duvar ölçümüyle birlikte ele alınır.
+
 ### Notlar (04.10.2026, 13.0.0 sonrası)
 - [ ] **Plan süreleri gerçekleşen sürelerden öğrensin.** İdman yapıldıkça planlardaki süre tahmini gerçek
   sürelere göre ayarlansın. Bugün tahminler sabit formülle:
