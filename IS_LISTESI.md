@@ -158,14 +158,20 @@ Kaynak: 30.09, 02.10, 06.10 yüzme ve 04.10 salon kayıtları. Her maddede: bulg
   (`migrateSession`): 30.09 seansı telefonda **eski bir uygulama sürümüyle** başlamış. Yeni modelde 1 tekrarlık sette
   ikinci dokunuş sonraki seti başlatır. P3-2 (Gerçek boş) de aynı nedenden. → Telefonda Ayarlar'da sürüm 13.0.0
   görünmeli. Yine de koruma: hedefin %20'sinden kısa tekrar yok sayılır ve Not'a "yoksayıldı: 0:02.3" yazılır.
-- [ ] **P1-4 Ağırlık +3.** SalonTakip `idman` 04.10 satırları: Band Bent Over Row **15**, Pallof **9** — uygulama planı
-  doğru yazmış. 18/12'nin görüldüğü yer sorulacak. Olası karışıklık: otomatik ilerleme (son RPE ≤ 8 → +2,5 kg)
-  "Son idmanı tekrarla"da 15 → 17,5 önerir; tam sayı biçimli hücrede 18 görünür. → Bantta ve vücut ağırlığında kg
-  ilerlemesi yok (+1 tekrar); öneri planda açıkça "öneri: +2,5 kg" diye işaretli, tek dokunuşla geri alınır (var).
-- [ ] **P2-1 Set Mesafe / Set Süre / Sıra.** `Code.gs` bu üç sütunu bilerek **boş** yazıyor (eski karar: "tablo
-  doldurur"); değerler `eski`'deki tablo formülünden geliyor. Sıra da boş olduğu için Sıra/satır konumuna dayanan
-  formül kayıyor. → Öneri: Code.gs değerleri kendisi yazar: Sıra = plan sırası, Set Mesafe = Tekrar × Mesafe,
-  Set Süre = Tekrar × (Hedef + Dinlen) (`[h]:mm:ss`), formül gerekmez. (Kullanıcı kararı bekliyor.)
+- [ ] **P1-4 Ağırlık +3** (kullanıcı açıkladı 07.10): uygulama idmana başlarken otomatik ilerlemeyi (+2,5 kg; tam sayı
+  görünümde +3) **sormadan** uyguladı; fark edilmeden artırılmış değerlerle idman yapıldı (bantla hiçbir şey
+  değişmedi), tabloya bu değerler yazıldı, kullanıcı elle düzeltti. → Öneri artık kendiliğinden uygulanmaz:
+  idman başında "3 harekette artış önerisi" tek ekran (Kabul / Hayır / tek tek), kabul edilmeyen hareket son yapılan
+  değerle başlar. Bant ve vücut ağırlığında kg önerisi yok (+1 tekrar ya da bant kademesi notu). Kartta öneri
+  uygulanmış hareket açıkça işaretli kalır. Test: "Son idmanı tekrarla" → değerler aynı, öneri ekranı; Kabul → artar.
+- [ ] **P2-1 Set Mesafe / Set Süre / Sıra** (karar 07.10: **uygulama boş gönderir, tablo hesaplar; boş gönderirken
+  sütun kaydırmasın**). Bugün `Code.gs` `eski`'ye satırı başlık genişliğinde yazıyor: bu üç sütuna ve başlığı Plan'da
+  olmayan sütunlara (Hafta, Hedef Zone …) `''` yazıyor, yeni satırlara formül gelmiyor; yalnızca biçim kopyalanıyor.
+  → Code.gs: tablonun hesapladığı sütunlara **hiç dokunmaz** (yalnız kendi sütunlarını yazar); üstteki eski satırda
+  bu sütunlarda formül varsa yeni satırlara aynı formülü göreli olarak kopyalar; ARRAYFORMULA varsa alanı boş
+  bırakır ki taşabilsin. Satır ekleme ve sütun sırası aynen. Doğrulama için `eski` 2. satırdaki Set Mesafe,
+  Set Süre, Sıra ve Hafta hücrelerinin formül metni gerekli (kullanıcıdan). Test: formüllü/ARRAYFORMULA'lı sahte
+  `eski` → yeni satırlarda doğru değer, diğer sütunlar kaymıyor.
 - [ ] **P2-2 Hafta.** Uygulama Hafta yazmıyor; tablo formülü sporRef `takvim`'de "Bu Hafta" satırını okuyor.
   → Formülde "Sezon Hafta" satırına geçilecek (tabloda, kullanıcı/oturum). İstenirse Code.gs yazar.
 - [ ] **P2-3 Kick/Drill bölgesi.** Uygulama Drill/Kick setlerinde bölge vermiyor (`ref.isDrill`); tablodaki
