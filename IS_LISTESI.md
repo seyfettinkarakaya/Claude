@@ -143,6 +143,29 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
 - [x] P11 **Kilit ekranında dinlenme sayacı / bildirim** (service worker; sürüm 12'den ertelendi). **(13.0.0) (iOS: bildirim yalnızca ana ekrana eklenmiş uygulamada ve izin verilince)**
 - [x] P12 **Dışa aktarma ve yedek:** tüm kayıtların CSV/JSON yedeği (tablo zaten ana kayıt; telefon geçmişi için). **(13.0.0) (JSON; CSV yok)**
 
+### Bekleyen işler: dağıtım gerektiren / gerektirmeyen (07.10.2026)
+**Dağıtım gerektirenler — kullanıcı dağıtım yapana kadar BEKLİYOR** (Apps Script'i yapıştır → Yeni sürüm):
+- Code.gs: P1-2 süre biçimleri (`[h]:mm:ss` / `[h]:mm:ss.0`), P2-1 tablonun hesapladığı sütunlara dokunmama +
+  formül kopyalama, P3-4 Mesafe'de metin (`25/75`).
+- Code.gs / Salon.gs / SporRef.gs: idmanSK adı (yalnız yorumlar ve betiğin cevabındaki ad; uygulama iki adı da kabul
+  ettiği için acelesi yok).
+- (Önceden) Salon.gs sürüm 13 (`plan` sayfası) — dağıtıldı mı teyit edilecek.
+
+**Dağıtımsız yapılabilecekler (yalnız uygulama; "uygula" bekliyor):**
+- P1-1 CSS: gömülü 117 kalkar, geçerli satır yoksa uyarı, bölge yok.
+- P1-3 kısa tur koruması (hedefin %20'si) + Not; P3-2 süresiz set uyarısı.
+- P1-4 artış önerisi sormadan uygulanmaz; bant/vücut ağırlığında kg önerisi yok.
+- P2-3 Scull = drill, "TEC"; P3-3 Tür `Test` bölgesiz.
+- P2-4 salonda nabız boş başlar.
+- Uzak duvar ölçümü (havuz boyu uygulamada var).
+- Yüzme / salon gün ayrımı: yeni kurallar sporRef `kisit` sayfasına satır olarak eklenir (betik bu sayfayı satır
+  satır geçirdiği için dağıtım gerekmez).
+- Faz takvimi + döngü: faz tarihleri `fazBilgi`'den zaten geliyor; döngü ve yasaklar şimdilik `kisit` satırlarıyla
+  (`dongu_F1 = Hacim, Hacim+, Hacim+, Dinlenme`, `yasak_F1 = SP, Kuvvet`) → dağıtım gerekmez. Ayrı sütunlar sonra.
+- idmanSK adı uygulama tarafı (ekran, manifest, yedek, `ysk.*` → `isk.*` taşıma, belgeler).
+- Biten seti düzeltme; plan süreleri gerçekleşenden.
+- Tabloda (kod değil, kullanıcı/oturum): P2-2 Hafta formülü "Sezon Hafta"ya; P2-3/P3-3 Hedef Zone formülü.
+
 ### Hata listesi (idman oturumu, 06.10.2026) — kodla karşılaştırıldı
 Kaynak: 30.09, 02.10, 06.10 yüzme ve 04.10 salon kayıtları. Her maddede: bulgu → yapılacak.
 - [ ] **P1-1 CSS.** Uygulama zaten tarih + alet + havuzla `css` sayfasından okuyor; gömülü 117 yalnız sporRef yokken
