@@ -236,13 +236,22 @@ Kaynak: 30.09, 02.10, 06.10 yüzme ve 04.10 salon kayıtları. Her maddede: bulg
   - Seans bitip gönderilmeden önce özet ekranında da aynı düzeltme. Gönderilen kayıt değişmez (tabloda elle).
   - Eski olay kaydı biçimi bozulmaz (düzeltme ayrı alan: `duzelt[set]`); zamanlama hesapları (zaman.js) önce
     düzeltmeyi uygular. Test: düzelt → özet ve tabloya giden satır doğru; eski senaryolar aynen geçer.
-- [ ] **Uygulama adı: idmanSK** (yüzme + salon). Değişecek görünen yerler: `index.html` (title, ana ekran adı,
-  başlık, noscript), `manifest.json` (name, short_name), yedek dosyası (`idmansk-yedek-…json`, `uygulama` alanı),
-  README, dosya başı yorumları. **Değişmeyecekler (mevcudu bozmamak için):** `localStorage` anahtarları (`ysk.*`;
-  değişirse telefondaki tüm geçmiş ve ayarlar kaybolur), betiklerin cevaplarındaki ad ve sporRef'e yazılan
-  "YüzmeSK CSS testi" kaynak metni (eski satırlarla tutarlılık; istenirse yalnız yeni satırlar), depo adı ve
-  GitHub Pages adresi. iPhone'da ana ekrandaki ad, uygulama silinip yeniden eklenince güncellenir.
-  Yedek eski adlı (`YüzmeSK`) dosyayı da tanımalı. Testlerdeki ad beklentileri yeni senaryolarla güncellenir.
+- [ ] **Uygulama adı: idmanSK — HER YERDE** (talep 04.10, kapsam genişledi 07.10.2026: "her yerde").
+  - Görünen: `index.html` (title, ana ekran adı, başlık, noscript), `manifest.json` (name, short_name), Ayarlar,
+    yedek dosyası (`idmansk-yedek-…json`, `uygulama` alanı; eski `YüzmeSK` yedeği de tanınır).
+  - Betikler: `Code.gs`, `Salon.gs`, `SporRef.gs` başlık yorumları ve sağlık cevabındaki ad (`idmanSK`, `idmanSK Salon`,
+    `idmanSK sporRef`); sporRef `css`'e yeni yazılan kaynak metni `idmanSK CSS testi` (eski satırlar olduğu gibi kalır).
+    Uygulama eski adla gelen cevabı da kabul eder (betik yeniden dağıtılmadan önce de çalışır).
+  - Belgeler: README, ZAMANLAMA.md, IDMAN_OTURUMU_REHBERI.md, IS_LISTESI başlığı, tüm dosya başı yorumları, testler.
+  - `localStorage` anahtarları `ysk.*` → `isk.*`: **taşıma ile** — ilk açılışta eski anahtarlar yeni adlara
+    kopyalanır, eskiler yedek olarak bir süre durur; hiçbir kayıt, ayar ya da kuyruktaki gönderim kaybolmaz
+    (test: eski anahtarlı telefon → yeni sürüm → geçmiş, ayarlar, bağlantılar, devam eden seans aynen).
+  - Değişemeyecekler: Google tablolarının dosya adları (YuzmeProgram — Drive'da senin elinde), geliştirme dalının adı
+    (`claude/yuzmesk-phase-1-…`, oturuma atanmış), eski git geçmişi ve `tasarim/` altındaki eski taslaklar.
+    Depo adı (`Claude`) ve Pages adresi zaten adı içermiyor; değişmez.
+  - iPhone'da ana ekrandaki ad, uygulama ana ekrandan silinip yeniden eklenince güncellenir (veri kaybolmaz:
+    aynı adres).
+  - Yalnız ekleme ilkesi: tablo sütunları ve betik işlemleri değişmez; yalnızca ad metinleri.
 
 ### Sürüm 13 — EN ÖNEMLİ: yüzme + salon tam entegre model (sağlık · yüzme · fitness dengesi) — **13.0.0 yayında**
 Amaç: tek haftalık plan, tek yük bütçesi, tek sağlık bütçesi; yüzme ve salon birbirini bozmadan birbirini
