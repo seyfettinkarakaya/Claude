@@ -143,6 +143,29 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
 - [x] P11 **Kilit ekranında dinlenme sayacı / bildirim** (service worker; sürüm 12'den ertelendi). **(13.0.0) (iOS: bildirim yalnızca ana ekrana eklenmiş uygulamada ve izin verilince)**
 - [x] P12 **Dışa aktarma ve yedek:** tüm kayıtların CSV/JSON yedeği (tablo zaten ana kayıt; telefon geçmişi için). **(13.0.0) (JSON; CSV yok)**
 
+### Bütünleşik yüzme + salon modeli — araştırma önerileri (08.10.2026; "uygula" bekliyor)
+Rapor: `reports/Bütünleşik yüzme salon idman modeli.md` (notlar: `research_notes/…`). Kod incelemesine göre çoğu
+**dağıtım gerektirmez** (hesaplar telefonda; yeni ayarlar sporRef `kisit` satırı olarak; Plan'daki Alet sütunu zaten var).
+- [ ] B1 (Y) Yük oranı (7/28) → "Bu hafta / son 4 hafta" (mevcut hafta hariç), "risk" dili yok; eşikler ayarlanabilir.
+- [ ] B2 (Y) Seans sıçraması: yüzme son 4 haftanın en uzununu %10+ aşarsa uyarı (planlı uzun yüzme "onaylı").
+- [ ] B3 (Y) Omuz bütçesine pull buoy/palet metresi (ağırlıklı); palet kapısı (7 gün MSI 0, seansın ≤ %10–15).
+- [ ] B4 (Y) Girişim: ≥CSS yüzmeden sonraki 12–24 sa ağır üst vücut; kilit yüzmeden önceki akşam ağır üst vücut; aynı gün < 6 sa.
+- [ ] B5 (Y) Faza bağlı kuvvet reçetesi (set × tekrar × RIR hedefi; ilerleme önerisi buna göre).
+- [ ] B6 (Y) Taper modülü (yarış tarihi kisit'te; 10–14 gün, hacim −%41–60, yoğunluk/sıklık aynı).
+- [ ] B7 (O) Hazır olma kişisel tabana göre (28 gün), kartta en etkili 2 neden; eklem ağrısı yalnız o eklemi kısıtlar.
+- [ ] B8 (O) Ağrı izleme: seans sonrası sabah MSI sorusu; artmışsa bir renk aşağı; 2 hafta kötüleşen trend → dinlenme haftası.
+- [ ] B9 (O) Monotoni ve zorlanma (Foster).
+- [ ] B10 (O) CSS tabanlı yüzme stres puanı (tekrar süresinden, dinlenme hariç) + standart sette RPE kayması.
+- [ ] B11 (O) Yoğunluk dağılımı faz hedefine göre (piramidal), eksik bölge uyarısı.
+- [ ] B12 (O) Diz açı pencereleri (MSI ≥ 1 iken), her bacak gününde kalça + diz egzersizi.
+- [ ] B13 (O) Dinlenme haftası 3+1 / 2+1 ayarı, kırmızı bayrakla erken dinlenme.
+- [ ] B14 (O) Çift ilerleme + RIR üst sınırı (tekrar aralığı tamamlanınca yük artar).
+- [ ] B15 (D) Eklem bütçelerine taban / hedef bandı / tavan (RP MEV/MRV benzeri).
+- [ ] B16 (D) Plan/yapılan ±%20 uyum renkleri; kaçırılan seansta "uyarlama öner → Kabul et".
+- [ ] B17 (D) Form eğrisi "trend" etiketi; salon yükü yalnız yorgunluğa (ayar).
+- [ ] B18 (D) 14 günden uzun salon arası uyarısı.
+- [ ] B19 (D) Kural kaynağı rozeti: kanıt / gelenek / doktor-fizyoterapist onayı.
+
 ### Sürüm 13.1.0 (08.10.2026) — dağıtımsız düzeltmeler YAPILDI
 - [x] P1-1 CSS varsayılansız, geçerli satır yoksa uyarı + bölge yok. [x] P1-3 kısa tekrar sorulur (atılmaz),
   [x] P3-2 süresiz set uyarısı. [x] P1-4 artış önerisi sorulur, bant/vücutta kg yok. [x] P2-3 Scull = drill, TEC;
