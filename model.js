@@ -1,6 +1,6 @@
 // Sürüm 13 — yüzme + salon tek model: haftalık planlayıcı, ortak yük hedefi, sağlık bütçeleri, ortak periyot, ölçüm.
 // Saf işlevler (DOM yok). Dayanak: kisit.js (Perthes sağ kalça, sağ omuz, sağ diz, MSI, haftada 3 gün, süre bütçeleri).
-import { gunEkle, cakisma } from './yuk.js?v=13.0.0';
+import { gunEkle, cakisma } from './yuk.js?v=13.1.0';
 
 const GUN = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 const haftaGunu = (t) => { const [y, m, d] = t.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
@@ -95,14 +95,14 @@ export function saglikButceleri({ L = [], salonSatir = [], bugun, K, normal, msi
  * güne konur (omuz girişimi); olmuyorsa uyarı. Hazır olma "dinlen" ise bugünün önerisi sonraki boş yuvaya kayar.
  * → [{ tarih, gun, durum: 'yapildi'|'planli'|'oneri'|'bos', isler: [{ tur: 'yuzme'|'salon', ad, sure, yan, kaynak }], uyarilar: [] }]
  */
-export function haftaPlani({ bugun, bas, K, L = [], yuzmePlan = [], salonPlan = [], hazirKarar = null, fazNo = null, hafiflet = false, F: Fp = null }) {
+export function haftaPlani({ bugun, bas, K, L = [], yuzmePlan = [], salonPlan = [], hazirKarar = null, fazNo = null, hafiflet = false, F: Fp = null, planDk = {} }) {
   const F = Fp || faz(fazNo);
   const ayri = K.gunHaftaSalon != null; // yüzme ve salon günleri ayrı sayılır
   const gunler = Array.from({ length: 7 }, (_, i) => {
     const t = gunEkle(bas, i);
     const yap = L.filter((s) => s.tarih === t);
     const isler = yap.map((s) => ({ tur: s.tur, ad: s.tur === 'yuzme' ? `Yüzme ${s.metre ? `${s.metre} m` : ''}`.trim() : `Salon ${s.set || ''} set`.trim(), sure: s.dk, kaynak: 'yapildi' }));
-    if (!yap.some((s) => s.tur === 'yuzme') && yuzmePlan.includes(t)) isler.push({ tur: 'yuzme', ad: 'Yüzme programı', kaynak: 'program', yan: 'her aerobik blok sonunda omuz rahatlatma' });
+    if (!yap.some((s) => s.tur === 'yuzme') && yuzmePlan.includes(t)) isler.push({ tur: 'yuzme', ad: 'Yüzme programı', sure: planDk[t] || 0, kaynak: 'program', yan: 'her aerobik blok sonunda omuz rahatlatma' });
     if (!yap.some((s) => s.tur === 'salon') && salonPlan.includes(t)) isler.push({ tur: 'salon', ad: 'Salon programı', kaynak: 'program', yan: 'önce önleyici ısınma' });
     return { tarih: t, gun: GUN[haftaGunu(t)], durum: yap.length ? 'yapildi' : isler.length ? 'planli' : 'bos', isler, uyarilar: [] };
   });
@@ -163,6 +163,8 @@ export function haftaPlani({ bugun, bas, K, L = [], yuzmePlan = [], salonPlan = 
       if (hafiflet) x.hafif = 'yük yüksek: %20 hafif';
       else if (g.tarih === bugun && hazirKarar === 'hafif') x.hafif = 'hazır olma: %20 hafif';
     }
+    const sb = haftaGunu(g.tarih) === 5 ? 0 : K.sure.sabah || 80;
+    for (const x of g.isler) if (x.kaynak === 'program' && x.tur === 'yuzme' && sb && x.sure > sb) g.uyarilar.push(`Program ~${x.sure} dk (son idmanlara göre): ${sb} dk bütçeyi aşıyor`);
     if (g.tarih === bugun && bugunKapali && !g.isler.some((x) => x.kaynak === 'yapildi')) g.uyarilar.push(hazirKarar === 'tibbi' ? 'Bugün idman yok: tıbbi değerlendirme' : 'Bugün dinlen (hazır olma); öneri sonraki güne kaydı');
   }
   // Girişim uyarıları (M2): salon günü ile ±1 gün uzun/eşik yüzme
@@ -185,4 +187,22 @@ export function olcumZamani({ bugun, sonCssTarih = null, fazNo = null }) {
   if (gun == null || gun >= 28) out.push(`CSS testi (400 + 200)${gun == null ? '' : `: son test ${gun} gün önce`}`);
   if (fazNo != null && ((fazNo % 4) + 4) % 4 === 3) out.push('Dinlenme haftası: salonda tahmini 1RM ve ağrı (MSI) eğilimini gözden geçir');
   return out;
+}
+
+/**
+ * Yüzmede gerçekleşen / planlanan süre oranı (son 5 seans, ortanca; 0,8–1,6): geçişler, molalar, omuz rahatlatma
+ * plandaki tekrar × (hedef + dinlen)'e girmez. hist: telefondaki geçmiş kayıtları. Kayıt yoksa null.
+ */
+export function yuzmeSureOrani(hist = []) {
+  const sn = (v) => { const m = /^(?:(\d+):)?(\d+):(\d{2})(?:[.,]\d+)?$/.exec(String(v || '').trim()); return m ? (Number(m[1]) || 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0; };
+  const o = (hist || []).filter((r) => r && r.tur !== 'salon' && r.seans && Array.isArray(r.setler))
+    .sort((a, b) => (a.tarih < b.tarih ? 1 : -1)).slice(0, 5)
+    .map((r) => {
+      const plan = r.setler.filter((x) => x.tamamlandi).reduce((a, x) => a + (Number(x.yapilan) || Number(x.tekrar) || 1) * (sn(x.hedef) + sn(x.dinlen)), 0);
+      const ger = sn(r.seans.sure);
+      return plan > 0 && ger > 0 ? ger / plan : null;
+    }).filter((v) => v).sort((a, b) => a - b);
+  if (!o.length) return null;
+  const m = o.length % 2 ? o[o.length >> 1] : (o[o.length / 2 - 1] + o[o.length / 2]) / 2;
+  return Math.max(0.8, Math.min(1.6, m));
 }

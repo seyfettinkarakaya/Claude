@@ -1,4 +1,4 @@
-# YüzmeSK — Zamanlama modeli (Sürüm 10 şartnamesi)
+# idmanSK — Zamanlama modeli (Sürüm 10 şartnamesi)
 
 30.09.2026 · Görseller: `tasarim/v12/idman-zamanlama-2.png`, `tasarim/v12/seans-sonu.png`
 

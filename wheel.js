@@ -1,4 +1,4 @@
-// YüzmeSK — metro tekerleği.
+// idmanSK — metro tekerleği.
 //
 // Setler bir metro hattının durakları gibi dizilir. Aktif durak "peron"da
 // büyük bir kart olarak açılır; önceki ve sonraki duraklar ince satırlar olarak

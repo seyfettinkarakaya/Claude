@@ -50,6 +50,8 @@ const server = http.createServer((req, res) => {
 
   // Kurulum
   await page.waitForSelector('#screen-setup:not([hidden])');
+  // 13.1.0: varsayılan CSS yok — bu senaryo elle girilmiş CSS 1:57 ile çalışır
+  await page.evaluate(() => localStorage.setItem('ysk.prefs', JSON.stringify({ ses: true, css: 117, havuz: 25 })));
   await page.fill('#setup-url', 'https://script.google.com/macros/s/TEST/dev');
   await page.fill('#setup-token', 'secret');
   await page.click('#setup-save');
@@ -368,7 +370,7 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
   await page.click('#days-back');
   await page.waitForSelector('#screen-home:not([hidden])');
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 13.0.0');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 13.1.0');
   assert.match(await page.textContent('#home-history-meta'), /^3 kayıt$/);
 
   // Toplu silme: yalnızca telefondaki kopyalar gider

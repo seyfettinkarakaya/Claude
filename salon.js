@@ -296,6 +296,35 @@ export function oneriGeriAl(x) {
 /** Süre tahmini (sn): set × (tekrar × 3 sn + 60 sn); süreli harekette set × (süre + 30 sn). */
 export const tahminSn = (list) => list.reduce((a, x) => a + x.set * (x.sure ? x.sure + 30 : x.tekrar * 3 + 60), 0);
 
+const sureSn = (v) => { const m = /^(?:(\d+):)?(\d+):(\d{2})(?:[.,]\d+)?$/.exec(String(v || '').trim()); return m ? (Number(m[1]) || 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0; };
+
+/**
+ * Gerçekleşen sürelerden öğrenen tahmin: idman satırlarının Süre sütunu (hareketin ilk set başı → son set sonu)
+ * formül tahminiyle kıyaslanır. Hareketin son 5 kaydının oranı, yoksa tüm hareketlerin ortanca oranı (0,5–2 arası).
+ * Süre sütunu boşsa formül. → { sn, ogrenilen: n (oranı geçmişten gelen hareket sayısı) }
+ */
+export function tahminOgren(list, gecmis = []) {
+  const oran = (r) => {
+    const gs = sureSn(r.sure);
+    if (!gs || !(Number(r.set) > 0)) return null;
+    const timed = isTimed(r.hareket, r.aciklama);
+    const f = tahminSn([{ set: Number(r.set), tekrar: Number(r.tekrar) || 1, sure: timed ? Number(r.tekrar) || 30 : 0 }]);
+    return f ? gs / f : null;
+  };
+  const tum = (gecmis || []).map((r) => ({ r, o: oran(r) })).filter((x) => x.o);
+  const med = (a) => { const b = [...a].sort((x, y) => x - y); return b.length ? (b.length % 2 ? b[b.length >> 1] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2) : null; };
+  const genel = med(tum.map((x) => x.o));
+  const kis = (v) => Math.max(0.5, Math.min(2, v));
+  let n = 0;
+  const sn = list.reduce((a, x) => {
+    const kendi = tum.filter((y) => y.r.hareket === x.ad).sort((p, q) => (p.r.tarih < q.r.tarih ? 1 : -1)).slice(0, 5).map((y) => y.o);
+    const o = kendi.length ? med(kendi) : genel;
+    if (o != null) n += 1;
+    return a + tahminSn([x]) * (o == null ? 1 : kis(o));
+  }, 0);
+  return { sn: Math.round(sn), ogrenilen: n };
+}
+
 // ---------------------------------------------------------------------------
 // Sürüm 12: önleyici doz (haftalık en az), rekor, hacim
 // ---------------------------------------------------------------------------

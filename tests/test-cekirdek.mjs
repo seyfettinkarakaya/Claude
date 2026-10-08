@@ -10,6 +10,9 @@ import * as V from '../video.js';
 import * as HZ from '../hazir.js';
 import { VIDEOLAR } from '../videolar.js';
 import * as M from '../model.js';
+import * as S from '../salon.js';
+import * as Z from '../zaman.js';
+import * as R from '../ref.js';
 
 let n = 0;
 const t = (name, fn) => { try { fn(); n++; } catch (e) { console.error('BAŞARISIZ:', name); throw e; } };
@@ -273,6 +276,60 @@ t('model: hafta planı — Cuma yüzme, salon yüzmeye komşu olmayan güne, yap
   assert.match(M.haftaPlani({ bugun: '2026-09-28', bas: '2026-09-28', K: KK, fazNo: 3 })[1].isler[0].ad, /önleyici \+ mobilite/);
   assert.deepEqual(M.olcumZamani({ bugun: '2026-10-01', sonCssTarih: '2026-09-20' }), []);
   assert.deepEqual(M.olcumZamani({ bugun: '2026-10-01', sonCssTarih: '2026-08-20', fazNo: 3 }), ['CSS testi (400 + 200): son test 42 gün önce', 'Dinlenme haftası: salonda tahmini 1RM ve ağrı (MSI) eğilimini gözden geçir']);
+});
+
+t('13.1.0: kisit — yüzme/salon gün ayrımı, döngü ve yasak satırları; normal hafta', () => {
+  const KK = K.kurallar({ kisit: [{ kural: 'gun_hafta_yuzme', deger: 3 }, { kural: 'gun_hafta_salon', deger: 2 }, { kural: 'salon_dk', deger: 50 }, { kural: 'salon_rpe', deger: 5 },
+    { kural: 'döngü_F1', deger: 'Hacim, Hacim+, Hacim+, Dinlenme' }, { kural: 'yasak_F1', deger: 'SP, Kuvvet' }] });
+  assert.deepEqual([KK.gunHafta, KK.gunHaftaSalon, KK.salonDk, KK.salonRpe], [3, 2, 50, 5]);
+  assert.deepEqual(KK.dongu['1'], ['Hacim', 'Hacim+', 'Hacim+', 'Dinlenme']); assert.deepEqual(KK.fazYasak['1'], ['SP', 'Kuvvet']);
+  assert.equal(Y.normalHafta(KK), 1170 + 500);
+  assert.equal(Y.normalHafta(K.kurallar(null)), 1170, 'ayrım yoksa eskisi gibi');
+  assert.equal(K.kurallar(null).gunHaftaSalon, null);
+  const L = [{ tarih: '2026-09-22', tur: 'yuzme' }, { tarih: '2026-09-23', tur: 'salon' }, { tarih: '2026-09-23', tur: 'yuzme' }];
+  assert.deepEqual([Y.haftaGunleri(L, '2026-09-24'), Y.haftaGunleri(L, '2026-09-24', 'yuzme'), Y.haftaGunleri(L, '2026-09-24', 'salon')], [2, 2, 1]);
+});
+
+t('13.1.0: faz takvimi + döngü + yasak; elle döngü; hafta planında ayrı yüzme/salon', () => {
+  const KK = K.kurallar({ kisit: [{ kural: 'dongu_F1', deger: 'Hacim, Hacim+, Hacim+, Dinlenme' }, { kural: 'yasak_F1', deger: 'SP, Kuvvet' }, { kural: 'gun_hafta_salon', deger: 2 }] });
+  const takvim = [{ faz: 'F1', ilk: '2026-10-12', son: '2026-12-20', ad: 'Aerobik taban', odak: 'omuz toleransı' }];
+  let f = M.fazDurumu({ bugun: '2026-10-28', takvim, K: KK });
+  assert.deepEqual([f.kaynak, f.hafta, f.i, f.F.ad, f.fazAd], ['takvim', 3, 2, 'Hacim+', 'Aerobik taban']);
+  f = M.fazDurumu({ bugun: '2026-11-04', takvim, K: KK });
+  assert.equal(f.F.ad, 'Dinlenme');
+  const K2 = K.kurallar({ kisit: [{ kural: 'yasak_F1', deger: 'SP, Kuvvet' }] });
+  f = M.fazDurumu({ bugun: '2026-10-26', takvim, K: K2 });
+  assert.deepEqual([f.dongu.join(), f.F.ad], ['Hacim,Hacim+,Hacim+,Dinlenme', 'Hacim+'], 'yasak Kuvvet → Hacim+');
+  assert.equal(M.fazDurumu({ bugun: '2026-10-05', takvim, K: KK }).kaynak, null, 'takvim dışı, elle yok');
+  assert.deepEqual([M.fazDurumu({ bugun: '2026-09-23', takvim: [], K: KK, blokBas: '2026-09-14' }).kaynak, M.fazDurumu({ bugun: '2026-09-23', blokBas: '2026-09-14' }).F.ad], ['elle', 'Hacim+']);
+  // Ayrı: 3 yüzme (Cuma + Sal + Per) + 2 salon (yüzmeye komşu olmayan gün önce)
+  const P = M.haftaPlani({ bugun: '2026-09-28', bas: '2026-09-28', K: KK, F: f.F });
+  assert.equal(P.map((g) => `${g.gun.slice(0, 3)}:${g.isler.map((x) => x.tur[0]).join('')}`).join(' '), 'Paz:s Sal:y Çar: Per:y Cum:y Cum: Paz:s');
+  // Programdaki yüzme süresi bütçeyi aşarsa uyarı
+  const P2 = M.haftaPlani({ bugun: '2026-09-28', bas: '2026-09-28', K: K.kurallar(null), yuzmePlan: ['2026-09-29'], planDk: { '2026-09-29': 95 } });
+  assert.match(P2[1].uyarilar.join(), /~95 dk.*80 dk bütçeyi aşıyor/);
+});
+
+t('13.1.0: artış önerisi bantta tekrar; öneri listesi; öğrenen salon süresi; kısa tekrar; yüzme süre oranı; Scull/Test', () => {
+  const g = [{ tarih: '2026-09-20', hareket: 'Band Row', set: 4, tekrar: 20, agirlik: 15, rpe: 7.5, msi: 0, aciklama: '' },
+    { tarih: '2026-09-20', hareket: 'Press', set: 3, tekrar: 10, agirlik: 12.5, rpe: 7, msi: 0, aciklama: '' }];
+  assert.deepEqual([S.oneri(g, 'Band Row', { ekipman: 'Band' }).text, S.oneri(g, 'Band Row', { ekipman: 'Band' }).tekrar], ['+1 tekrar', 21]);
+  assert.equal(S.oneri(g, 'Band Row').text, '+2,5 kg', 'ekipman bilinmezse eskisi gibi');
+  const L = [S.fromHistory(g[0]), S.fromHistory(g[1])];
+  const ol = S.oneriListesi(g, L, (ad) => (ad === 'Band Row' ? 'Band' : 'Dumbbell'));
+  assert.deepEqual(ol.map((x) => [x.ad, x.text]), [['Band Row', '+1 tekrar'], ['Press', '+2,5 kg']]);
+  assert.equal(L[0].agirlik, 15, 'liste değişmez (sormadan uygulanmaz)');
+  assert.deepEqual(S.tahminOgren(L, g), { sn: S.tahminSn(L), ogrenilen: 0 }, 'Süre yoksa formül');
+  const g2 = g.map((r) => ({ ...r, sure: r.hareket === 'Band Row' ? '07:15' : '' }));
+  const o = S.tahminOgren(L, g2);
+  assert.equal(o.ogrenilen, 2, 'kendi kaydı + diğerine genel oran');
+  assert.equal(o.sn, Math.round(435 + S.tahminSn([L[1]]) * (435 / S.tahminSn([L[0]]))));
+  assert.deepEqual(Z.suspects([90000, 2300], 90000), [1], 'hedefin %20sinden kısa tekrar şüpheli (1–2 tekrarda da)');
+  assert.deepEqual(Z.suspects([90000, 2300]), [], 'hedef yoksa eskisi gibi');
+  const hist = [{ tarih: '2026-09-20', seans: { sure: '00:55:00' }, setler: [{ tamamlandi: true, yapilan: 4, tekrar: 4, hedef: '01:30', dinlen: '00:20' }, { tamamlandi: true, yapilan: 1, tekrar: 1, hedef: '30:00', dinlen: '' }] }];
+  assert.equal(M.yuzmeSureOrani(hist), Math.min(1.6, 3300 / (4 * 110 + 1800)));
+  assert.equal(M.yuzmeSureOrani([]), null);
+  assert.ok(R.isDrill({ tur: 'Scull' }) && R.isTest({ tur: 'Test' }) && !R.isTest({ tur: 'Swim' }));
 });
 
 console.log(`çekirdek testleri: TAMAM (${n})`);

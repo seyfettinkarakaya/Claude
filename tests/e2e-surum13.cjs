@@ -1,7 +1,7 @@
 // Sürüm 13 uçtan uca senaryoları (videolar, salon programı, pratik öneriler, entegre model).
 //   NODE_PATH=$(npm root -g) node tests/e2e-surum13.cjs [filtre]
 const assert = require('assert');
-const { runScenarios, D } = require('./harness.cjs');
+const { runScenarios, D, sampleRef } = require('./harness.cjs');
 const { Sheet } = require('./fakegas.cjs');
 const { salonV12, toPlanList, gymBasla } = require('./e2e-surum12.cjs');
 
@@ -217,9 +217,9 @@ sc('Yedek (P12) ve bildirim ayarı (P11): Ayarlar\'dan JSON yedeği iner (anahta
   await p.click('#home-settings'); await s.waitScreen('setup');
   assert.match(await txt(s, '#pref-bildirim'), /bildirim: kapalı/);
   const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#pref-yedek')]);
-  assert.equal(dl.suggestedFilename(), 'yuzmesk-yedek-2026-09-23.json');
+  assert.equal(dl.suggestedFilename(), 'idmansk-yedek-2026-09-23.json');
   const j = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8'));
-  assert.equal(j.uygulama, 'YüzmeSK');
+  assert.equal(j.uygulama, 'idmanSK'); // 13.1.0: uygulama adı
   assert.ok(j.veriler['ysk.hazir'] && !j.veriler['ysk.config'], 'anahtarlar yedekte yok');
 });
 
@@ -272,6 +272,75 @@ sc('Bu hafta: hazır olma "dinlen" bugünü kapatır; yüzme programı 3 günü 
   await p.click('#home-gym'); await s.waitScreen('salon-start');
   await p.click('[data-ss="plan"]'); await s.waitScreen('salon-plan');
   assert.match(await txt(s, '.sp-faz'), /Döngü · 2\. hafta Hacim\+ — salon: çekiş kuvveti/);
+});
+
+// --- 13.1.0 ---------------------------------------------------------------------------------
+sc('13.1.0 faz takvimi (fazBilgi) + döngü/yasak (kisit) ve yüzme/salon ayrı günler: ana sayfa iki halka, Bu hafta, salon planlama notu, Form ve denge', async ({ launch }) => {
+  const ref = sampleRef();
+  ref.kisit = new Sheet('kisit', ['Kural', 'Değer', 'Açıklama'], [['gun_hafta_yuzme', 3, ''], ['gun_hafta_salon', 2, ''], ['salon_dk', 50, ''], ['salon_rpe', 5, ''],
+    ['dongu_F1', 'Hacim, Hacim+, Hacim+, Dinlenme', ''], ['yasak_F1', 'SP, Kuvvet', '']]);
+  ref.fazBilgi = new Sheet('fazBilgi', ['Sezon', 'Faz', 'Tarih_ilk', 'Tarih_son', 'Ad', 'Odak'], [['26-27', 'F1', D('2026-09-07'), D('2026-12-20'), 'Aerobik taban', 'omuz toleransı']]);
+  const s = await launch({ salonSheets: salonV12(), ref: true, refSheets: ref, rows: [] }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => localStorage.getItem('ysk.ref') && /salon gün/.test(document.getElementById('home-week').textContent));
+  assert.match(await txt(s, '#home-week'), /0\/3\s*yüzme gün\s*0\/2\s*salon gün/);
+  await p.click('[data-hw="buhafta"]'); await s.waitScreen('bu-hafta');
+  const t = await txt(s, '#bh-body');
+  assert.match(t, /AEROBİK TABAN \(F1\) · 3\. HAFTA\s*Hacim\+\s*🎯 omuz toleransı\s*⊘ bu fazda yok: SP, KUVVET/);
+  assert.match(t, /GÜNLER \(3 yüzme \+ 2 salon;/);
+  assert.match(await txt(s, '[data-bh-gun="2026-09-25"]'), /Cuma.*🏊 Yüzme · eşik \+ uzun aerobik/);
+  assert.match(await txt(s, '[data-bh-gun="2026-09-24"]'), /Perşembe.*🏊 Yüzme/);
+  assert.match(await txt(s, '[data-bh-gun="2026-09-27"]'), /Pazar.*🏋 Salon · çekiş kuvveti.*~50 dk/);
+  await p.click('#bh-back'); await s.waitScreen('home');
+  await p.click('#home-gym'); await s.waitScreen('salon-start');
+  await p.click('[data-ss="plan"]'); await s.waitScreen('salon-plan');
+  assert.match(await txt(s, '.sp-faz'), /Aerobik taban \(F1\) · 3\. hafta Hacim\+ — salon: çekiş kuvveti/);
+  await p.click('#sp-back'); await s.waitScreen('salon-start'); await p.click('#ss-back'); await s.waitScreen('home');
+  await p.click('#home-form'); await s.waitScreen('form');
+  assert.match(await txt(s, '#fm-body'), /4 HAFTALIK DÖNGÜ\s*1\s*Hacim\s*2\s*Hacim\+\s*3\s*Hacim\+\s*4\s*Dinlenme\s*Aerobik taban \(F1\) · 3\. hafta · Hacim\+.*Bu fazda yok: SP, KUVVET/);
+  assert.match(await txt(s, '#fm-body'), /Normal hafta = yüzme 3 seans × 65 dk × RPE 6 \+ salon 2 × 50 dk × RPE 5/);
+});
+
+sc('13.1.0 yüzme: geçerli CSS yoksa uyarı ve bölge yok; çok kısa tekrar sorulur; biten setin tekrar süresi idmanda düzeltilir, özete yansır', async ({ launch }) => {
+  const s = await launch(); const p = s.page; // sporRef yok, elle CSS yok
+  await s.openToday();
+  await p.waitForFunction(() => /CSS girilmedi/.test(document.getElementById('toast').textContent));
+  assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 2:00/100', 'bölge yok (varsayılan CSS üretilmez)');
+  await s.tap(30); await s.press();                                   // 1×200: 0:30 (hedef 4:00 → %20 = 0:48)
+  await p.waitForFunction(() => /Çok kısa tekrar \(0:30\)/.test(document.getElementById('toast').textContent));
+  await p.waitForTimeout(700);
+  await s.adv(3); await s.goTo(0);
+  await s.press(); await s.waitModal('Bu seti sıfırla?');
+  await s.modalClick('Tekrar sürelerini düzelt'); await s.waitModal('tekrar süreleri');
+  for (let k = 0; k < 6; k++) await p.click('#modal-body [data-dz="0:5"]');
+  assert.match(await txt(s, '#modal-body'), /1\.\s*1:00/);
+  await s.modalClick('Kaydet');
+  assert.deepStrictEqual((await s.session()).form.edits, { 1: { 0: 60000 } });
+  await s.finishToOzet();
+  const notes = await p.$$eval('.oz-set', (e) => e.map((x) => x.innerText.replace(/\s+/g, ' ')));
+  assert.match(notes[0], /ort\. 1:00/);
+  assert.match(notes[0], /⚠ 1\. tekrar 1:00 \(düzeltildi\)/, 'kısa tekrar özette de işaretli');
+});
+
+sc('13.1.0 salon: artış önerisinde "Hiçbiri" son değerlerle başlar; biten setlerin tekrarı ve ağırlığı sonradan düzeltilir', async ({ launch }) => {
+  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
+  assert.match(await txt(s, '#home-gym-go'), /2 harekette ilerleme önerisi/);
+  await p.click('#home-gym-start'); await s.waitModal('Artış önerisi · 2 hareket');
+  assert.match(await txt(s, '#modal-body'), /Dumbbell Shoulder Press\s*12,5 kg → 15 kg.*Band Bent Over Row\s*15 → 16 tekrar/);
+  await s.modalClick('Hiçbiri'); await s.waitScreen('salon');
+  let ses = await s.ls('ysk.salonSession');
+  assert.deepEqual(ses.hareketler.map((x) => [x.ad, x.agirlik, x.tekrar, x._oneri || null]), [['Dumbbell Shoulder Press', 12.5, 10, null], ['Band Bent Over Row', 15, 15, null]]);
+  await p.waitForSelector('#sl-wheel .w-item.is-active');
+  await setler(s, 2); await s.adv(5);
+  await p.click('#sl-wheel .w-item.is-active .w-tag'); await p.waitForSelector('#sl-detail:not([hidden])');
+  await p.click('#sl-detail [data-sl-dz]'); await s.waitModal('Dumbbell Shoulder Press · biten setler');
+  await p.click('#modal-body [data-dz="0:-1"]'); await p.click('#modal-body [data-dz="kg:1"]');
+  assert.match(await txt(s, '#modal-body'), /1\. set\s*9.*2\. set\s*10.*Ağırlık\s*15 kg/);
+  await s.modalClick('Kaydet');
+  ses = await s.ls('ysk.salonSession');
+  assert.deepEqual([ses.reps[ses.hareketler[0]._k].slice(0, 2), ses.hareketler[0].agirlik], [[9, 10], 15]);
 });
 
 const only = process.argv[2];

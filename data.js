@@ -1,4 +1,4 @@
-// YüzmeSK — veri erişim katmanı.
+// idmanSK — veri erişim katmanı.
 //
 // Arayüz kodu Apps Script'e, localStorage'a veya kuyruğa doğrudan dokunmaz;
 // hepsi bu modülden geçer. Faz 2'de yeni veri kaynakları (Garmin vb.) buraya
@@ -526,9 +526,9 @@ export function setHareketNot(ad, patch) {
   store(KEYS.hareketNot, all);
 }
 
-/** Telefondaki tüm YüzmeSK verisinin yedeği (bağlantı anahtarları hariç). */
+/** Telefondaki tüm idmanSK verisinin yedeği (bağlantı anahtarları hariç). */
 export function yedek() {
-  const out = { uygulama: 'YüzmeSK', tarih: new Date().toISOString(), veriler: {} };
+  const out = { uygulama: 'idmanSK', tarih: new Date().toISOString(), veriler: {} };
   for (const [ad, key] of Object.entries(KEYS)) {
     if (ad === 'config') continue; // anahtarlar (token) yedeğe girmez
     const v = load(key, null);

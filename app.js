@@ -1,24 +1,24 @@
-// YüzmeSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
+// idmanSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=13.0.0';
-import { Wheel } from './wheel.js?v=13.0.0';
-import * as zaman from './zaman.js?v=13.0.0';
-import * as ref from './ref.js?v=13.0.0';
-import * as duzen from './duzen.js?v=13.0.0';
-import * as salon from './salon.js?v=13.0.0';
-import * as grup from './grup.js?v=13.0.0';
-import * as kisit from './kisit.js?v=13.0.0';
-import * as yuk from './yuk.js?v=13.0.0';
-import * as harita from './harita.js?v=13.0.0';
-import * as bilgi from './bilgi.js?v=13.0.0';
-import * as analiz from './analiz.js?v=13.0.0';
-import * as video from './video.js?v=13.0.0';
-import * as hazir from './hazir.js?v=13.0.0';
-import { VIDEOLAR } from './videolar.js?v=13.0.0';
-import * as model from './model.js?v=13.0.0';
+import * as data from './data.js?v=13.1.0';
+import { Wheel } from './wheel.js?v=13.1.0';
+import * as zaman from './zaman.js?v=13.1.0';
+import * as ref from './ref.js?v=13.1.0';
+import * as duzen from './duzen.js?v=13.1.0';
+import * as salon from './salon.js?v=13.1.0';
+import * as grup from './grup.js?v=13.1.0';
+import * as kisit from './kisit.js?v=13.1.0';
+import * as yuk from './yuk.js?v=13.1.0';
+import * as harita from './harita.js?v=13.1.0';
+import * as bilgi from './bilgi.js?v=13.1.0';
+import * as analiz from './analiz.js?v=13.1.0';
+import * as video from './video.js?v=13.1.0';
+import * as hazir from './hazir.js?v=13.1.0';
+import { VIDEOLAR } from './videolar.js?v=13.1.0';
+import * as model from './model.js?v=13.1.0';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '13.0.0';
+export const APP_VERSION = '13.1.0';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1363,7 +1363,9 @@ function buHaftaVeri() {
   const msiBolge = Object.fromEntries(Object.entries(ag).map(([k, o]) => [k, o.max]));
   const butce = model.saglikButceleri({ L: G.L, salonSatir: d ? d.gecmis.map((r) => ({ tarih: r.tarih, hareket: r.hareket, set: r.set })) : [], bugun: G.bugun, K: G.K, normal: G.normal, msiBolge, brAy: yuk.stilAy(G.L, G.bugun.slice(0, 7)).brOran });
   const hz = hazirBugun();
-  const gunler = model.haftaPlani({ bugun: G.bugun, bas, K: G.K, L: G.L, yuzmePlan: visibleDates().map((x) => x.tarih), salonPlan: [...new Set(salonProgram().map((r) => r.tarih))], hazirKarar: hz ? hz.karar : null, fazNo: fn, F, hafiflet: G.od.durum === 'yuksek' });
+  const yOran = model.yuzmeSureOrani(data.getHistory()) || 1;
+  const planDk = Object.fromEntries(visibleDates().map((x) => [x.tarih, Math.round((hedefSureOf(x) * yOran) / 60)]));
+  const gunler = model.haftaPlani({ bugun: G.bugun, bas, K: G.K, L: G.L, planDk, yuzmePlan: visibleDates().map((x) => x.tarih), salonPlan: [...new Set(salonProgram().map((r) => r.tarih))], hazirKarar: hz ? hz.karar : null, fazNo: fn, F, hafiflet: G.od.durum === 'yuksek' });
   const r = data.isConfigured('ref') ? sporRef() : null;
   const c = r && r.css.length ? ref.cssFor(r, { tarih: G.bugun, havuz: prefs().havuz, alet: '' }) : null;
   const olcum = model.olcumZamani({ bugun: G.bugun, sonCssTarih: c ? c.ilk : null, fazNo: fn });
@@ -1411,7 +1413,7 @@ function salonOneriListe(dk) {
     const g = grupOf(r.ad);
     if ((gsay[g] || 0) >= 2) continue;
     const x = salon.planHareket(d, r.ad, { bodyweight: (katalogOf(r.ad) || {}).ekipman === 'Bodyweight', uygula: false });
-    if (out.length >= 3 && salon.tahminSn([...out, x]) > dk * 60 * 0.8) break;
+    if (out.length >= 3 && salonTahmin([...out, x]) > dk * 60 * 0.8) break;
     out.push(x);
     gsay[g] = (gsay[g] || 0) + 1;
     if (out.length >= 7) break;
@@ -1705,9 +1707,7 @@ async function openDate(tarih) {
   }
 
   startSession(tarih, r.plan);
-  const cu = cssUyarisi(tarih);
   if (r.fromCache) toast('Çevrimdışı: son yüklenen program gösteriliyor.');
-  else if (cu) toast(cu, 4500);
 }
 
 function startSession(tarih, plan) {
@@ -1715,6 +1715,8 @@ function startSession(tarih, plan) {
   state.session = newSession(tarih);
   persist();
   openProgram();
+  const cu = cssUyarisi(tarih); // geçerli CSS yoksa bölge verilmez: bir kez söyle
+  if (cu) toast(cu, 4500);
 }
 
 /**
@@ -2456,6 +2458,40 @@ function onMainButton() {
   afterEvent();
 }
 
+/**
+ * Biten setin tekrar sürelerini idman sırasında düzeltir (yanlış/geç dokunuş): ± sn ya da ortalamadan çıkar.
+ * Düzeltmeler özetteki ile aynı yere yazılır (form.edits); dokunuş olayları değişmez.
+ */
+async function duzeltSet(i) {
+  const s = state.plan.setler[i];
+  const k = setKey(s, i);
+  const times = zaman.repTimes(zst(), i);
+  const f = ensureForm();
+  const ed = { ...(f.edits[k] || {}) };
+  const el = document.createElement('div');
+  const ms = (r) => (typeof ed[r] === 'number' ? ed[r] : times[r]);
+  const ciz = () => {
+    el.innerHTML = `<p class="oy-not">Yanlış ya da geç basılan tekrarı düzelt veya ortalamadan çıkar. Dokunuşlar silinmez; özette de değiştirebilirsin.</p>
+      ${times.map((t, r) => `<div class="dz-r${ed[r] === 'drop' ? ' off' : ''}"><span>${r + 1}.</span><b class="n">${ed[r] === 'drop' ? 'çıkarıldı' : fmtShort(ms(r))}</b>
+        <span class="dz-b">${ed[r] === 'drop' ? '' : [-5, -1, 1, 5].map((d) => `<button data-dz="${r}:${d}">${d > 0 ? `+${d}` : `−${-d}`}</button>`).join('')}<button data-dz="${r}:x">${ed[r] === 'drop' ? 'geri al' : 'çıkar'}</button></span></div>`).join('')}`;
+  };
+  ciz();
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dz]');
+    if (!b) return;
+    const [r, d] = b.dataset.dz.split(':');
+    if (d === 'x') { if (ed[r] === 'drop') delete ed[r]; else ed[r] = 'drop'; }
+    else ed[r] = Math.max(1000, Math.round(ms(Number(r)) / 1000) * 1000 + Number(d) * 1000); // tam saniyeye
+    ciz();
+  });
+  const ok = await modal({ title: `${setTitle(s)} · tekrar süreleri`, body: el, actions: [{ label: 'Kaydet', value: true, cls: 'btn-primary' }, { label: 'Vazgeç', value: false }] });
+  if (!ok || !state.session) return;
+  f.edits[k] = ed;
+  persist();
+  refreshAllItems();
+  toast('Tekrar süreleri düzeltildi', 1500);
+}
+
 /** Tamamlanan seti sıfırlar: o setin YÜZ/DUR olayları silinir, set yeniden yapılabilir. */
 async function askResetSet(i) {
   const set = state.plan.setler[i];
@@ -2464,10 +2500,12 @@ async function askResetSet(i) {
     title: 'Bu seti sıfırla?',
     body: `<p>${esc(setTitle(set))} · ${zaman.doneReps(st, i)}/${tekrarOf(set)} tekrar. Tekrar süreleri silinir, set yeniden yapılabilir.</p>`,
     actions: [
-      { label: 'Seti sıfırla', value: 'sifirla', cls: 'btn-primary' },
+      ...(zaman.repTimes(st, i).length ? [{ label: 'Tekrar sürelerini düzelt', value: 'duzelt', cls: 'btn-primary' }] : []),
+      { label: 'Seti sıfırla', value: 'sifirla' },
       { label: 'Vazgeç', value: '' },
     ],
   });
+  if (choice === 'duzelt') return duzeltSet(i);
   if (choice !== 'sifirla' || !state.session || zst().phase === 'swim') return;
   state.session.events = zaman.withoutSet(ev(), i);
   state.zst = null;
@@ -3606,7 +3644,7 @@ function renderHomeGym() {
   const w = d && salon.lastWorkout(d.gecmis);
   const hz = salonHazir();
   desc.textContent = hz && hz.tur === 'plan'
-    ? `Hazır plan · ${hz.hareketler.length} hareket · ~${fmtDur(salon.tahminSn(hz.hareketler))}`
+    ? `Hazır plan · ${hz.hareketler.length} hareket · ~${fmtDur(salonTahmin(hz.hareketler))}`
     : w ? `Son idman ${fmtDateTR(w.tarih)} · ${w.rows.length} hareket` : 'İdman planla ya da son idmanı tekrarla.';
   renderGymGo(hz);
 }
@@ -3621,6 +3659,9 @@ function salonHazir() {
   const w = d && salon.lastWorkout(d.gecmis);
   return w ? { tur: 'son', hareketler: w.hareketler, tarih: w.tarih } : null;
 }
+
+/** Salon süre tahmini (sn): geçmişteki gerçek sürelerden öğrenir (Süre sütunu), yoksa formül. */
+const salonTahmin = (list) => salon.tahminOgren(list, salonData() ? salonData().gecmis : []).sn;
 
 /** Hareketin ekipmanı (H · Equipment). */
 const ekipmanOf = (ad) => (katalogOf(ad) || {}).ekipman || '';
@@ -3666,7 +3707,7 @@ function renderGymGo(hz) {
     <span class="hgg-gr">${gk.slice(0, 4).map(([g, v]) => `<span><i data-bg="${grup.grupRenk(g)}"></i>${esc(g)} <b>%${v}</b></span>`).join('')}${gk.length > 4 ? `<span class="mu">+${gk.length - 4}</span>` : ''}</span>
     <ul class="hgg-ls">${hz.hareketler.slice(0, N).map(satir).join('')}</ul>
     ${hz.hareketler.length > N ? `<details class="hgg-more"><summary>+${hz.hareketler.length - N} hareket daha</summary><ul class="hgg-ls">${hz.hareketler.slice(N).map(satir).join('')}</ul></details>` : ''}
-    <span class="hgg-m">${hz.hareketler.length} hareket · ${fmtSure(salon.tahminSn(hz.hareketler))}${n ? ` · ${n} harekette ilerleme önerisi` : ''}</span>`;
+    <span class="hgg-m">${hz.hareketler.length} hareket · ${fmtSure(salonTahmin(hz.hareketler))}${n ? ` · ${n} harekette ilerleme önerisi` : ''}</span>`;
   paint($('home-gym-info'));
   box.hidden = false;
 }
@@ -3780,6 +3821,40 @@ function openSalon() {
   clearInterval(sl.ticker);
   sl.ticker = setInterval(slTick, 200);
   slTick();
+}
+
+/** Biten setlerin tekrarını (süreli harekette saniyesini) ve hareketin ağırlığını sonradan düzeltir (tamamlanan hareket dahil). */
+async function slDuzelt(h) {
+  const x = slH()[h];
+  const st = slst();
+  const n = salon.doneSets(st, h);
+  if (!n) return;
+  const reps = salon.repsOf(sl.ses, st, h).slice(0, n);
+  let kg = x.agirlik;
+  const adim = data.getHareketNot(x.ad).adim || 2.5;
+  const el = document.createElement('div');
+  const ciz = () => {
+    el.innerHTML = `${reps.map((v, j) => `<div class="dz-r"><span>${j + 1}. set</span><b class="n">${fmtDec(v)}${x.sure ? ' sn' : ''}</b><span class="dz-b"><button data-dz="${j}:-1">−</button><button data-dz="${j}:1">+</button></span></div>`).join('')}
+      ${typeof kg === 'number' || kg === '' ? `<div class="dz-r"><span>Ağırlık</span><b class="n">${esc(fmtKg(kg))}</b><span class="dz-b"><button data-dz="kg:-1">−</button><button data-dz="kg:1">+</button></span></div>` : ''}
+      <p class="oy-not">Ağırlık hareketin tüm setleri için yazılır.</p>`;
+  };
+  ciz();
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-dz]');
+    if (!b) return;
+    const [j, d] = b.dataset.dz.split(':');
+    if (j === 'kg') kg = Math.max(0, (Number(kg) || 0) + Number(d) * adim);
+    else reps[j] = Math.max(0, reps[j] + Number(d) * (x.sure ? 5 : 1));
+    ciz();
+  });
+  const ok = await modal({ title: `${x.ad} · biten setler`, body: el, actions: [{ label: 'Kaydet', value: true, cls: 'btn-primary' }, { label: 'Vazgeç', value: false }] });
+  if (!ok || !sl.ses) return;
+  const arr = sl.ses.reps[x._k] || (sl.ses.reps[x._k] = []);
+  reps.forEach((v, j) => { arr[j] = v; });
+  x.agirlik = kg;
+  slPersist();
+  slRefreshAll();
+  toast('Biten setler düzeltildi', 1500);
 }
 
 function slRefreshAll() {
@@ -4089,8 +4164,8 @@ function slPlusSet() {
 
 let hdb = null; // hareketdb.js (yalnızca kart açılınca yüklenir)
 let adb = null; // adimlar.js (Türkçe adımlar, yalnızca kart açılınca)
-const adimYukle = () => adb || (adb = import('./adimlar.js?v=13.0.0').then((m) => m.ADIMLAR).catch(() => ({})));
-const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=13.0.0'));
+const adimYukle = () => adb || (adb = import('./adimlar.js?v=13.1.0').then((m) => m.ADIMLAR).catch(() => ({})));
+const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=13.1.0'));
 let bilgiTimer = null;
 
 /** Hareketin videosu (H · Video önce, sonra uygulamadaki liste) ya da null. */
@@ -4349,6 +4424,7 @@ function openSlDetail(h) {
     ${hareketGrafik(x.ad)}
     <p class="dt-row"><button class="sl-bilgi" data-bilgi="${esc(x.ad)}">ⓘ Nasıl yapılır</button>${!working && !salon.doneSets(st, h) ? ` <button class="sl-bilgi sl-isn" data-sl-isn>＋ Isınma seti${(sl.ses.isinmaSet || {})[x._k] ? ` · ${(sl.ses.isinmaSet || {})[x._k]}` : ''} <small>kayda sayılmaz</small></button>` : ''}</p>
     ${k && k.video ? `<p class="dt-row"><a class="sl-vid is-inline" href="${esc(k.video)}" target="_blank" rel="noopener noreferrer">▶ Videoyu YouTube'da aç</a></p>` : ''}
+    ${!working && salon.doneSets(st, h) ? '<p class="dt-row"><button class="sl-bilgi sl-dz" data-sl-dz>✎ Biten setleri düzelt</button></p>' : ''}
     <div class="dt-acts sl-acts">${b('edit', '✎', 'Düzenle', !working && stat !== 'tamam')}${b('swap', '⇄', 'Değiştir', !working && !started)}${b('add', '＋', 'Sonrasına ekle', !working)}${b('del', '🗑', 'Sil', !working && !started && slH().length > 1, 'del')}</div>
     ${working ? '<p class="dt-why">Set sürerken düzenlenemez</p>' : started ? '<p class="dt-why">Başlanan hareket silinemez ya da değiştirilemez</p>' : ''}
     <p class="dt-hint">Boşluğa dokun: kapat</p>`;
@@ -4372,6 +4448,7 @@ function onSlDetailClick(e) {
     toast(`Isınma seti ${sl.ses.isinmaSet[x._k]}: kayda sayılmaz, nota yazılır`, 1500);
     return;
   }
+  if (e.target.closest('[data-sl-dz]')) { const h = Number($('sl-detail').dataset.h); $('sl-detail').hidden = true; slDuzelt(h); return; }
   const btn = e.target.closest('[data-sact]');
   if (btn && btn.disabled) return;
   const box = $('sl-detail');
@@ -4742,7 +4819,7 @@ function renderSalonProgram() {
     const rows = programGun(t);
     const yapildi = rows.length && rows.every((r) => r.durum);
     const liste = rows.map((r) => `<li><span>${esc(r.hareket)}</span><b class="n">${r.set}×${r.sure ? `${r.sure}sn` : r.tekrar}${typeof r.agirlik === 'number' ? ` · ${fmtDec(r.agirlik)} kg` : ''}</b></li>`).join('');
-    const sure = rows.length ? fmtSure(salon.tahminSn(programHareketler(rows))) : '';
+    const sure = rows.length ? fmtSure(salonTahmin(programHareketler(rows))) : '';
     gunler.push(`<div class="pg-gun${t === bugun ? ' today' : ''}${yapildi ? ' done' : ''}" data-pg-gun="${t}">
       <div class="pg-h"><b>${ad[i]}</b><small>${esc(fmtDateTR(t).split(' ').slice(0, 2).join(' '))}</small>${yuzme.has(t) ? '<em class="pg-yz">🏊 yüzme</em>' : ''}${yapildi ? '<em class="pg-ok">✓ yapıldı</em>' : rows.length ? `<em>${rows.length} hareket · ${sure}</em>` : ''}</div>
       ${rows.length ? `<ul class="hgg-ls">${liste}</ul><div class="pg-act">${yapildi ? '' : `<button class="btn btn-primary" data-pg="basla" data-t="${t}">İdmana başla</button>`}<button class="btn" data-pg="duzenle" data-t="${t}">Düzenle</button><button class="btn" data-pg="sil" data-t="${t}">Sil</button></div>`
@@ -4902,7 +4979,7 @@ function renderSalonPlan() {
         ${P.kisitGoster ? yasak.map((r) => `<div class="sp-ex is-yasak"><span class="sp-sc"><b class="n">⊘</b></span>
           <span class="sp-m"><b>${esc(r.ad)}</b><small class="sp-kn">${esc(r.ks.neden.join(' · '))}</small>${r.ks.alternatif ? `<small>Yerine: <b>${esc(r.ks.alternatif)}</b></small>` : ''}</span></div>`).join('') : ''}` : ''}
       ${P.secili.length ? (() => { const sx = P.secili.map((ad) => P.liste.find((x) => x.ad === ad) || salon.planHareket(d, ad, { uygula: false })); const k = kapsam(sx); return `<div class="sp-tray"><span class="sp-mb" data-mb data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(k))}"></span>
-        <span class="sp-m"><b>${sx.length} hareket · ~${fmtDur(salon.tahminSn(sx))}</b><small>${esc(Object.entries(k).slice(0, 3).map(([g, v]) => `${g} %${v}`).join(' · '))}</small></span></div>`; })() : ''}`;
+        <span class="sp-m"><b>${sx.length} hareket · ~${fmtDur(salonTahmin(sx))}</b><small>${esc(Object.entries(k).slice(0, 3).map(([g, v]) => `${g} %${v}`).join(' · '))}</small></span></div>`; })() : ''}`;
     next.textContent = `Plana geç · ${P.secili.length} hareket`;
     next.disabled = !P.secili.length;
   } else {
@@ -4911,7 +4988,7 @@ function renderSalonPlan() {
       P.liste = P.secili.map((ad) => P.liste.find((x) => x.ad === ad) || salon.planHareket(d, ad, { bodyweight: (katalogOf(ad) || {}).ekipman === 'Bodyweight', uygula: false }));
     }
     const kp = kapsam(P.liste);
-    body.innerHTML = `${fazNotu()}<p class="sp-sum">${P.liste.length} hareket · ~${fmtDur(salon.tahminSn(P.liste))} <small>(set × (tekrar × 3 sn + 60 sn))</small></p>
+    body.innerHTML = `${fazNotu()}<p class="sp-sum">${P.liste.length} hareket · ~${fmtDur(salonTahmin(P.liste))} <small>(${salon.tahminOgren(P.liste, d.gecmis).ogrenilen ? 'son idmanlardaki gerçek sürelere göre' : 'set × (tekrar × 3 sn + 60 sn)'})</small></p>
       ${P.liste.length ? `<div class="sp-kapsam"><span class="sp-mb big" data-mb data-mb-v="ikisi" data-mb-k="${esc(JSON.stringify(kp))}"></span>
         <div><p class="sp-lb">PLANIN KAPSAMI</p>${Object.entries(kp).slice(0, 5).map(([g, v]) => `<p class="sp-kp"><span class="gd" data-bg="${grup.grupRenk(g)}"></span>${esc(g)}<b>%${v}</b></p>`).join('')}</div></div>` : ''}
       ${P.liste.map((x, i) => {
@@ -5211,7 +5288,7 @@ function wire() {
     const blob = new Blob([JSON.stringify(data.yedek(), null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `yuzmesk-yedek-${todayKey()}.json`;
+    a.download = `idmansk-yedek-${todayKey()}.json`;
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     toast('Yedek indirildi', 2000);

@@ -102,7 +102,7 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
 /** Haritadaki grubun merkezine dokunur (harita.js META). */
 async function hmTap(s, view, g) {
   const p = s.page;
-  const [m, w, h] = await p.evaluate(([v, gg]) => import('./harita.js?v=13.0.0').then((H) => [H.META[v].merkez[gg], H.META[v].w, H.META[v].h]), [view, g]);
+  const [m, w, h] = await p.evaluate(([v, gg]) => import('./harita.js?v=13.1.0').then((H) => [H.META[v].merkez[gg], H.META[v].w, H.META[v].h]), [view, g]);
   await p.$eval('#hm-wrap', (e) => e.scrollIntoView({ block: 'center' }));
   const r = await p.locator('#hm-wrap .kf').boundingBox();
   await p.mouse.click(r.x + (r.width * m[0]) / w, r.y + (r.height * m[1]) / h);

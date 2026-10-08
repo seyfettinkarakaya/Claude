@@ -143,28 +143,27 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
 - [x] P11 **Kilit ekranında dinlenme sayacı / bildirim** (service worker; sürüm 12'den ertelendi). **(13.0.0) (iOS: bildirim yalnızca ana ekrana eklenmiş uygulamada ve izin verilince)**
 - [x] P12 **Dışa aktarma ve yedek:** tüm kayıtların CSV/JSON yedeği (tablo zaten ana kayıt; telefon geçmişi için). **(13.0.0) (JSON; CSV yok)**
 
-### Bekleyen işler: dağıtım gerektiren / gerektirmeyen (07.10.2026)
-**Dağıtım gerektirenler — kullanıcı dağıtım yapana kadar BEKLİYOR** (Apps Script'i yapıştır → Yeni sürüm):
-- Code.gs: P1-2 süre biçimleri (`[h]:mm:ss` / `[h]:mm:ss.0`), P2-1 tablonun hesapladığı sütunlara dokunmama +
-  formül kopyalama, P3-4 Mesafe'de metin (`25/75`).
-- Code.gs / Salon.gs / SporRef.gs: idmanSK adı (yalnız yorumlar ve betiğin cevabındaki ad; uygulama iki adı da kabul
-  ettiği için acelesi yok).
-- (Önceden) Salon.gs sürüm 13 (`plan` sayfası) — dağıtıldı mı teyit edilecek.
+### Sürüm 13.1.0 (08.10.2026) — dağıtımsız düzeltmeler YAPILDI
+- [x] P1-1 CSS varsayılansız, geçerli satır yoksa uyarı + bölge yok. [x] P1-3 kısa tekrar sorulur (atılmaz),
+  [x] P3-2 süresiz set uyarısı. [x] P1-4 artış önerisi sorulur, bant/vücutta kg yok. [x] P2-3 Scull = drill, TEC;
+  [x] P3-3 Tür Test bölgesiz. [x] P2-4 salonda nabız boş başlar. [x] Yüzme/salon gün ayrımı (kisit). [x] Faz takvimi +
+  döngü (fazBilgi + kisit dongu_/yasak_). [x] idmanSK görünen ad (veri anahtarları `ysk.*` kaldı: eski testler bu
+  anahtarları kullanıyor ve kullanıcıya görünmüyor; taşımanın riski var, faydası yok). [x] Biten seti düzeltme (yüzme +
+  salon). [x] Plan süreleri gerçekleşenden (salon: Süre sütunu; yüzme: Bu hafta'da plan × gerçek/plan oranı).
+- Eski testlerde kasıtlı davranış değişikliği nedeniyle güncellenen beklentiler: test-data ve test-e2e (varsayılan CSS),
+  e2e-senaryolar (Drill TEC, elle CSS testi CSS'i kendisi girer, son idmanı tekrarla öneri sorusu + bantta +1 tekrar,
+  nabız boş başlar, planlamada öneri uygulanmaz), e2e-surum12 (ana sayfadan başlarken öneri sorusu, rekor bantta
+  "en çok tekrar", şablonda öneri uygulanmaz), e2e-surum13 (yedek adı).
 
-**Dağıtımsız yapılabilecekler (yalnız uygulama; "uygula" bekliyor):**
-- P1-1 CSS: gömülü 117 kalkar, geçerli satır yoksa uyarı, bölge yok.
-- P1-3 kısa tur koruması (hedefin %20'si) + Not; P3-2 süresiz set uyarısı.
-- P1-4 artış önerisi sormadan uygulanmaz; bant/vücut ağırlığında kg önerisi yok.
-- P2-3 Scull = drill, "TEC"; P3-3 Tür `Test` bölgesiz.
-- P2-4 salonda nabız boş başlar.
-- Uzak duvar ölçümü (havuz boyu uygulamada var).
-- Yüzme / salon gün ayrımı: yeni kurallar sporRef `kisit` sayfasına satır olarak eklenir (betik bu sayfayı satır
-  satır geçirdiği için dağıtım gerekmez).
-- Faz takvimi + döngü: faz tarihleri `fazBilgi`'den zaten geliyor; döngü ve yasaklar şimdilik `kisit` satırlarıyla
-  (`dongu_F1 = Hacim, Hacim+, Hacim+, Dinlenme`, `yasak_F1 = SP, Kuvvet`) → dağıtım gerekmez. Ayrı sütunlar sonra.
-- idmanSK adı uygulama tarafı (ekran, manifest, yedek, `ysk.*` → `isk.*` taşıma, belgeler).
-- Biten seti düzeltme; plan süreleri gerçekleşenden.
-- Tabloda (kod değil, kullanıcı/oturum): P2-2 Hafta formülü "Sezon Hafta"ya; P2-3/P3-3 Hedef Zone formülü.
+**Dağıtım gerektirenler — kullanıcı dağıtım yapana kadar BEKLİYOR** (Apps Script'i yapıştır → Yeni sürüm):
+- Code.gs: P1-2 süre biçimleri (`[h]:mm:ss` / `[h]:mm:ss.0`); P2-1 tablonun hesapladığı sütunlara (Set Mesafe, Set Süre,
+  Sıra, Hafta …) dokunmama + formül kopyalama (karar: uygulama boş gönderir, tablo hesaplar, sütun kaymaz).
+- Salon.gs sürüm 13 (`plan` sayfası) — kullanıcı henüz dağıtmadı, bekliyor.
+- Üç betikte idmanSK adı (yorumlar ve cevaptaki ad; acelesi yok).
+
+**Sonraya:** uzak duvar ölçümü (kullanıcı: sonra). P3-1 süreli harekette +1 sn (veri görülecek).
+**Tabloda (kullanıcı/oturum):** P2-2 Hafta formülü "Sezon Hafta"ya; P2-3/P3-3 Hedef Zone formülü.
+**İptal:** Mesafe'de metin (`25/75`) — kullanıcı istemedi (yanlış anlaşılmaydı).
 
 ### Hata listesi (idman oturumu, 06.10.2026) — kodla karşılaştırıldı
 Kaynak: 30.09, 02.10, 06.10 yüzme ve 04.10 salon kayıtları. Her maddede: bulgu → yapılacak.
@@ -208,7 +207,7 @@ Kaynak: 30.09, 02.10, 06.10 yüzme ve 04.10 salon kayıtları. Her maddede: bulg
 - [ ] **P3-2 Gerçek boş.** P1-3 ile aynı neden (eski sürüm seansı). → Kaydetmeden önce süresi olmayan tamamlanmış
   set varsa uyarı.
 - [ ] **P3-3 Test setine bölge.** Tablo formülü. → Uygulamada Tür `Test` olan sete bölge verilmez, hız payına girmez.
-- [ ] **P3-4 Mesafeye metin.** Bilinen (yukarıda); karşı duvar ölçümüyle birlikte ele alınır.
+- [x] **P3-4 Mesafeye metin** — iptal: kullanıcı istemedi.
 
 ### Notlar (04.10.2026, 13.0.0 sonrası)
 - [ ] **Plan süreleri gerçekleşen sürelerden öğrensin.** İdman yapıldıkça planlardaki süre tahmini gerçek

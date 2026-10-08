@@ -1,4 +1,4 @@
-/* YüzmeSK — havuz kenarı: koyu zemin, yüksek kontrast, büyük dokunma hedefleri. */
+/* idmanSK — havuz kenarı: koyu zemin, yüksek kontrast, büyük dokunma hedefleri. */
 
 :root {
   /* Tarife: koyu zemin, sarı vurgu */
@@ -1764,3 +1764,10 @@ button.hw-g.ok { color: var(--t-green); }
 .oy-r i { width: 24px; height: 24px; border-radius: 12px; background: #1C242E; display: flex; align-items: center; justify-content: center; font-style: normal; font-weight: 900; }
 .oy-r.is-on { border-color: var(--accent); }
 .oy-r.is-on i { background: var(--accent); color: #1A0E04; }
+/* biten set düzeltme (yüzme + salon) */
+.dz-r { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #1E2731; }
+.dz-r > span:first-child { width: 52px; color: #8B97A5; font-weight: 700; font-size: 14px; }
+.dz-r b { flex: 1; font-size: 18px; }
+.dz-r.off b { color: #8B97A5; text-decoration: line-through; }
+.dz-b { display: flex; gap: 4px; }
+.dz-b button { min-width: 38px; height: 38px; border-radius: 10px; background: #1C242E; border: 1px solid #2A3540; color: var(--text); font: inherit; font-weight: 800; }

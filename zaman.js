@@ -1,4 +1,4 @@
-// YüzmeSK — zamanlama modeli (ZAMANLAMA.md).
+// idmanSK — zamanlama modeli (ZAMANLAMA.md).
 //
 // Saf modül: DOM'a ve localStorage'a dokunmaz. Seans bir olay listesidir;
 // her olay yalnızca türünü ve zaman damgasını (ms) taşır:

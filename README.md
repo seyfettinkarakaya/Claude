@@ -1,4 +1,4 @@
-# YüzmeSK — Sürüm 12.1
+# idmanSK — Sürüm 12.1
 
 Havuz kenarında ve salonda kullanılan, tek kullanıcılı idman uygulaması.
 Program Google E-Tablolar'daki **YuzmeProgram** dosyasında hazırlanır; uygulama onu
@@ -148,7 +148,7 @@ salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
   - `yuzmeKas` (`Stil, Grup, Katsayı`): yüzme yükünün kas gruplarına dağılımı (ör. `FR, Omuz, 0.35`).
   - `drill` (`Ad, Video, Açıklama`): set açıklamasında drill adı geçerse ▶ video bağlantısı çıkar.
 - **CSS testi** (Ayarlar → CSS testi yap): 400 m ve 200 m süresinden CSS = (t400 − t200) / 2;
-  sporRef bağlıysa `css` sayfasının **sonuna** bir satır eklenir (`Tarih_ilk`, `CSS`, `Kaynak = YüzmeSK CSS testi`), eski satırlar durur.
+  sporRef bağlıysa `css` sayfasının **sonuna** bir satır eklenir (`Tarih_ilk`, `CSS`, `Kaynak = idmanSK CSS testi`), eski satırlar durur.
 
 ### Sürüm 12'ye geçiş
 
@@ -180,8 +180,8 @@ kısa bir başvuru numarası görünür, ayrıntı Apps Script **Yürütmeler** 
 
 1. iPhone'da **Safari** ile Pages adresini açın (başka tarayıcıdan eklenen kısayol adres çubuğuyla açılabilir).
 2. Alttaki **Paylaş** düğmesine (yukarı ok olan kare) dokunun.
-3. Listeyi kaydırıp **Ana Ekrana Ekle**'yi seçin; ad **YüzmeSK** olarak gelir → **Ekle**.
-4. Ana ekrandaki YüzmeSK simgesiyle açın: adres çubuğu olmadan tam ekran açılır.
+3. Listeyi kaydırıp **Ana Ekrana Ekle**'yi seçin; ad **idmanSK** olarak gelir → **Ekle**.
+4. Ana ekrandaki idmanSK simgesiyle açın: adres çubuğu olmadan tam ekran açılır.
 5. İlk açılışta Apps Script adresini ve token'ı yapıştırıp **Kaydet ve bağlan**'a basın.
 
 > Ana ekrandaki uygulamanın `localStorage`'ı Safari sekmesinden ayrıdır; ayarları
@@ -343,6 +343,25 @@ Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
    `frame-src https://www.youtube-nocookie.com` eklendi. İnternet yokken fotoğraf ve adımlar gösterilir.
 3. Telefonda yeni yerel anahtarlar: `ysk.hazir` (hazır olma kontrolleri, 60 gün), `ysk.hareketNot` (harekete sabit not);
    ayarlar: `yer` (Salon/Ev/Otel), `bildirim`. Ayarlar → Yedek indir: anahtarlar hariç JSON.
+
+## Sürüm 13.1'de neler var
+
+- **Ad:** uygulama artık **idmanSK** (ekran, ana ekran adı, yedek dosyası `idmansk-yedek-….json`). Telefondaki veri
+  anahtarları (`ysk.*`) aynen kalır: geçmiş ve ayarlar kaybolmaz. iPhone'da ana ekrandaki ad, uygulama silinip yeniden
+  eklenince güncellenir.
+- **CSS:** varsayılan CSS yok. sporRef'te bugünü kapsayan satır yoksa (ya da elle CSS girilmediyse) tempo bölgesi
+  gösterilmez, program açılınca uyarı çıkar. Drill/Kick/Scull setlerinde **TEC**, Tür `Test` setlerinde **TEST** yazar.
+- **Yüzme:** hedefin %20'sinden kısa tekrar sorulur (Geri al ya da özette düzelt/çıkar); biten setin tekrar süreleri
+  idmanda düzeltilir; süresi olmayan tamamlanmış set için kaydetmeden önce uyarı.
+- **Salon:** ilerleme önerisi sormadan uygulanmaz (idman başında Kabul / Hiçbiri); bant ve vücut ağırlığında kg değil
+  +1 tekrar; nabız boş başlar (ölçülmediyse yazılmaz); biten setlerin tekrarı ve ağırlığı sonradan düzeltilir; süre
+  tahmini idman sayfasının Süre sütunundan (gerçek süreler) öğrenilir.
+- **Faz takvimi + döngü:** sporRef `fazBilgi` (faz tarihleri) üstte, 4 haftalık döngü içinde. Döngü ve yasaklar sporRef
+  `kisit` sayfasına satır: `dongu_F1` = `Hacim, Hacim+, Hacim+, Dinlenme`, `yasak_F1` = `SP, Kuvvet`.
+- **Yüzme / salon ayrı günler:** `kisit`'e `gun_hafta_yuzme` (3), `gun_hafta_salon` (2), `salon_dk` (50), `salon_rpe` (5)
+  yazılırsa yüzme ve salon günleri ayrı sayılır, normal haftaya salon payı eklenir (3 × 65 × 6 + 2 × 50 × 5).
+  Satırlar yoksa eski davranış (toplam 3 gün).
+- Bu sürüm için **betik dağıtımı gerekmez**; `kisit` ve `fazBilgi` satırları mevcut SporRef.gs ile okunur.
 
 ## Sürüm 13'te neler var
 
