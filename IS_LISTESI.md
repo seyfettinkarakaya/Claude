@@ -166,6 +166,23 @@ Rapor: `reports/Bütünleşik yüzme salon idman modeli.md` (notlar: `research_n
 - [ ] B18 (D) 14 günden uzun salon arası uyarısı.
 - [ ] B19 (D) Kural kaynağı rozeti: kanıt / gelenek / doktor-fizyoterapist onayı.
 
+**Gerçek kapasite (kullanıcı, 08.10.2026; 2026 havuz + salon istatistikleri):** yüzme dönemlerinde hafta içi havuz
+ortalama ~2,5 gün (bazı haftalar 2, bazı 3), salon yalnız hafta sonu 1 gün. İdeal ve hedef: **hafta içi 3 sabah havuz +
+hafta sonu 1 salon**. Model bu gerçeğe göre kurulur (öneriler buna göre uyarlanır):
+- [ ] B20 (Y) Gün düzeni ayarı: `yuzme_gunleri` (ör. Pzt, Çar, Cum), `yuzme_saat` (sabah), `salon_gunleri` (Cmt, Paz),
+  `gun_hafta_salon` 1 — sporRef `kisit` satırları (dağıtım gerekmez). Planlayıcı bugünkü "Cuma akşam + Sal–Per"
+  varsayımı yerine bu günleri kullanır; salon hafta sonuna, son yüzmeden ≥ 24 sa sonra.
+- [ ] B21 (Y) "2 kilit + 1 isteğe bağlı" yüzme haftası: kilit 1 = kalite (CSS/eşik), kilit 2 = uzun aerobik;
+  3. gün = teknik/kolay + omuz önleyici. Hafta 2 günle kalırsa kilitler korunur, 3. düşer; yük hedefi ve "normal
+  hafta" 2,5 günlük gerçek ortalamaya göre (3 gün hedef, 2 gün de "tamam" sayılır).
+- [ ] B22 (Y) Tek salon günü = tam vücut, kuvvet öncelikli (~60 dk): omuz önleyici ısınma → çekiş kuvveti → kalça
+  (abdüktör, kalça menteşesi, derin olmayan) → itiş (omuz sınırıyla) → core; faz reçetesi (B5) bu tek güne göre.
+  Haftada 1 kuvvet seansı kazanımı yavaşlatır ama korumaya yeter (yaşlı yetişkin / dayanıklılık sporcusu
+  çalışmaları; raporda) → 2. uyaran olarak B23.
+- [ ] B23 (O) Havuz sonrası "mini kara" 10–12 dk (bant dış rotasyon, Y kaldırış, ters fly, dead bug, Pallof):
+  2 yüzme gününde; omuz önleyici dozunu (6–8 hafta, haftada 2–3) salon gününe bağlı olmadan tamamlar; sabah
+  süre bütçesinin içinde sayılır, önleyici borca yazılır.
+
 ### Sürüm 13.1.0 (08.10.2026) — dağıtımsız düzeltmeler YAPILDI
 - [x] P1-1 CSS varsayılansız, geçerli satır yoksa uyarı + bölge yok. [x] P1-3 kısa tekrar sorulur (atılmaz),
   [x] P3-2 süresiz set uyarısı. [x] P1-4 artış önerisi sorulur, bant/vücutta kg yok. [x] P2-3 Scull = drill, TEC;
