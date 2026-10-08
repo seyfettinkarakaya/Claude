@@ -24,6 +24,11 @@ export const VARSAYILAN = {
   gunHafta: 3,
   seansDk: 65,   // normal hafta yükü için ortalama seans süresi (dk) ve zorluğu (RPE)
   seansRpe: 6,
+  gunHaftaSalon: null, // sayı verilirse (sporRef kisit gun_hafta_salon) salon günleri yüzmeden ayrı sayılır
+  salonDk: 50,
+  salonRpe: 5,
+  dongu: {},    // faz kodu → döngü haftaları (kisit dongu_F1 = Hacim, Hacim+, Hacim+, Dinlenme)
+  fazYasak: {}, // faz kodu → yasak işler (kisit yasak_F1 = SP, Kuvvet)
   kulac: { drill: [10, 11], yuzus: [13, 15], race: [14, 15], pull: [11, 12] },
   stilSira: ['FR', 'BK', 'BF', 'BR'],
   omuzRahatlatma: true,
@@ -31,6 +36,9 @@ export const VARSAYILAN = {
 
 const num = (v) => { const n = Number(String(v == null ? '' : v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
 const range = (v) => { const m = /(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)/.exec(String(v || '')); return m ? [num(m[1]), num(m[2])] : null; };
+/** Faz kodu: "F1", "Faz 1", "faz-1", "1" → "1". */
+export const fazKodu = (s) => String(s == null ? '' : s).trim().toUpperCase().replace(/^F(AZ)?[\s_-]*/, '');
+const liste = (v) => String(v).split(/[,;]/).map((x) => x.trim()).filter(Boolean);
 const low = (s) => String(s == null ? '' : s).toLocaleLowerCase('tr');
 
 /** sporRef cevabından kurallar (sayfa yoksa ya da satır geçersizse varsayılan). */
@@ -40,7 +48,7 @@ export function kurallar(ref) {
   const tanilar = [];
   for (const r of rows) {
     // Kural anahtarı Türkçe yerel olmadan küçültülür: "MSI_dur" → "msi_dur" (tr'de "msı_dur" olurdu).
-    const k = String((r && r.kural) || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i');
+    const k = String((r && r.kural) || '').trim().toLowerCase().replace(/ı/g, 'i').replace(/İ/g, 'i').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ç/g, 'c').replace(/ğ/g, 'g');
     const v = r ? r.deger : '';
     if (k === 'tani') { if (String(v || '').trim()) tanilar.push({ ad: String(v).trim(), kural: String(r.aciklama || '').trim() }); }
     else if (k === 'br_ay_max' && num(v) != null) c.brAyMax = num(v);
@@ -48,7 +56,12 @@ export function kurallar(ref) {
     else if (k === 'yasak' && String(v || '').trim()) c.yasak = String(v).split(/[,;]/).map((x) => low(x).trim()).filter(Boolean);
     else if (/^msi_(gozlem|hafiflet|dur|tibbi)$/.test(k) && num(v) != null) c.msi[k.slice(4)] = num(v);
     else if (/^sure_(sabah|ogle|aksam)$/.test(k)) c.sure[k.slice(5)] = num(v) || 0;
-    else if (k === 'gun_hafta' && num(v)) c.gunHafta = num(v);
+    else if ((k === 'gun_hafta' || k === 'gun_hafta_yuzme') && num(v)) c.gunHafta = num(v);
+    else if (k === 'gun_hafta_salon' && num(v) != null) c.gunHaftaSalon = num(v); // varsa yüzme ve salon günleri ayrı sayılır
+    else if (k === 'salon_dk' && num(v)) c.salonDk = num(v);
+    else if (k === 'salon_rpe' && num(v)) c.salonRpe = num(v);
+    else if (/^dongu_./.test(k) && String(v || '').trim()) c.dongu[fazKodu(k.slice(6))] = liste(v);
+    else if (/^yasak_./.test(k) && String(v || '').trim()) c.fazYasak[fazKodu(k.slice(6))] = liste(v);
     else if (k === 'seans_dk' && num(v)) c.seansDk = num(v);
     else if (k === 'seans_rpe' && num(v)) c.seansRpe = num(v);
     else if (/^kulac_(drill|yuzus|race|pull)$/.test(k) && range(v)) c.kulac[k.slice(6)] = range(v);

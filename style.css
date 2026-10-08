@@ -1755,3 +1755,12 @@ button.hw-g.ok { color: var(--t-green); }
 .bh-u { margin: 6px 0 0; font-size: 13px; }
 .bh-gun .btn { margin-top: 8px; }
 .sp-faz { margin: 0 0 10px; padding: 8px 12px; border-radius: 12px; background: #1A1408; border: 1px solid rgba(245, 165, 36, 0.4); font-size: 13px; color: #D5DCE4; }
+
+/* --- 13.1.0: artış önerisi onayı --- */
+.oy-not { font-size: 13.5px; color: #8B97A5; margin: 0 0 10px; }
+.oy-r { display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 6px; padding: 10px 12px; border-radius: 14px; background: #121922; border: 1.5px solid #1E2731; color: var(--text); font: inherit; text-align: left; }
+.oy-r span { flex: 1; font-weight: 700; }
+.oy-r b { font-size: 14px; color: #C2CBD5; }
+.oy-r i { width: 24px; height: 24px; border-radius: 12px; background: #1C242E; display: flex; align-items: center; justify-content: center; font-style: normal; font-weight: 900; }
+.oy-r.is-on { border-color: var(--accent); }
+.oy-r.is-on i { background: var(--accent); color: #1A0E04; }

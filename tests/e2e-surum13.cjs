@@ -3,7 +3,7 @@
 const assert = require('assert');
 const { runScenarios, D } = require('./harness.cjs');
 const { Sheet } = require('./fakegas.cjs');
-const { salonV12, toPlanList } = require('./e2e-surum12.cjs');
+const { salonV12, toPlanList, gymBasla } = require('./e2e-surum12.cjs');
 
 const S = [];
 const sc = (name, fn) => S.push([name, fn]);
@@ -52,7 +52,7 @@ sc('Video: çevrimdışıyken video yerine fotoğraf ve not; idman kartında "�
   const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
-  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await gymBasla(s);
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   await s.goTo(1, '#sl-wheel');
   assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /Band Bent Over Row/);
@@ -121,7 +121,7 @@ sc('Salon programı: bugünün programı tabloda varsa ana sayfada "BUGÜNÜN PR
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden && /PROGRAM/.test(document.getElementById('home-gym-go').textContent));
   assert.match(await txt(s, '#home-gym-go'), /BUGÜNÜN PROGRAMI · TABLODAN.*Band Bent Over Row\s*4×12.*Front Plank\s*3×45sn/);
-  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await gymBasla(s);
   const ses = await s.ls('ysk.salonSession');
   assert.equal(ses.programTarih, '2026-09-23');
   assert.deepEqual(ses.hareketler.map((x) => [x.ad, x.set, x.tekrar, x.agirlik, x.dinlen, x.sure]), [['Band Bent Over Row', 4, 12, 20, 75, 0], ['Front Plank', 3, 1, 'Vücut', 60, 45]]);
@@ -185,7 +185,7 @@ sc('RIR (P2) ve son set türü (P5): hareket sonu girişinde RIR 2 → RPE 8; "d
   const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
-  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await gymBasla(s);
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   await setler(s, 3);
   await p.waitForSelector('#sl-giris:not([hidden])');

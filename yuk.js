@@ -165,7 +165,8 @@ export function yukOrani(g, bugun, taban = 0) {
 }
 
 /** Normal hafta yükü (plan): gün × ortalama seans dk × RPE (varsayılan 3 × 65 × 6 = 1170). */
-export const normalHafta = (K) => Math.round(((K && K.gunHafta) || 3) * ((K && K.seansDk) || 65) * ((K && K.seansRpe) || 6));
+export const normalHafta = (K) => Math.round(((K && K.gunHafta) || 3) * ((K && K.seansDk) || 65) * ((K && K.seansRpe) || 6)
+  + (K && K.gunHaftaSalon ? K.gunHaftaSalon * (K.salonDk || 50) * (K.salonRpe || 5) : 0)); // salon ayrıysa onun payı eklenir
 
 /** Son n ISO haftası (eskiden yeniye): [{ bas, yuzme, salon, top, dk, seans }] */
 export function haftalar(liste, bugun, n = 8) {
@@ -239,12 +240,12 @@ export function stilAy(liste, ay) {
 }
 
 /** ISO haftası (Pazartesi başlangıç) içindeki antrenman günleri (farklı tarih sayısı). */
-export function haftaGunleri(liste, bugun) {
+export function haftaGunleri(liste, bugun, tur = null) {
   const [y, m, d] = bugun.split('-').map(Number);
   const wd = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
   const pzt = gunEkle(bugun, -wd);
   const paz = gunEkle(pzt, 6);
-  return new Set(liste.filter((s) => s.tarih >= pzt && s.tarih <= paz).map((s) => s.tarih)).size;
+  return new Set(liste.filter((s) => s.tarih >= pzt && s.tarih <= paz && (!tur || s.tur === tur)).map((s) => s.tarih)).size;
 }
 
 /**

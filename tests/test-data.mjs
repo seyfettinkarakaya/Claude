@@ -55,11 +55,11 @@ await test('config boş/bozuk/geçerli', () => {
 });
 
 await test('tercihler: varsayılan, doğrulama, kısmi güncelleme', () => {
-  assert.deepEqual(data.getPrefs(), { ses: true, css: 117, havuz: 25 });
+  assert.deepEqual(data.getPrefs(), { ses: true, css: null, havuz: 25 });
   LS.setItem('ysk.prefs', JSON.stringify({ ses: 'evet', css: -3 }));
-  assert.deepEqual(data.getPrefs(), { ses: true, css: 117, havuz: 25 }, 'geçersiz değerler yok sayılır');
+  assert.deepEqual(data.getPrefs(), { ses: true, css: null, havuz: 25 }, 'geçersiz değerler yok sayılır');
   data.setPrefs({ ses: false });
-  assert.deepEqual(data.getPrefs(), { ses: false, css: 117, havuz: 25 });
+  assert.deepEqual(data.getPrefs(), { ses: false, css: null, havuz: 25 });
   data.setPrefs({ havuz: 50 });
   assert.equal(data.getPrefs().havuz, 50);
   data.setPrefs({ havuz: 33 });
@@ -67,7 +67,7 @@ await test('tercihler: varsayılan, doğrulama, kısmi güncelleme', () => {
   data.setPrefs({ css: null });
   assert.deepEqual(data.getPrefs(), { ses: false, css: null, havuz: 25 });
   LS.setItem('ysk.prefs', '[]');
-  assert.deepEqual(data.getPrefs(), { ses: true, css: 117, havuz: 25 });
+  assert.deepEqual(data.getPrefs(), { ses: true, css: null, havuz: 25 });
 });
 
 // --- Sunucu çağrıları ----------------------------------------------------------

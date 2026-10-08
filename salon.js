@@ -174,7 +174,10 @@ export const historyOf = (gecmis, ad) => (gecmis || []).filter((r) => r.hareket 
  * RPE ≤ 8 ve MSI ≤ 0,5 → +2,5 kg (ağırlıklıysa) ya da +1 tekrar; RPE ≥ 9,5 ya da MSI ≥ 1,5 → aynı + ⚠.
  * Son iki idmanda MSI ≥ 1,5 → ⚠ (puanı düşer, gizlenmez).
  */
-export function oneri(gecmis, ad) {
+/** Kg ilerlemesi anlamsız ekipman (bant, vücut ağırlığı): öneri tekrar artışıdır. */
+export const kgsizEkipman = (e) => /band|bant|bodyweight|vücut|vucut/i.test(String(e || ''));
+
+export function oneri(gecmis, ad, { ekipman = '' } = {}) {
   const h = historyOf(gecmis, ad);
   if (!h.length) return null;
   const r = h[0];
@@ -185,7 +188,7 @@ export function oneri(gecmis, ad) {
   const res = { tarih: r.tarih, rpe, msi, warn: agrili2 || msi >= 1.5 || (rpe != null && rpe >= 9.5), agrili: agrili2, tekrar: base.tekrar, sure: base.sure, agirlik: base.agirlik, text: 'aynı' };
   if (res.warn) res.text = 'aynı ⚠';
   else if (rpe != null && rpe <= 8 && msi <= 0.5) {
-    if (typeof base.agirlik === 'number' && base.agirlik > 0) { res.agirlik = base.agirlik + 2.5; res.text = '+2,5 kg'; }
+    if (typeof base.agirlik === 'number' && base.agirlik > 0 && !kgsizEkipman(ekipman)) { res.agirlik = base.agirlik + 2.5; res.text = '+2,5 kg'; }
     else if (base.sure) { res.sure = base.sure + 5; res.text = '+5 sn'; }
     else { res.tekrar = base.tekrar + 1; res.text = '+1 tekrar'; }
   }
@@ -256,12 +259,12 @@ export function puanla(d, { oncelik = {}, amac = [], ekipman = [], stcMin = 0, h
   return rows.sort((a, b) => b.ham - a.ham || a.ad.localeCompare(b.ad));
 }
 
-/** Plan hareketi: son yapılan değerler + ilerleme önerisi (⚠ varsa aynı). */
-export function planHareket(d, ad, { bodyweight = false } = {}) {
+/** Plan hareketi: son yapılan değerler + ilerleme önerisi (⚠ varsa aynı). uygula: false → yalnız son değerler. */
+export function planHareket(d, ad, { bodyweight = false, uygula = true, ekipman = '' } = {}) {
   const last = historyOf(d.gecmis, ad)[0];
   const x = last ? fromHistory(last) : hareket({ ad, set: 3, tekrar: 10, sure: isTimed(ad) ? 30 : 0, agirlik: bodyweight ? VUCUT : '' });
   if (isTimed(ad) && !x.sure) { x.sure = 30; x.tekrar = 1; }
-  return uygulaOneri(x, oneri(d.gecmis, ad));
+  return uygula ? uygulaOneri(x, oneri(d.gecmis, ad, { ekipman })) : x;
 }
 
 /** Öneriyi plan hareketine uygular (⚠ ya da "aynı" ise dokunmaz); geri almak için x._oneri = { text, onceki }. */
@@ -274,7 +277,13 @@ export function uygulaOneri(x, o) {
 }
 
 /** Son idmanı tekrarlarken: her harekete geçmişe göre öneri uygulanır (kopyalar). */
-export const oneriUygula = (gecmis, hareketler) => hareketler.map((h) => uygulaOneri({ ...h }, oneri(gecmis, h.ad)));
+export const oneriUygula = (gecmis, hareketler, ekipmanOf = () => '') => hareketler.map((h) => uygulaOneri({ ...h }, oneri(gecmis, h.ad, { ekipman: ekipmanOf(h.ad) })));
+
+/** Uygulanabilir artış önerileri (⚠ ve "aynı" hariç): [{ i, ad, text, o }] — idman başında sorulur. */
+export function oneriListesi(gecmis, hareketler, ekipmanOf = () => '') {
+  return hareketler.map((h, i) => ({ i, ad: h.ad, o: oneri(gecmis, h.ad, { ekipman: ekipmanOf(h.ad) }) }))
+    .filter((x) => x.o && !x.o.warn && x.o.text !== 'aynı').map((x) => ({ ...x, text: x.o.text }));
+}
 
 /** Uygulanan öneriyi geri alır (önceki değerler). */
 export function oneriGeriAl(x) {

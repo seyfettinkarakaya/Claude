@@ -104,7 +104,7 @@ export function isConfigured(target = 'yuzme') {
 // ---------------------------------------------------------------------------
 
 // css: 100 m kritik yüzme hızı (sn); havuz: son seansın havuz uzunluğu (m)
-const DEFAULT_PREFS = { ses: true, css: 117, havuz: 25 };
+const DEFAULT_PREFS = { ses: true, css: null, havuz: 25 }; // CSS varsayılanı yok: kullanıcı girer ya da sporRef
 
 export function getPrefs() {
   const p = load(KEYS.prefs, null);

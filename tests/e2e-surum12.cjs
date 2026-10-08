@@ -92,12 +92,10 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
   assert.deepEqual(ses.hareketler.map((x) => x.ad), ['Band External Rotation', 'Dumbbell Shoulder Press']);
   assert.deepEqual(ses.oncelik, { Shoulders: 1 });
   assert.equal(await s.ls('ysk.salonPlan'), null, 'başlayınca plan tüketilir');
-  // Shoulder Press kartında öneri uygulandı, geri al çalışır
+  // 13.1.0: planda öneri sormadan uygulanmaz — Shoulder Press son yapılan değerle, öneri yazılı
   await s.goTo(1, '#sl-wheel');
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/geri.png` });
-  assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /15 kg.*öneri uygulandı: \+2,5 kg/);
-  await p.click('#sl-wheel .w-item.is-active [data-sl-geri]');
-  assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 3 × 10 · 12,5 kg/);
+  assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 3 × 10 · 12,5 kg.*öneri: \+2,5 kg/);
   assert.equal((await s.ls('ysk.salonSession')).hareketler[1].agirlik, 12.5);
 });
 
@@ -160,6 +158,14 @@ sc('Kas haritası: dokun → seç (renkler sabit, ✓), tekrar dokun → bırak;
 });
 
 const slPress = (s) => s.page.$eval('#sl-main', (b) => b.click());
+/** Ana sayfadan son idmanı başlatır; 13.1.0'dan beri artış önerisi sorulur (secim: modal düğmesi). */
+async function gymBasla(s, secim = 'Seçilenleri uygula') {
+  await s.page.click('#home-gym-start');
+  await s.page.waitForSelector('#modal:not([hidden]), #screen-salon:not([hidden])');
+  if (await s.page.isVisible('#modal')) await s.modalClick(secim);
+  await s.waitScreen('salon');
+}
+exports.gymBasla = gymBasla;
 /** Aktif hareketin n setini yapar (set 20 sn, dinlenme 70 sn). */
 async function setler(s, n) {
   for (let k = 0; k < n; k++) { await slPress(s); await s.adv(20); await slPress(s); if (k < n - 1) await s.adv(70); }
@@ -169,7 +175,7 @@ sc('İdman: ısınma (kayda sayılmaz), set sırasında ağrı 1,5 → hafiflet;
   const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
-  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await gymBasla(s);
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   // Isınma
   assert.match(await txt(s, '#sl-warm'), /Isınma 0\/4 kayda sayılmaz/);
@@ -193,23 +199,23 @@ sc('İdman: ısınma (kayda sayılmaz), set sırasında ağrı 1,5 → hafiflet;
   assert.equal(await p.getAttribute('#sg-body [data-sg="msi"][data-v="1.5"]', 'class'), 'is-on', 'set sırasındaki ağrı hazır gelir');
   assert.match(await p.inputValue('#sg-not'), /MSI 1,5 \(1\. set\) · hafifletildi: 12,5 kg \(önce 15 kg\) · 8 tekrar/);
   await p.click('#sg-save');
-  // Row: 17,5 kg (öneri) → en ağır rekor
+  // Row (bant): öneri +1 tekrar (13.1.0: bantta kg yok) → en çok tekrar rekoru
   await p.waitForFunction(() => document.querySelector('#sl-wheel .w-item.is-active .sl-ad').textContent.trim() === 'Band Bent Over Row');
   await p.waitForFunction(() => /^1\. set/.test(document.getElementById('sl-main-sub').textContent));
   await s.adv(3);
   await setler(s, 3);
   await p.waitForSelector('#sl-giris:not([hidden])');
   await p.click('#sg-save');
-  await p.waitForFunction(() => /🏆 Rekor · Band Bent Over Row: En ağır: 17,5 kg × 15/.test(document.getElementById('toast').textContent));
+  await p.waitForFunction(() => /🏆 Rekor · Band Bent Over Row: En çok tekrar: 16 @ 15 kg/.test(document.getElementById('toast').textContent));
   await s.waitScreen('salon-ozet');
   const oz = await txt(s, '#so-body');
   assert.match(oz, /HACİM\s*1\.\d{3}\s*kg/);
   assert.match(oz, /ÇALIŞAN KASLAR.*Omuz.*Sırt/);
-  assert.match(oz, /🏆 Rekor\s*Band Bent Over Row · En ağır: 17,5 kg × 15\s*önceki 15 kg/);
+  assert.match(oz, /🏆 Rekor\s*Band Bent Over Row · En çok tekrar: 16 @ 15 kg\s*önceki 15/);
   assert.match(oz, /GEÇEN BENZER İDMANA GÖRE · 20 Eylül.*Hacim .* kg · geçen 1\.050 kg/);
   await p.click('#so-save'); await s.waitScreen('home');
   const I = s.envs.SALON.sheets.idman;
-  assert.deepEqual(I.data.slice(1, 3).map((r) => [r[2], r[5], r[8]]), [['Dumbbell Shoulder Press', 12.5, 1.5], ['Band Bent Over Row', 17.5, '']]);
+  assert.deepEqual(I.data.slice(1, 3).map((r) => [r[2], r[5], r[8]]), [['Dumbbell Shoulder Press', 12.5, 1.5], ['Band Bent Over Row', 15, '']]);
   assert.match(I.data[1][9], /hafifletildi/);
 });
 
@@ -217,7 +223,7 @@ sc('İdman: set sırasında ağrı 2 → hareket durur (yapılan setle), hareket
   const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
-  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await gymBasla(s);
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   await setler(s, 1); await s.adv(70);
   await slPress(s); await s.adv(10);
@@ -515,12 +521,12 @@ sc('Son idmanı şablon al: ana sayfa Düzenle → planın 3. adımı; değere d
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/sablon.png` });
   assert.equal(await txt(s, '#sp-title'), 'Son idmandan plan');
   assert.deepEqual(await p.$$eval('.sp-pl .sp-m b', (e) => e.map((x) => x.textContent)), ['Dumbbell Shoulder Press', 'Band Bent Over Row']);
-  // Shoulder Press: set 3 → 4, ağırlık 15 → 12,5
+  // Shoulder Press: set 3 → 4, ağırlık 12,5 → 10 (13.1.0: şablonda öneri uygulanmaz)
   await p.click('[data-sp-ed="0"]'); await p.waitForSelector('#screen-salon-plan #sl-edit:not([hidden])');
   assert.match(await txt(s, '#se-tag'), /1\/2 · DÜZENLE/);
   await p.click('[data-se="set:1"]'); await p.click('[data-se="agirlik:-1"]');
   await p.click('#se-save');
-  assert.match(await txt(s, '[data-sp-ed="0"]'), /4 × 10\s*12,5 kg/);
+  assert.match(await txt(s, '[data-sp-ed="0"]'), /4 × 10\s*10 kg/);
   // Row çıkar, sonra hareket ekle → 1. adım (seçim korunur)
   await p.click('[data-sp-rm="1"]');
   await p.click('[data-sp-add]');
@@ -532,7 +538,7 @@ sc('Son idmanı şablon al: ana sayfa Düzenle → planın 3. adımı; değere d
   assert.deepEqual(ad, ['Dumbbell Shoulder Press', 'Band External Rotation']);
   await p.click('#sp-save'); await s.waitScreen('home');
   const plan = await s.ls('ysk.salonPlan');
-  assert.deepEqual([plan.hareketler[0].set, plan.hareketler[0].agirlik], [4, 12.5]);
+  assert.deepEqual([plan.hareketler[0].set, plan.hareketler[0].agirlik], [4, 10]);
   assert.match(await txt(s, '#home-gym-go'), /HAZIR PLAN.*Dumbbell Shoulder Press\s*4×10/);
   // İdmanda Düzenle (katman salon ekranına döner)
   await p.click('#home-gym-start'); await s.waitScreen('salon');

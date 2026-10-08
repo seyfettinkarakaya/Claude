@@ -163,11 +163,13 @@ export function median(xs) {
   return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
 }
 
-/** Ortancadan %50'den fazla sapan tekrarların indeksleri (en az 3 tekrarda). */
-export function suspects(times) {
-  if (times.length < 3) return [];
-  const med = median(times);
-  return times.map((t, i) => (Math.abs(t - med) > 0.5 * med ? i : -1)).filter((i) => i >= 0);
+/**
+ * Şüpheli tekrarların indeksleri: ortancadan %50'den fazla sapan (en az 3 tekrarda) ve — hedef verilmişse —
+ * hedefin %20'sinden kısa olan (yanlış/çift dokunuş; 1–2 tekrarlı sette de). Kullanıcıya sorulur, kendiliğinden atılmaz.
+ */
+export function suspects(times, hedefMs = 0) {
+  const med = times.length >= 3 ? median(times) : 0;
+  return times.map((t, i) => ((med && Math.abs(t - med) > 0.5 * med) || (hedefMs > 0 && t < 0.2 * hedefMs) ? i : -1)).filter((i) => i >= 0);
 }
 
 /**

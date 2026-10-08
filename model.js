@@ -14,6 +14,43 @@ export const FAZLAR = [
 ];
 export const faz = (hafta) => FAZLAR[hafta == null ? 0 : ((hafta % 4) + 4) % 4];
 
+const pazartesi = (t) => gunEkle(t, -((haftaGunu(t) + 6) % 7));
+const adNorm = (s) => String(s || '').trim().toLocaleLowerCase('tr').replace(/\s+/g, '');
+const fazKod = (s) => String(s == null ? '' : s).trim().toUpperCase().replace(/^F(AZ)?[\s_-]*/, '');
+
+/**
+ * Bu haftanın fazı. Öncelik: faz takvimi (sporRef fazBilgi: { faz, ilk, son, ad, odak }) → içinde döngü
+ * (kisit dongu_<faz>, yoksa Hacim · Hacim+ · Kuvvet · Dinlenme) ve yasaklar (kisit yasak_<faz>: SP, Kuvvet);
+ * takvim yoksa Form ve denge'de elle başlatılan döngü (blokBas); o da yoksa varsayılan (Hacim).
+ * → { kaynak: 'takvim'|'elle'|null, F (FAZLAR satırı, yasaklar uygulanmış), fazKod, fazAd, odak, hafta (fazın kaçıncı haftası, 1…),
+ *     i (döngüdeki yeri, 0…), dongu: [ad], yasak: [] }
+ */
+export function fazDurumu({ bugun, takvim = [], K = {}, blokBas = null }) {
+  const pzt = pazartesi(bugun);
+  const satir = (takvim || []).find((r) => r && r.ilk && r.ilk <= bugun && (!r.son || bugun <= r.son));
+  let kaynak = null, dongu = FAZLAR.map((f) => f.ad), i = 0, hafta = null, kod = '', yasak = [];
+  if (satir) {
+    kaynak = 'takvim';
+    kod = fazKod(satir.faz);
+    hafta = Math.floor((Date.parse(pzt) - Date.parse(pazartesi(satir.ilk))) / (7 * 86400000));
+    yasak = ((K.fazYasak || {})[kod] || []).map(adNorm);
+    const d = (K.dongu || {})[kod];
+    if (d && d.length) dongu = d;
+    if (yasak.includes('kuvvet')) dongu = dongu.map((x) => (adNorm(x) === 'kuvvet' ? 'Hacim+' : x));
+    i = ((hafta % dongu.length) + dongu.length) % dongu.length;
+    hafta += 1;
+  } else if (blokBas) {
+    kaynak = 'elle';
+    const h = Math.floor((Date.parse(pzt) - Date.parse(blokBas)) / (7 * 86400000));
+    i = ((h % 4) + 4) % 4;
+  }
+  const base = FAZLAR.find((f) => adNorm(f.ad) === adNorm(dongu[i])) || FAZLAR[0];
+  const spYok = yasak.includes('sp');
+  const F = spYok && base.ad === 'Kuvvet' ? { ...base, yuzme: 'eşik + aerobik kalite (bu fazda SP yok)' } : { ...base };
+  F.spYok = spYok;
+  return { kaynak, F, fazKod: kod, fazAd: satir ? satir.ad || `Faz ${kod}` : '', odak: satir ? satir.odak || '' : '', hafta, i, dongu, yasak };
+}
+
 /**
  * Haftalık yük hedefi (M3): normal hafta tabanı, artış en çok %10 (aradan dönüşte %20), yük hızlı arttıysa −%20.
  * gecen: geçen haftanın yükü, buHafta: bu hafta yapılan, normal: normal hafta, donus/oran: yuk.oranDurum.
@@ -58,8 +95,9 @@ export function saglikButceleri({ L = [], salonSatir = [], bugun, K, normal, msi
  * güne konur (omuz girişimi); olmuyorsa uyarı. Hazır olma "dinlen" ise bugünün önerisi sonraki boş yuvaya kayar.
  * → [{ tarih, gun, durum: 'yapildi'|'planli'|'oneri'|'bos', isler: [{ tur: 'yuzme'|'salon', ad, sure, yan, kaynak }], uyarilar: [] }]
  */
-export function haftaPlani({ bugun, bas, K, L = [], yuzmePlan = [], salonPlan = [], hazirKarar = null, fazNo = null, hafiflet = false }) {
-  const F = faz(fazNo);
+export function haftaPlani({ bugun, bas, K, L = [], yuzmePlan = [], salonPlan = [], hazirKarar = null, fazNo = null, hafiflet = false, F: Fp = null }) {
+  const F = Fp || faz(fazNo);
+  const ayri = K.gunHaftaSalon != null; // yüzme ve salon günleri ayrı sayılır
   const gunler = Array.from({ length: 7 }, (_, i) => {
     const t = gunEkle(bas, i);
     const yap = L.filter((s) => s.tarih === t);
@@ -79,8 +117,9 @@ export function haftaPlani({ bugun, bas, K, L = [], yuzmePlan = [], salonPlan = 
   const komsuYuzme = (g) => gunler.some((x) => Math.abs(gunler.indexOf(x) - gunler.indexOf(g)) === 1 && yuzmeVar(x));
   const komsuSalon = (g) => gunler.some((x) => Math.abs(gunler.indexOf(x) - gunler.indexOf(g)) === 1 && x.isler.some((i) => i.tur === 'salon'));
   const ekle = (g, is) => { g.isler.push(is); g.durum = 'oneri'; };
+  if (ayri) return ayriPlan();
   if (dolu() < K.gunHafta && cuma && bos(cuma)) {
-    ekle(cuma, { tur: 'yuzme', ad: `Yüzme · ${F.ad === 'Kuvvet' ? 'hız + eşik' : F.ad === 'Dinlenme' ? 'hafif aerobik' : 'eşik + uzun aerobik'}`, sure: 0, butce: butce(cuma.tarih).yazi, kaynak: 'oneri', yan: 'her aerobik blok sonunda omuz rahatlatma' });
+    ekle(cuma, { tur: 'yuzme', ad: `Yüzme · ${F.ad === 'Kuvvet' && !F.spYok ? 'hız + eşik' : F.ad === 'Dinlenme' ? 'hafif aerobik' : 'eşik + uzun aerobik'}`, sure: 0, butce: butce(cuma.tarih).yazi, kaynak: 'oneri', yan: 'her aerobik blok sonunda omuz rahatlatma' });
   }
   // Sal/Çar/Per yuvaları: önce salon (yüzmeye komşu olmayan gün tercih — omuz girişimi), sonra aerobik yüzme (salona komşu olmayan gün tercih)
   const aday = () => gunler.filter((g) => [2, 3, 4].includes(haftaGunu(g.tarih)) && bos(g));
@@ -95,6 +134,28 @@ export function haftaPlani({ bugun, bas, K, L = [], yuzmePlan = [], salonPlan = 
     if (!g) break;
     ekle(g, { tur: 'yuzme', ad: `Yüzme · ${F.yuzme}`, sure: butce(g.tarih).sure, butce: butce(g.tarih).yazi, kaynak: 'oneri', yan: 'her aerobik blok sonunda omuz rahatlatma' });
   }
+  return bitir();
+
+  /** Yüzme ve salon ayrı sayılırken: K.gunHafta yüzme günü (Cuma + Sal/Per/Çar), K.gunHaftaSalon salon günü (yüzme olmayan, yüzmeye komşu olmayan gün tercih). */
+  function ayriPlan() {
+    const say = (tur) => gunler.filter((g) => g.isler.some((x) => x.tur === tur)).length;
+    const yIs = (g, ad) => ({ tur: 'yuzme', ad, sure: butce(g.tarih).sure, butce: butce(g.tarih).yazi, kaynak: 'oneri', yan: 'her aerobik blok sonunda omuz rahatlatma' });
+    if (say('yuzme') < K.gunHafta && cuma && bos(cuma)) ekle(cuma, yIs(cuma, `Yüzme · ${F.ad === 'Kuvvet' && !F.spYok ? 'hız + eşik' : F.ad === 'Dinlenme' ? 'hafif aerobik' : 'eşik + uzun aerobik'}`));
+    for (const gn of [2, 4, 3]) {
+      if (say('yuzme') >= K.gunHafta) break;
+      const g = gunler.find((x) => haftaGunu(x.tarih) === gn && bos(x));
+      if (g) ekle(g, yIs(g, `Yüzme · ${F.yuzme}`));
+    }
+    while (say('salon') < K.gunHaftaSalon) {
+      const ad = gunler.filter((g) => bos(g));
+      const g = ad.find((x) => !komsuYuzme(x)) || ad[0];
+      if (!g) break;
+      ekle(g, { tur: 'salon', ad: `Salon · ${F.salon}`, sure: K.salonDk || 50, butce: `~${K.salonDk || 50} dk`, kaynak: 'oneri', yan: 'önleyici + core 15–20 dk' });
+    }
+    return bitir();
+  }
+
+  function bitir() {
   // Hafifletme (yük hızlı arttı / dinlenme haftası / bugün hafif)
   for (const g of gunler) {
     for (const x of g.isler) {
@@ -114,6 +175,7 @@ export function haftaPlani({ bugun, bas, K, L = [], yuzmePlan = [], salonPlan = 
     if (c) g.uyarilar.push(c.metin);
   }
   return gunler;
+  }
 }
 
 /** Ölçüm zamanı (M10): son CSS testinden 28 gün geçtiyse ve döngü sonu ise test önerisi. */

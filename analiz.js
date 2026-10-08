@@ -136,7 +136,7 @@ export function cssTestiZamani(hist, css, bugun, gun = 21) {
     const rpe = r.seans && r.seans.rpe !== '' && r.seans.rpe != null ? Number(r.seans.rpe) : null;
     for (const s of r.setler || []) {
       const sn = lapSn(s.gercek);
-      if (!s.tamamlandi || sn == null || !(Number(s.mesafe) >= 100) || /drill|kick|pull/i.test(s.tur || '') || String(s.alet || '').trim()) continue;
+      if (!s.tamamlandi || sn == null || !(Number(s.mesafe) >= 100) || /drill|kick|pull|scull|\btest\b/i.test(s.tur || '') || String(s.alet || '').trim()) continue;
       const tempo = (sn / Number(s.mesafe)) * 100;
       if (tempo >= css - 6 && tempo <= css + 3) t.push({ tempo, rpe });
     }

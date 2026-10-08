@@ -52,7 +52,9 @@ export function aletKeys(text, aletler) {
 const sameKeys = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 
 /** Drill / kick setleri: tempo bölgesi anlamsız. */
-export const isDrill = (set) => /drill|kick|tekme|ayak/i.test(String((set && set.tur) || ''));
+export const isDrill = (set) => /drill|kick|tekme|ayak|scull/i.test(String((set && set.tur) || ''));
+/** Maksimal test seti (CSS testi vb.): bölge verilmez, yoğunluk dağılımına girmez. */
+export const isTest = (set) => /\btest\b/i.test(String((set && set.tur) || ''));
 
 /**
  * Setin CSS'i. { css, alet, havuz, ilk, son, stale } ya da null.
