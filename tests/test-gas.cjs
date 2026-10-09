@@ -35,21 +35,13 @@ r = env.call(payload);
 assert.strictEqual(r.error, 'SERVER'); assert.strictEqual(env.sheets.eski.getLastRow(), 1, 'eski geri alınmalı'); assert.strictEqual(env.sheets.Plan.getLastRow(), 6);
 env.sheets.seans.failOn=null;
 r = env.call(payload);
-assert.ok(r.ok, JSON.stringify(r)); assert.deepStrictEqual(r.data, {yazilanSet:2, arsivlenenSet:3, silinenSet:3});
-// arsiv: sayfa yoksa Plan başlıklarıyla oluşturulur; günün tüm satırları Sıra sırasıyla
-const A = env.sheets.arsiv;
-assert.ok(A, 'arsiv sayfası oluşturulmalı');
-assert.strictEqual(A.data[0].join('|'), env.sheets.Plan.data[0].join('|'));
-const ah = (k) => A.data[0].indexOf(k);
-assert.deepStrictEqual(A.data.slice(1).map(x => [x[ah('Sıra')], x[ah('Blok')], x[ah('Açıklama')], x[ah('Alet')]]),
-  [[1,'WU','Rahat, HR<140',''],[2,'PS','catch-up',''],[3,'MS','','Şamandıra']]);
-assert.ok(A.data.slice(1).every(x => Object.prototype.toString.call(x[ah('Tarih')]) === '[object Date]'));
-assert.deepStrictEqual(A.data.slice(1).map(x => x[1]), [1,2,3]);
+assert.ok(r.ok, JSON.stringify(r)); assert.deepStrictEqual(r.data, {yazilanSet:2, silinenSet:3}); // idmanSK 13.2: arşiv yok
+assert.ok(!env.sheets.arsiv, 'arsiv sayfası açılmaz');
 const eski = env.sheets.eski.data;
 assert.strictEqual(eski.length, 3);
 assert.deepStrictEqual(eski.slice(1).map(x=>[x[1], x[2]]), [['','WU'],['','MS']], 'orijinal Sıra sırası; Sıra sütunu boş (tablo doldurur)');
 assert.strictEqual(eski[2][10], 'Şamandıra');
-assert.ok(Math.abs(eski[2][11]*86400 - 83.4) < 1e-6); assert.strictEqual(env.sheets.eski.fmt[2][11], '[mm]:ss.0');
+assert.ok(Math.abs(eski[2][11]*86400 - 83.4) < 1e-6); assert.strictEqual(env.sheets.eski.fmt[2][11], '[h]:mm:ss.0'); // 13.2: ölçülen süre saat haneli, ondalıklı
 assert.strictEqual(eski[2][12], 13); assert.strictEqual(eski[2][16], 'Turlar: 01:23.0, 01:23.8'); assert.strictEqual(env.sheets.eski.fmt[2][16], '@');
 assert.strictEqual(eski[1][11], '');
 const seans = env.sheets.seans.data; assert.strictEqual(seans.length, 2);
@@ -59,22 +51,15 @@ assert.strictEqual(env.sheets.Plan.getLastRow(), 3);
 r = env.call(payload); assert.strictEqual(r.error, 'DUPLICATE'); assert.strictEqual(env.sheets.eski.data.length, 3); assert.strictEqual(env.sheets.seans.data.length, 2);
 // Hiç set tamamlanmadan kapatılan seans ve tekrar gönderim
 r = env.call({action:'finishSession', tarih:'2026-09-26', seans:{sure:'00:10:00',mesafe:0,havuz:50,rpe:'',msi:'',aciklama:''}, setler:[{sira:1,tamamlandi:false}]});
-assert.deepStrictEqual(r.data, {yazilanSet:0, arsivlenenSet:1, silinenSet:1});
-assert.deepStrictEqual(A.data.slice(1).map(x => x[1]), [1,1,2,3], 'yeni gün arsiv\'in en üstünde');
-assert.ok(A.data[1][ah('Blok')] === 'WU' && A.data[1][ah('Mesafe')] === 300);
+assert.deepStrictEqual(r.data, {yazilanSet:0, silinenSet:1});
 r = env.call({action:'finishSession', tarih:'2026-09-26', seans:{}, setler:[]}); assert.strictEqual(r.error, 'DUPLICATE');
 // Plan'da olmayan sıra
 env = fresh(); r = env.call({...payload, setler:[{sira:9,tamamlandi:true}]}); assert.strictEqual(r.error,'PLAN_MISMATCH'); assert.strictEqual(env.sheets.eski.getLastRow(),1);
 // Olmayan tarih
 r = env.call({...payload, tarih:'2027-01-01'}); assert.strictEqual(r.error,'NOT_FOUND');
-// Silme hatası → yine ok, uyarı (arsiv'e kopyalanmış)
-env.sheets.Plan.failOn='delete'; r = env.call(payload); assert.ok(r.ok && r.data.uyari, JSON.stringify(r));
-assert.strictEqual(r.data.arsivlenenSet, 3); assert.strictEqual(r.data.silinenSet, 0);
-// arsiv yazılamazsa Plan silinmez; seans yine kaydedilmiş sayılır
-env = fresh(); env.sheets.arsiv = new Sheet('arsiv', ['Tarih','Sıra']); env.sheets.arsiv.failOn = 'write';
-r = env.call(payload); assert.ok(r.ok && /arsiv/.test(r.data.uyari), JSON.stringify(r));
-assert.strictEqual(r.data.silinenSet, 0); assert.strictEqual(env.sheets.Plan.getLastRow(), 6); assert.strictEqual(env.sheets.seans.getLastRow(), 2);
-assert.strictEqual(env.sheets.arsiv.getLastRow(), 1, 'yarım arsiv satırı kalmamalı');
+// Silme hatası → yine ok (seans kaydedildi), uyarı; plan satırları yerinde
+env.sheets.Plan.failOn='delete'; r = env.call(payload); assert.ok(r.ok && /silinemedi/.test(r.data.uyari), JSON.stringify(r));
+assert.strictEqual(r.data.silinenSet, 0); assert.strictEqual(env.sheets.seans.getLastRow(), 2);
 // Beklenmeyen hata ayrıntısı istemciye gitmez
 env = fresh(); env.sheets.seans.failOn = 'write'; r = env.call(payload);
 assert.strictEqual(r.error, 'SERVER'); assert.ok(!/write failed/.test(r.message) && /başvuru/.test(r.message), r.message);
@@ -97,7 +82,7 @@ r = env.call(payload); assert.strictEqual(r.error, 'SERVER');
 assert.deepStrictEqual(E2.data.slice(1).filter(x => x.some(v => v !== '')).map(x => x[0]), ['eski-satir']);
 assert.strictEqual(E2.data[1][0], 'eski-satir', 'tepede boş satır kalmamalı');
 // İdman anında düzenleme: değişen alanlar eski'ye yazılır; eklenen set (Sıra yok) arkasına
-// eklendiği setin hemen arkasına; arsiv'e özgün plan gider; Set Mesafe/Set Süre boş.
+// eklendiği setin hemen arkasına; Set Mesafe/Set Süre boş (tablo hesaplar).
 env = fresh();
 env.sheets.eski = new Sheet('eski', [...ESKI_H, 'Set Mesafe', 'Set Süre']);
 r = env.call({ action: 'finishSession', tarih: '2026-09-24', seans: { sure: '00:40:00', mesafe: 900, havuz: 25, rpe: 7, msi: '', aciklama: '' }, setler: [
@@ -119,8 +104,7 @@ assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(r.data.yazilanSet, 3);
   assert.ok(Object.prototype.toString.call(X.data[2][xh('Tarih')]) === '[object Date]', 'eklenen sette tarih');
   assert.ok(Math.abs(X.data[3][xh('Hedef')] * 86400 - 85) < 1e-6);
   assert.ok(Math.abs(X.data[2][xh('Dinlen')] * 86400 - 15) < 1e-6);
-  const A = env.sheets.arsiv; const ah = (k) => A.data[0].indexOf(k);
-  assert.deepStrictEqual(A.data.slice(1).map((x) => [x[ah('Sıra')], x[ah('Tekrar')]]), [[1, 1], [2, 4], [3, 4]], 'arsiv: özgün plan');
+  assert.ok(!env.sheets.arsiv);
 }
 // Eklenen set tamamlanmadıysa yazılmaz; plan alanı dışındaki anahtarlar yok sayılır
 env = fresh();
@@ -130,4 +114,28 @@ r = env.call({ action: 'finishSession', tarih: '2026-09-24', seans: { sure: '00:
 ] });
 assert.ok(r.ok, JSON.stringify(r)); assert.strictEqual(env.sheets.eski.getLastRow(), 2);
 assert.ok(Object.prototype.toString.call(env.sheets.eski.data[1][0]) === '[object Date]');
-console.log('Code.gs testleri: TAMAM');
+// 13.2: tablonun hesapladığı sütunlar (Sıra, Set Mesafe, Set Süre, Hafta…) — komşu satırdaki formül yeni satırlara kopyalanır,
+// değer yazılmaz; diğer sütunlar kaymaz; idmanda değişen Hedef [h]:mm:ss biçiminde
+env = fresh();
+{
+  const X = new Sheet('eski', [...ESKI_H, 'Set Mesafe', 'Set Süre', 'Hafta']);
+  X.data.push(ESKI_H.map(() => '').concat(['', '', '']));
+  X.fmt.push(X.data[1].map(() => '0.###############'));
+  X.data[1][0] = new (env.CDate)(Date.UTC(2026, 8, 20)); X.data[1][2] = 'WU';
+  X.getRange(2, 18, 1, 3).setFormulasR1C1([['=RC4*RC5', '=RC4*(RC9+RC10)', '=WEEKNUM(RC1)']]);
+  env.sheets.eski = X;
+  r = env.call({ action: 'finishSession', tarih: '2026-09-24', seans: { sure: '00:40:00', mesafe: 900, havuz: 25, rpe: 7, msi: '', aciklama: '' }, setler: [
+    { sira: 1, tamamlandi: true, gercek: '04:01.5', not: '' },
+    { sira: 3, tamamlandi: true, gercek: '01:25.0', not: '', plan: { hedef: '01:25' } },
+  ] });
+  assert.ok(r.ok, JSON.stringify(r));
+  const xh = (k) => X.data[0].indexOf(k);
+  assert.deepStrictEqual(X.formulas[`2,${xh('Set Mesafe') + 1}`], '=RC4*RC5', 'yeni satıra formül');
+  assert.deepStrictEqual(X.formulas[`3,${xh('Hafta') + 1}`], '=WEEKNUM(RC1)');
+  assert.strictEqual(X.data[3][xh('Blok')], 'WU', 'eski satır yerinde, kaymadı');
+  assert.strictEqual(X.data[1][xh('Blok')], 'WU'); assert.strictEqual(X.data[2][xh('Blok')], 'MS');
+  assert.strictEqual(X.fmt[2][xh('Hedef')], '[h]:mm:ss', 'idmanda değişen hedef saat haneli');
+  assert.strictEqual(X.fmt[1][xh('Gerçek')], '[h]:mm:ss.0');
+  assert.strictEqual(env.sheets.seans.fmt[1][1], '[h]:mm:ss.0', 'seans süresi ölçülen');
+}
+console.log('idman.gs (yüzme) testleri: TAMAM');

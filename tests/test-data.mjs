@@ -281,42 +281,40 @@ await test('flush: yapılandırma yoksa göndermez', async () => {
   assert.equal(r.remaining, 1); assert.equal(calls.length, 0);
 });
 
-// --- 3 bağlantı (yüzme, salon, sporRef) ----------------------------------------
+// --- 13.2: 2 bağlantı (idman = yüzme + salon, idmanRef) -------------------------------------
 const SALON = 'https://script.google.com/macros/s/S/exec';
 const REF = 'https://script.google.com/macros/s/R/exec';
 
-await test('3 bağlantı: ayrı saklanır, eski biçim yüzme olarak okunur, boş isteğe bağlı silinir', () => {
-  LS.setItem('ysk.config', JSON.stringify({ apiUrl: 'https://a/exec', token: 't' })); // sürüm 10 biçimi
+await test('2 bağlantı: salon idman bağlantısını kullanır (eski ayrı salon yok sayılır), salon için idmanRef de gerekir', () => {
+  LS.setItem('ysk.config', JSON.stringify({ apiUrl: 'https://a/exec', token: 't', salon: { apiUrl: SALON, token: 's' } })); // eski biçim
   assert.deepEqual(data.getConfig(), { apiUrl: 'https://a/exec', token: 't' });
-  assert.equal(data.isConfigured('salon'), false);
-  data.setConfig({ apiUrl: SALON, token: 's' }, 'salon');
+  assert.deepEqual(data.getConfig('salon'), { apiUrl: 'https://a/exec', token: 't' }, 'salon = idman');
+  assert.equal(data.isConfigured('salon'), false, 'idmanRef yok');
   data.setConfig({ apiUrl: REF, token: 'r' }, 'ref');
-  assert.deepEqual(data.getConfig('salon'), { apiUrl: SALON, token: 's' });
-  assert.deepEqual(data.getConfig('ref'), { apiUrl: REF, token: 'r' });
+  assert.equal(data.isConfigured('salon'), true);
+  data.setConfig({ apiUrl: SALON, token: 's2' }, 'salon');
+  assert.deepEqual(data.getConfig('salon'), { apiUrl: 'https://a/exec', token: 't' }, 'salon ayrı kaydedilmez');
   data.setConfig({ apiUrl: 'https://b/exec', token: 't2' });
-  assert.deepEqual(data.getConfig('salon'), { apiUrl: SALON, token: 's' }, 'yüzme değişince diğerleri kalır');
-  data.setConfig({ apiUrl: '', token: '' }, 'salon');
-  assert.equal(data.isConfigured('salon'), false);
-  assert.equal(JSON.parse(LS.getItem('ysk.config')).salon, undefined);
+  assert.equal(JSON.parse(LS.getItem('ysk.config')).salon, undefined, 'eski salon bağlantısı temizlenir');
+  assert.deepEqual(data.getConfig('ref'), { apiUrl: REF, token: 'r' }, 'idman değişince idmanRef kalır');
   data.clearConfig();
   assert.equal(data.isConfigured('ref'), false);
 });
 
-await test('3 bağlantı: her çağrı kendi adresine ve anahtarına gider; sporRef/salon önbelleği', async () => {
+await test('2 bağlantı: getRef idmanRef\'e, getSalon idman\'a gider; salon önbelleği katalog/etki/bw\'yi idmanRef\'ten alır', async () => {
   cfg();
-  data.setConfig({ apiUrl: SALON, token: 's' }, 'salon');
   data.setConfig({ apiUrl: REF, token: 'r' }, 'ref');
-  handler = (b) => ({ json: { ok: true, data: b.action === 'getRef' ? { zones: [], css: [{ ilk: '2026-01-01', css: 120 }] } : { katalog: [], etki: [], bw: [], gecmis: [] } } });
+  handler = (b) => ({ json: { ok: true, data: b.action === 'getRef' ? { zones: [], css: [{ ilk: '2026-01-01', css: 120 }], katalog: [{ ad: 'Row' }], etki: [{ ad: 'Row', grup: 'Back', oran: 1 }], bw: [{ ilk: '2026-01-01', son: '', kg: 80 }] } : { katalog: [], etki: [], bw: [], gecmis: [] } } });
   await data.getRef();
-  await data.getSalon();
-  assert.deepEqual(urls, [`${REF}|r`, `${SALON}|s`]);
+  const d = await data.getSalon();
+  assert.deepEqual(urls, [`${REF}|r`, 'https://script.google.com/macros/s/X/exec|tok']);
   assert.equal(data.getCachedRef().data.css[0].css, 120);
-  assert.ok(data.getCachedSalon());
+  assert.deepEqual([d.katalog[0].ad, data.getCachedSalon().data.etki[0].grup, data.getCachedSalon().data.bw[0].kg], ['Row', 'Back', 80]);
 });
 
-await test('sporRef/salon: beklenmeyen cevap BAD_RESPONSE, önbelleğe yazılmaz', async () => {
+await test('idmanRef/salon: beklenmeyen cevap BAD_RESPONSE, önbelleğe yazılmaz', async () => {
+  cfg();
   data.setConfig({ apiUrl: REF, token: 'r' }, 'ref');
-  data.setConfig({ apiUrl: SALON, token: 's' }, 'salon');
   handler = () => ({ json: { ok: true, data: { uygulama: 'başka betik' } } });
   await assert.rejects(data.getRef(), (e) => e.code === 'BAD_RESPONSE');
   await assert.rejects(data.getSalon(), (e) => e.code === 'BAD_RESPONSE');
@@ -333,9 +331,9 @@ await test('salon kuyruğu: salon kaydı saveSalon ile gider; salon bağlı değ
   data.enqueue(sp, null, 'salon');
   handler = () => ({ json: { ok: true, data: { yazilan: 1 } } });
   let r = await data.flushQueue();
-  assert.equal(r.remaining, 1, 'salon bağlı değil: bekler');
+  assert.equal(r.remaining, 1, 'salon bağlı değil (idmanRef yok): bekler');
   assert.equal(calls.length, 0);
-  data.setConfig({ apiUrl: SALON, token: 's' }, 'salon');
+  data.setConfig({ apiUrl: REF, token: 'r' }, 'ref');
   r = await data.flushQueue();
   assert.deepEqual(calls, ['saveSalon']);
   assert.equal(r.sent[0].tur, 'salon');

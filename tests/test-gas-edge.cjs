@@ -1,4 +1,4 @@
-// Code.gs uç durum testleri (sahte SpreadsheetApp).
+// idman.gs (yüzme) uç durum testleri (sahte SpreadsheetApp).
 //   node tests/test-gas-edge.cjs
 const assert = require('assert');
 const { Sheet, makeEnv, D, ESKI_H, SEANS_H } = require('./fakegas.cjs');
@@ -157,23 +157,12 @@ test('kilit alınamazsa LOCKED, hiçbir şey yazılmaz', () => {
   assert.strictEqual(e.sheets.eski.getLastRow(), 1);
 });
 
-test('arsiv: mevcut sayfa farklı sütun sırasıyla; iki gün üst üste; diğer günlere dokunulmaz', () => {
+test('13.2: arşiv yok — eski arsiv sayfası olsa da dokunulmaz; günün plan satırları silinir, diğer günler kalır', () => {
   const arsiv = new Sheet('arsiv', ['Not', 'Sıra', 'Tarih', 'Blok', 'Fazla']);
   const e = env([row('2026-09-29', 2, 'MS', 1, 100), row('2026-09-30', 1, 'WU', 1, 100), row('2026-09-29', 1, 'WU', 1, 100, '', '', { Not: 'plan notu' })], { extra: { arsiv } });
   assert.ok(e.call(fin('2026-09-29', [{ sira: 1, tamamlandi: true }])).ok);
-  assert.deepStrictEqual(arsiv.data.slice(1).map((r) => [r[0], r[1], r[3], r[4]]), [['plan notu', 1, 'WU', ''], ['', 2, 'MS', '']]);
+  assert.strictEqual(arsiv.getLastRow(), 1, 'arsiv\'e yazılmaz');
   assert.strictEqual(e.sheets.Plan.getLastRow(), 2, 'yalnız 30 Eylül kalır');
-  assert.ok(e.call(fin('2026-09-30', [])).ok);
-  assert.deepStrictEqual(arsiv.data.slice(1).map((r) => r[1]), [1, 1, 2], '30 Eylül en üstte');
-  assert.strictEqual(e.sheets.Plan.getLastRow(), 1);
-});
-
-test('arsiv sayfası oluşturulamazsa Plan silinmez, uyarı döner', () => {
-  const e = env([row('2026-09-29', 1, 'WU', 1, 100)]);
-  e.ctx.SpreadsheetApp.getActiveSpreadsheet().failInsert = true;
-  const r = e.call(fin('2026-09-29', [{ sira: 1, tamamlandi: true }]));
-  assert.ok(r.ok && /arsiv/.test(r.data.uyari)); assert.strictEqual(r.data.silinenSet, 0);
-  assert.strictEqual(e.sheets.Plan.getLastRow(), 2); assert.strictEqual(e.sheets.eski.getLastRow(), 2);
 });
 
 test('Plan satırları ardışık olmasa da hepsi silinir', () => {
@@ -181,7 +170,7 @@ test('Plan satırları ardışık olmasa da hepsi silinir', () => {
   for (let i = 1; i <= 6; i++) rows.push(row(i % 2 ? '2026-09-29' : '2026-10-01', i, 'WU', 1, 100));
   const e = env(rows);
   const r = e.call(fin('2026-09-29', []));
-  assert.strictEqual(r.data.silinenSet, 3); assert.strictEqual(r.data.arsivlenenSet, 3);
+  assert.strictEqual(r.data.silinenSet, 3); assert.ok(!('arsivlenenSet' in r.data));
   assert.ok(e.sheets.Plan.data.slice(1).filter((x) => x.some((v) => v !== '')).every((x) => x[1] % 2 === 0));
 });
 
@@ -194,7 +183,7 @@ test('büyük plan: 200 set, sıra ve toplamlar doğru', () => {
   assert.deepStrictEqual(d.detay.slice(0, 3).map((s) => s.sira), [1, 2, 3]);
   const setler = d.detay.map((s) => ({ sira: s.sira, tamamlandi: true }));
   const r = e.call(fin('2026-09-29', setler));
-  assert.strictEqual(r.data.yazilanSet, 200); assert.strictEqual(r.data.arsivlenenSet, 200);
+  assert.strictEqual(r.data.yazilanSet, 200); assert.strictEqual(r.data.silinenSet, 200);
 });
 
-console.log(`Code.gs uç durum testleri: TAMAM (${n} senaryo)`);
+console.log(`idman.gs uç durum testleri: TAMAM (${n} senaryo)`);

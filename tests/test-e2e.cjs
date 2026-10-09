@@ -50,7 +50,7 @@ const server = http.createServer((req, res) => {
 
   // Kurulum
   await page.waitForSelector('#screen-setup:not([hidden])');
-  // 13.1.0: varsayılan CSS yok — bu senaryo elle girilmiş CSS 1:57 ile çalışır
+  // 13.2.0: varsayılan CSS yok — bu senaryo elle girilmiş CSS 1:57 ile çalışır
   await page.evaluate(() => localStorage.setItem('ysk.prefs', JSON.stringify({ ses: true, css: 117, havuz: 25 })));
   await page.fill('#setup-url', 'https://script.google.com/macros/s/TEST/dev');
   await page.fill('#setup-token', 'secret');
@@ -267,8 +267,8 @@ const server = http.createServer((req, res) => {
   const seans = env.sheets.seans.data[1];
   assert.deepStrictEqual([seans[2], seans[3], seans[4], seans[5], seans[6]], [600, 50, 8, 'sag omuz 1; bel 0.5', 'Ana set iyi geçti']);
   assert.strictEqual(env.sheets.Plan.data.length, 3);
-  assert.match(await page.textContent('#done-text'), /8 plan satırı "arsiv" sayfasına taşındı.*telefonda da saklandı/);
-  assert.strictEqual(env.sheets.arsiv.data.length, 9);
+  assert.match(await page.textContent('#done-text'), /havuzVeri sayfasına yazıldı, 8 satır havuzPlan'dan silindi.*telefonda da saklandı/); // 13.2: arşiv yok
+  assert.ok(!env.sheets.arsiv);
 
   // Çevrimdışı: kuyruk
   // Kayıttan sonra sıradaki idmana değil, takvimde bugüne dönülür
@@ -370,7 +370,7 @@ const server = http.createServer((req, res) => {
   assert.strictEqual(await page.evaluate(() => localStorage.getItem('ysk.session')), null);
   await page.click('#days-back');
   await page.waitForSelector('#screen-home:not([hidden])');
-  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 13.1.0');
+  assert.strictEqual(await page.textContent('#app-version'), 'Sürüm 13.2.0');
   assert.match(await page.textContent('#home-history-meta'), /^3 kayıt$/);
 
   // Toplu silme: yalnızca telefondaki kopyalar gider

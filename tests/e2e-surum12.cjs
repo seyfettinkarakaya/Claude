@@ -92,7 +92,7 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
   assert.deepEqual(ses.hareketler.map((x) => x.ad), ['Band External Rotation', 'Dumbbell Shoulder Press']);
   assert.deepEqual(ses.oncelik, { Shoulders: 1 });
   assert.equal(await s.ls('ysk.salonPlan'), null, 'başlayınca plan tüketilir');
-  // 13.1.0: planda öneri sormadan uygulanmaz — Shoulder Press son yapılan değerle, öneri yazılı
+  // 13.2.0: planda öneri sormadan uygulanmaz — Shoulder Press son yapılan değerle, öneri yazılı
   await s.goTo(1, '#sl-wheel');
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/geri.png` });
   assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 3 × 10 · 12,5 kg.*öneri: \+2,5 kg/);
@@ -102,7 +102,7 @@ sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla �
 /** Haritadaki grubun merkezine dokunur (harita.js META). */
 async function hmTap(s, view, g) {
   const p = s.page;
-  const [m, w, h] = await p.evaluate(([v, gg]) => import('./harita.js?v=13.1.0').then((H) => [H.META[v].merkez[gg], H.META[v].w, H.META[v].h]), [view, g]);
+  const [m, w, h] = await p.evaluate(([v, gg]) => import('./harita.js?v=13.2.0').then((H) => [H.META[v].merkez[gg], H.META[v].w, H.META[v].h]), [view, g]);
   await p.$eval('#hm-wrap', (e) => e.scrollIntoView({ block: 'center' }));
   const r = await p.locator('#hm-wrap .kf').boundingBox();
   await p.mouse.click(r.x + (r.width * m[0]) / w, r.y + (r.height * m[1]) / h);
@@ -158,7 +158,7 @@ sc('Kas haritası: dokun → seç (renkler sabit, ✓), tekrar dokun → bırak;
 });
 
 const slPress = (s) => s.page.$eval('#sl-main', (b) => b.click());
-/** Ana sayfadan son idmanı başlatır; 13.1.0'dan beri artış önerisi sorulur (secim: modal düğmesi). */
+/** Ana sayfadan son idmanı başlatır; 13.2.0'dan beri artış önerisi sorulur (secim: modal düğmesi). */
 async function gymBasla(s, secim = 'Seçilenleri uygula') {
   await s.page.click('#home-gym-start');
   await s.page.waitForSelector('#modal:not([hidden]), #screen-salon:not([hidden])');
@@ -199,7 +199,7 @@ sc('İdman: ısınma (kayda sayılmaz), set sırasında ağrı 1,5 → hafiflet;
   assert.equal(await p.getAttribute('#sg-body [data-sg="msi"][data-v="1.5"]', 'class'), 'is-on', 'set sırasındaki ağrı hazır gelir');
   assert.match(await p.inputValue('#sg-not'), /MSI 1,5 \(1\. set\) · hafifletildi: 12,5 kg \(önce 15 kg\) · 8 tekrar/);
   await p.click('#sg-save');
-  // Row (bant): öneri +1 tekrar (13.1.0: bantta kg yok) → en çok tekrar rekoru
+  // Row (bant): öneri +1 tekrar (13.2.0: bantta kg yok) → en çok tekrar rekoru
   await p.waitForFunction(() => document.querySelector('#sl-wheel .w-item.is-active .sl-ad').textContent.trim() === 'Band Bent Over Row');
   await p.waitForFunction(() => /^1\. set/.test(document.getElementById('sl-main-sub').textContent));
   await s.adv(3);
@@ -377,7 +377,7 @@ sc('CSS testi: 400 + 200 → yeni CSS, sporRef css sayfasına yeni satır (eskil
   await s.waitScreen('home');
   await p.waitForFunction(() => localStorage.getItem('ysk.ref'));
   await p.click('#home-settings'); await s.waitScreen('setup');
-  assert.match(await txt(s, '#pref-css-ref'), /sporRef'ten: 2:00/);
+  assert.match(await txt(s, '#pref-css-ref'), /idmanRef'ten: 2:00/);
   assert.match(await txt(s, '#pref-tahmin'), /Derece tahmini \(kaba, CSS'ten\): 100 FR 1:48 · 200 FR 3:48 · 400 FR 7:52/);
   const once = s.envs.REF.sheets.css.data.length;
   await p.click('#pref-css-test'); await s.waitModal('CSS testi');
@@ -385,12 +385,12 @@ sc('CSS testi: 400 + 200 → yeni CSS, sporRef css sayfasına yeni satır (eskil
   for (let k = 0; k < 4; k++) await p.click('#modal-body [data-d="t400:-5"]');
   await p.click('#modal-body [data-d="t400:-1"]'); await p.click('#modal-body [data-d="t400:-1"]');
   assert.match(await txt(s, '#modal-body'), /400 M\s*7:46.*200 M\s*3:54.*YENİ CSS\s*1:56/);
-  await s.modalClick("sporRef'e yaz");
-  await p.waitForFunction(() => /sporRef'e yazıldı/.test(document.getElementById('toast').textContent));
+  await s.modalClick("idmanRef'e yaz");
+  await p.waitForFunction(() => /idmanRef'e yazıldı/.test(document.getElementById('toast').textContent));
   const css = s.envs.REF.sheets.css;
   assert.equal(css.data.length, once + 1, 'yalnızca bir satır eklendi');
   assert.equal(css.data[css.data.length - 1][2], 116);
-  await p.waitForFunction(() => /sporRef'ten: 1:56/.test(document.getElementById('pref-css-ref').textContent));
+  await p.waitForFunction(() => /idmanRef'ten: 1:56/.test(document.getElementById('pref-css-ref').textContent));
   assert.ok(s.net.calls.includes('addCss'));
 });
 
@@ -521,7 +521,7 @@ sc('Son idmanı şablon al: ana sayfa Düzenle → planın 3. adımı; değere d
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/sablon.png` });
   assert.equal(await txt(s, '#sp-title'), 'Son idmandan plan');
   assert.deepEqual(await p.$$eval('.sp-pl .sp-m b', (e) => e.map((x) => x.textContent)), ['Dumbbell Shoulder Press', 'Band Bent Over Row']);
-  // Shoulder Press: set 3 → 4, ağırlık 12,5 → 10 (13.1.0: şablonda öneri uygulanmaz)
+  // Shoulder Press: set 3 → 4, ağırlık 12,5 → 10 (13.2.0: şablonda öneri uygulanmaz)
   await p.click('[data-sp-ed="0"]'); await p.waitForSelector('#screen-salon-plan #sl-edit:not([hidden])');
   assert.match(await txt(s, '#se-tag'), /1\/2 · DÜZENLE/);
   await p.click('[data-se="set:1"]'); await p.click('[data-se="agirlik:-1"]');

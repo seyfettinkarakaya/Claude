@@ -1,4 +1,4 @@
-// SporRef.gs ve Salon.gs testleri (sahte SpreadsheetApp).
+// idmanRef.gs (eski SporRef.gs + salon referansları) ve idman.gs salon işlemleri (eski Salon.gs) testleri (sahte SpreadsheetApp).
 //   node tests/test-gas-salon.cjs
 const assert = require('assert');
 const { Sheet, makeEnv, D } = require('./fakegas.cjs');
@@ -20,7 +20,7 @@ const refEnv = (extra = {}) => makeEnv({
   MSI: new Sheet('MSI', ['0 — Ağrı yok.'], [['0,5 — Hafif his.']]),
   fazBilgi: new Sheet('fazBilgi', ['Sezon', 'Faz', 'Tarih_ilk', 'Tarih_son', 'Ad', 'Odak'], [['26-27', 'Faz-0', D('2026-09-29'), D('2026-10-09'), '', '']]),
   ...extra,
-}, 'secret', 'SporRef.gs');
+}, 'secret', 'idmanRef.gs');
 
 test('sporRef getRef: bölgeler (Unicode eksi), CSS, bilgi, alet, RPE/MSI (başlıksız), faz', () => {
   const r = refEnv().call({ action: 'getRef' });
@@ -43,9 +43,9 @@ test('sporRef getRef: bölgeler (Unicode eksi), CSS, bilgi, alet, RPE/MSI (başl
 });
 
 test('sporRef: eksik sayfalar boş döner; yanlış anahtar AUTH; yazma işlemi yok', () => {
-  const e = makeEnv({}, 'secret', 'SporRef.gs');
+  const e = makeEnv({}, 'secret', 'idmanRef.gs');
   const r = e.call({ action: 'getRef' });
-  assert.deepStrictEqual(r.data, { zones: [], css: [], bilgi: {}, alet: [], rpe: [], msi: [], faz: [] });
+  assert.deepStrictEqual(r.data, { zones: [], css: [], bilgi: {}, alet: [], rpe: [], msi: [], faz: [], katalog: [], etki: [], bw: [] });
   assert.strictEqual(JSON.parse(e.ctx.doPost({ postData: { contents: JSON.stringify({ action: 'getRef', token: 'x' }) } }).s).error, 'AUTH');
   assert.strictEqual(e.call({ action: 'finishSession' }).error, 'UNKNOWN_ACTION');
   assert.strictEqual(e.call({ action: 'saveSalon' }).error, 'UNKNOWN_ACTION');
@@ -72,22 +72,21 @@ test('sporRef addCss: css sayfasının sonuna satır ekler, eski satırlar aynen
   assert.deepStrictEqual(sh.data.slice(0, 4).map((x) => x.map(String)), before.slice(0, 4).map((x) => x.map(String)), 'eski satırlar değişmez');
   const row = sh.data[r.data.satir - 1];
   assert.ok(row[0] instanceof e.CDate && row[0].toISOString().startsWith('2026-10-06'));
-  assert.deepStrictEqual(row.slice(1), ['', 116, '', 25, 'YüzmeSK CSS testi']);
+  assert.deepStrictEqual(row.slice(1), ['', 116, '', 25, 'idmanSK CSS testi']);
   const g = e.call({ action: 'getRef' }).data.css;
   assert.deepStrictEqual(g[g.length - 1], { ilk: '2026-10-06', son: '', css: 116, alet: '', havuz: 25 });
   assert.strictEqual(e.call({ action: 'addCss', tarih: '2026-10-06', css: 20 }).error, 'BAD_REQUEST');
   assert.strictEqual(e.call({ action: 'addCss', tarih: '06.10.2026', css: 116 }).error, 'BAD_REQUEST');
 });
 
-test('getSalon (sürüm 12): H\'de isteğe bağlı Kısıt / Alternatif / Görsel yalnızca doluysa eklenir', () => {
+test('getRef salonHar (eski H): isteğe bağlı Kısıt / Alternatif / Görsel yalnızca doluysa eklenir', () => {
   const e = makeEnv({
-    idman: new Sheet('idman', ['Tarih', 'No', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Nabız', 'RPE', 'MSI', 'Açıklama'], []),
     H: new Sheet('H', ['Exercise', 'Goal Tag', 'Equipment', 'BW Coefficient', 'Swim Transfer Coefficient', 'Video', 'Kısıt', 'Alternatif', 'Görsel'], [
       ['Goblet Squat', 'Strength', 'Dumbbell', '—', 0.65, '', 'squat>90', 'Box Squat', 'Goblet_Squat'],
       ['Dead Bug', 'Strength', 'Bodyweight', 0.5, 0.8, '', '', '', ''],
     ]),
-  }, 'secret', 'Salon.gs');
-  const k = e.call({ action: 'getSalon' }).data.katalog;
+  }, 'secret', 'idmanRef.gs');
+  const k = e.call({ action: 'getRef' }).data.katalog;
   assert.deepStrictEqual(k[0], { ad: 'Goblet Squat', amac: 'Strength', ekipman: 'Dumbbell', bw: null, stc: 0.65, video: '', kisit: 'squat>90', alternatif: 'Box Squat', gorsel: 'Goblet_Squat' });
   assert.deepStrictEqual(Object.keys(k[1]), ['ad', 'amac', 'ekipman', 'bw', 'stc', 'video']);
 });
@@ -100,6 +99,9 @@ const salonEnv = (opts = {}) => makeEnv({
     [D('2026-06-02'), 2, 'Standard Pull-up', 3, 9.666666667, 'Vücut', 142, 9.5, 1, 'Setler: 11-9-9'],
     [D('2026-05-24'), 1, 'Band Bent Over Row', 4, 15, 15, '-', 7.5, 0, ''],
   ]),
+}, 'secret', 'idman.gs');
+/** idmanRef: salonHar (H), salonHKEtki (hkEtki), bilgi BW satırı (eski SalonTakip!ref). */
+const salonRefEnv = () => makeEnv({
   H: new Sheet('H', ['Exercise', 'Goal Tag', 'Equipment', 'BW Coefficient', 'Swim Transfer Coefficient', 'Gemini STC', 'Chat GPT STC', 'Video'], [
     ['Band Bent Over Row', 'Rehab', 'Band', '—', 0.75, 0.65, 0.85, 'https://youtu.be/abc'],
     ['Standard Pull-up', 'Strength', 'Bodyweight', 0.95, 0.95, 0.9, 1, 'javascript:alert(1)'],
@@ -107,13 +109,17 @@ const salonEnv = (opts = {}) => makeEnv({
   hkEtki: new Sheet('hkEtki', ['Exercise', 'Muscle Group', 'Muscle', 'Kinetic Chain', 'Yük Etki Oranı', 'Notlar'], [
     ['Band Bent Over Row', 'Back', 'Rhomboids', 'Upper Pull', 0.3, ''], ['Standard Pull-up', 'Back', 'Latissimus Dorsi', 'Upper Pull', '0,5', ''], ['Standard Pull-up', 'Biceps', 'Biceps', 'Upper Pull', 0.2, ''],
   ]),
-  ref: new Sheet('ref', ['Parametre', 'Değer -1', 'Değer - 2', 'Değer - 3'], [['Faz-0', D('2025-11-25'), D('2026-01-04'), 'F0'], ['BW', D('2025-01-01'), D('2026-12-31'), 90]]),
-}, 'secret', 'Salon.gs');
+  bilgi: new Sheet('bilgi', ['Kısaltma', 'Tam Adı', 'Açıklama', 'Açıklama.2'], [['EN3', 'Endurance 3', '', ''], ['BW', D('2025-01-01'), D('2026-12-31'), 90]]),
+}, 'secret', 'idmanRef.gs');
 
-test('getSalon: katalog (yüzme katsayısı, güvenli video), etki, BW, geçmiş (Vücut, "-" nabız)', () => {
+test('getRef katalog/etki/BW (idmanRef) + getSalon geçmiş (idman salonVeri; katalog boş)', () => {
   const r = salonEnv().call({ action: 'getSalon' });
   assert.ok(r.ok, JSON.stringify(r));
-  const d = r.data;
+  assert.deepStrictEqual([r.data.katalog, r.data.etki, r.data.bw], [[], [], []], 'katalog idmanRef\'ten gelir');
+  const rr = salonRefEnv().call({ action: 'getRef' });
+  assert.ok(rr.ok, JSON.stringify(rr));
+  assert.ok(!('BW' in rr.data.bilgi) && rr.data.bilgi.EN3, 'BW satırı bilgi listesine girmez');
+  const d = { ...rr.data, gecmis: r.data.gecmis };
   assert.deepStrictEqual(d.katalog[0], { ad: 'Band Bent Over Row', amac: 'Rehab', ekipman: 'Band', bw: null, stc: 0.75, video: 'https://youtu.be/abc' });
   assert.strictEqual(d.katalog[1].video, '', 'youtube dışı adres kabul edilmez');
   assert.strictEqual(d.katalog[1].bw, 0.95);
@@ -140,7 +146,7 @@ test('saveSalon: en üste A–J sırasıyla, K=Süre başlığı açılır, say�
   assert.ok(a[0] instanceof e.CDate && a[0].toISOString().startsWith('2026-10-03'));
   assert.deepStrictEqual(a.slice(1, 10), [1, 'Standard Pull-up', 3, 9.67, 'Vücut', 142, 9.5, 1, 'Setler: 11-9-9. Omuz hassas']);
   assert.ok(Math.abs(a[10] * 86400 - 308) < 1e-6, 'süre gün kesri');
-  assert.strictEqual(sh.fmt[1][10], '[mm]:ss');
+  assert.strictEqual(sh.fmt[1][10], '[h]:mm:ss');
   assert.deepStrictEqual(sh.data[2].slice(1, 9), [2, 'Band Bent Over Row', 4, 20, 15, '', 7.5, 0]);
   assert.strictEqual(sh.data[3][0].toISOString().slice(0, 10), '2026-06-02', 'eski satırlar aşağı kayar');
   // Geçmişte süre okunur
@@ -188,4 +194,27 @@ test('savePlan / planYapildi (sürüm 13): plan sayfası yoksa açılır, gün s
   assert.strictEqual(salonEnv().call({ action: 'planYapildi', tarih: '2026-10-07' }).data.isaretlenen, 0, 'sayfa yoksa bir şey yapmaz');
 });
 
-console.log(`Salon/sporRef betik testleri: TAMAM (${n} senaryo)`);
+test('13.2 yeni sayfa adları (eşleme yok): idman havuzPlan/havuzVeri/havuzSeans/salonVeri/salonPlan; idmanRef salonHar/salonHKEtki/bilgi BW/faz', () => {
+  const PH = ['Tarih', 'Sıra', 'Blok', 'Tekrar', 'Mesafe', 'Stil', 'Tür', 'Açıklama', 'Hedef', 'Dinlen', 'Alet', 'Gerçek', 'Kulaç', 'Nabız', 'RPE', 'MSI', 'Not'];
+  const e = makeEnv({
+    havuzPlan: new Sheet('havuzPlan', PH, [[D('2026-10-10'), 1, 'WU', 1, 200, 'FR', 'Swim', '', '00:04:00', '', '', '', '', '', '', '', '']]),
+    havuzVeri: new Sheet('havuzVeri', PH), havuzSeans: new Sheet('havuzSeans', ['Tarih', 'Süre', 'Mesafe', 'Havuz', 'RPE', 'MSI', 'Açıklama']),
+    salonVeri: new Sheet('salonVeri', IDMAN_H, [[D('2026-10-04'), 1, 'Band Bent Over Row', 4, 20, 15, '', 8, 0, '']]),
+  }, 'secret', 'idman.gs', { alias: false });
+  assert.strictEqual(e.call({ action: 'getDates' }).data[0].tarih, '2026-10-10');
+  assert.strictEqual(e.call({ action: 'getSalon' }).data.gecmis.length, 1);
+  const f = e.call({ action: 'finishSession', tarih: '2026-10-10', seans: { sure: '00:30:00', mesafe: 200, havuz: 25, rpe: 6, msi: '', aciklama: '' }, setler: [{ sira: 1, tamamlandi: true, gercek: '03:58.2' }] });
+  assert.ok(f.ok, JSON.stringify(f));
+  assert.deepStrictEqual([e.sheets.havuzVeri.getLastRow(), e.sheets.havuzSeans.getLastRow(), e.sheets.havuzPlan.getLastRow()], [2, 2, 1]);
+  assert.ok(e.call({ action: 'savePlan', tarih: '2026-10-11', hareketler: [{ hareket: 'Dead Bug', set: 3, tekrar: 10 }] }).ok);
+  assert.ok(e.sheets.salonPlan, 'salonPlan sayfası açılır');
+  const r = makeEnv({
+    salonHar: new Sheet('salonHar', ['Exercise', 'Goal Tag', 'Equipment', 'BW Coefficient', 'Swim Transfer Coefficient'], [['Dead Bug', 'Strength', 'Bodyweight', 0.5, 0.8]]),
+    salonHKEtki: new Sheet('salonHKEtki', ['Exercise', 'Muscle Group', 'Muscle', 'Kinetic Chain', 'Yük Etki Oranı'], [['Dead Bug', 'Core', 'Rectus Abdominis', 'Stability', 1]]),
+    bilgi: new Sheet('bilgi', ['Kısaltma', 'Tam Adı', 'Açıklama', 'Açıklama.2'], [['BW', D('2026-01-01'), D('2026-12-31'), 82]]),
+    faz: new Sheet('faz', ['Sezon', 'Faz', 'Tarih_ilk', 'Tarih_son', 'Ad', 'Odak'], [['26-27', 'F1', D('2026-10-12'), D('2026-12-20'), 'Aerobik taban', '']]),
+  }, 'secret', 'idmanRef.gs', { alias: false }).call({ action: 'getRef' }).data;
+  assert.deepStrictEqual([r.katalog[0].ad, r.etki[0].grup, r.bw[0].kg, r.faz[0].faz, Object.keys(r.bilgi).length], ['Dead Bug', 'Core', 82, 'F1', 0]);
+});
+
+console.log(`idman (salon) / idmanRef betik testleri: TAMAM (${n} senaryo)`);

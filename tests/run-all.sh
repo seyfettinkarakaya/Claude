@@ -1,5 +1,5 @@
 #!/bin/sh
-# Tüm testler: birim (Code.gs, data.js, zaman.js) + uçtan uca (Playwright + Chromium).
+# Tüm testler: birim (idman.gs, idmanRef.gs, data.js, zaman.js) + uçtan uca (Playwright + Chromium).
 set -e
 cd "$(dirname "$0")/.."
 export NODE_PATH="${NODE_PATH:-$(npm root -g)}"

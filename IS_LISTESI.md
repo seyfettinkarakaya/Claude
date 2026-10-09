@@ -143,6 +143,21 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
 - [x] P11 **Kilit ekranında dinlenme sayacı / bildirim** (service worker; sürüm 12'den ertelendi). **(13.0.0) (iOS: bildirim yalnızca ana ekrana eklenmiş uygulamada ve izin verilince)**
 - [x] P12 **Dışa aktarma ve yedek:** tüm kayıtların CSV/JSON yedeği (tablo zaten ana kayıt; telefon geçmişi için). **(13.0.0) (JSON; CSV yok)**
 
+### Sürüm 13.2.0 (09.10.2026) — iki dosya / iki betik YAPILDI (dağıtım: kullanıcı)
+- [x] YuzmeProgram → **idman** (havuzPlan, havuzVeri, havuzSeans), SalonTakip → idman (salonVeri, salonPlan);
+  sporRef → **idmanRef** (+ salonHar, salonHKEtki, bilgi BW, faz). Betikler: `idman.gs` (Code.gs + Salon.gs), `idmanRef.gs`.
+- [x] Arşiv kaldırıldı (günün havuzPlan satırları silinir). [x] P1-2 süre biçimleri. [x] P2-1 hesaplanan sütunlara
+  dokunmama + formül kopyalama. [x] Uygulamada 2 bağlantı (salon = idman; katalog idmanRef'ten). [x] CSS testi kaynağı
+  "idmanSK CSS testi".
+- [ ] **Kullanıcı:** iki betiği yapıştır + `tokenUret` + dağıt; telefonda Ayarlar → idman ve idmanRef bağlantıları.
+- [ ] **salonSeans sayfası?** (kullanıcı sorusu 09.10): bkz. öneri aşağıda — karar bekliyor.
+  Öneri: evet, `idman!salonSeans` (`Tarih, Süre, RPE, MSI, Yer, Hareket, Set, Hacim, Açıklama`), havuzSeans'ın
+  eşi. Neden: tek yük modeli seans RPE × toplam süreye dayanıyor (sRPE salon için de geçerli, seans bitince tek RPE);
+  bugün salon seans RPE'si hareket RPE'lerinin ortalamasından, süre hareket sürelerinin toplamından türetiliyor
+  (ısınma, geçişler, dinlenme eksik). Ayrıca seans MSI'sı bölge bölge (havuzla aynı biçim), yer (Salon/Ev/Otel) ve
+  not tek yerde. Uygulama: salon idmanı bitince yüzmedeki gibi RPE + MSI adımı; betik salonSeans'a tek satır yazar
+  (sayfa yoksa açar). Dağıtım gerekir; bir sonraki betik güncellemesiyle birlikte yapılabilir.
+
 ### Bütünleşik yüzme + salon modeli — araştırma önerileri (08.10.2026; "uygula" bekliyor)
 Rapor: `reports/Bütünleşik yüzme salon idman modeli.md` (notlar: `research_notes/…`). Kod incelemesine göre çoğu
 **dağıtım gerektirmez** (hesaplar telefonda; yeni ayarlar sporRef `kisit` satırı olarak; Plan'daki Alet sütunu zaten var).
@@ -649,6 +664,7 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 - [ ] Ayarlar'da yazı boyutu seçimi.
 
 ## İzlenecek
+- 13.2.0 (09.10.2026): "sporRef beklenmeyen cevap verirse çökmez" senaryosu tam koşuda bir kez zaman aşımı verdi, tek başına ve tekrar tam koşuda geçti (sahte saat).
 - Uçtan uca testlerde sahte saatle zaman ilerletmeli uzun yüzme senaryoları ("Tam idman", "Mola") tam takım
   çalışırken ara sıra bir dokunuşu kaçırıyor (yaklaşık 2–3 tam koşuda bir). 04.10.2026'da sürüm 12 öncesi kodda da
   (70498a8) aynı görüldü: uygulama hatası değil, test düzeneğinin sahte saat zamanlaması. Tek başına koşunca hep geçer.

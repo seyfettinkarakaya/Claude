@@ -10,9 +10,10 @@ Salon idmanı **SalonTakip** dosyasıyla çalışır (plan telefonda yapılır, 
 dosyasından okunur.
 
 - Ön yüz: tek sayfalık PWA (vanilla HTML/CSS/JS, derleme adımı yok), GitHub Pages'te barındırılır.
-- Arka uç: üç dosyanın her birine bağlı ayrı Google Apps Script web uygulaması
-  (`Code.gs`, `Salon.gs`, `SporRef.gs`). Hepsi `@OnlyCurrentDoc`: her betik **yalnızca kendi
-  dosyasını** görür; Drive'daki diğer dosyalara erişim izni istenmez. Üç ayrı adres ve anahtar.
+- Arka uç (13.2): iki dosyanın her birine bağlı ayrı Google Apps Script web uygulaması —
+  `idman.gs` (idman dosyası: yüzme + salon girişleri) ve `idmanRef.gs` (idmanRef dosyası: referanslar).
+  İkisi de `@OnlyCurrentDoc`: her betik **yalnızca kendi dosyasını** görür; Drive'daki diğer dosyalara
+  erişim izni istenmez. İki ayrı adres ve anahtar.
 
 ## Dosyalar
 
@@ -39,51 +40,60 @@ dosyasından okunur.
 | `data.js` | **Tek veri erişim modülü**: Apps Script çağrıları, yerel önbellek, gönderim kuyruğu |
 | `manifest.json`, `icons/` | PWA tanımı ve simgeler (192, 512, apple-touch-icon) |
 | `fonts/` | Archivo ve Barlow Condensed (SIL Open Font License); dışarıdan yazı tipi yüklenmez |
-| `Code.gs` | YuzmeProgram betiği (`getDates`, `getPlan`, `finishSession`) |
-| `Salon.gs` | SalonTakip betiği (`getSalon`, `saveSalon`; sürüm 13: `savePlan`, `planYapildi`) |
-| `SporRef.gs` | sporRef betiği, salt okuma (`getRef`) |
+| `idman.gs` | idman betiği: yüzme (`getDates`, `getPlan`, `finishSession`) + salon (`getSalon`, `saveSalon`, `savePlan`, `planYapildi`) |
+| `idmanRef.gs` | idmanRef betiği: `getRef` (bölgeler, CSS, bilgi, faz, kısıtlar + salon kataloğu, kas etkileri, BW), `addCss` |
 | `tests/` | Arka uç ve uçtan uca testler (bkz. en alt) |
 
 ---
 
-## 1. Tabloyu hazırlama
+## 1. Tabloları hazırlama (13.2: iki dosya)
 
-`YuzmeProgram` dosyasında üç sayfa bulunmalı; başlıklar **1. satırda**:
+İki Google tablosu kullanılır; başlıklar **1. satırda**:
 
-- **Plan**: `Tarih, Sıra, Blok, Tekrar, Mesafe, Stil, Tür, Açıklama, Hedef, Dinlen, Alet, Gerçek, Kulaç, Nabız, RPE, MSI, Not`
-  (yanında Yığımlı Mesafe, Hedef Zone gibi türetilmiş sütunlar da olabilir; uygulama onları okumaz, yazmaz.)
-- **eski**: Plan'daki 17 sütunla aynı başlıklar.
-- **seans**: `Tarih, Süre, Mesafe, Havuz, RPE, MSI, Açıklama`
-- **arsiv** (isteğe bağlı): yoksa ilk seansta Plan'ın başlıklarıyla otomatik oluşturulur.
+**idman** — giriş verileri (yüzme + salon):
+- **havuzPlan** (eski adı Plan): `Tarih, Sıra, Blok, Tekrar, Mesafe, Stil, Tür, Açıklama, Hedef, Dinlen, Alet, Gerçek, Kulaç, Nabız, RPE, MSI, Not`
+  (yanında Yığımlı Mesafe, Hedef Zone gibi türetilmiş sütunlar olabilir; uygulama onları okumaz, yazmaz.)
+- **havuzVeri** (eski adı eski): havuzPlan'daki 17 başlık; tablonun kendi hesapladığı sütunlar (Sıra, Set Mesafe,
+  Set Süre, Hafta …) olabilir — betik bunlara değer yazmaz, üstteki satırda formül varsa yeni satırlara kopyalar.
+- **havuzSeans** (eski adı seans): `Tarih, Süre, Mesafe, Havuz, RPE, MSI, Açıklama`
+- **salonVeri** (eski SalonTakip!idman): `Tarih, No, Hareket, Set, Tekrar, Ağırlık, Nabız, RPE, MSI, Açıklama, Süre`
+- **salonPlan** (eski SalonTakip!plan; isteğe bağlı, ilk "Programa yaz"da açılır):
+  `Tarih, Sıra, Hareket, Set, Tekrar, Ağırlık, Süre, Dinlen, Süperset, Not, Durum`
+- Arşiv yok: seans kaydedilince o günün havuzPlan satırları silinir (yapılan setler havuzVeri'de).
 
-Script sütunları **başlık adına göre** bulur; sütun sırası önemli değildir ve yeni sütun
+**idmanRef** — referanslar:
+- **zone, css, alet, bilgi, RPE, MSI, faz** (eski adı fazBilgi); isteğe bağlı **kisit, yuzmeKas, drill**.
+- **salonHar** (eski SalonTakip!H): `Exercise, Goal Tag, Equipment, BW Coefficient, Swim Transfer Coefficient`; isteğe bağlı Video, Kısıt, Alternatif, Görsel.
+- **salonHKEtki** (eski SalonTakip!hkEtki): `Exercise, Muscle Group, Muscle, Kinetic Chain, Yük Etki Oranı`.
+- Vücut ağırlığı: **bilgi** sayfasında bir satır — Kısaltma `BW`, sonra ilk tarih, son tarih, kg.
+
+Betikler sütunları **başlık adına göre** bulur; sütun sırası önemli değildir ve yeni sütun
 eklemek bir şeyi bozmaz. Karşılaştırma büyük/küçük harf, baştaki/sondaki boşluk ve
 Türkçe karakter farklarını yok sayar (`Sıra` = `sira`).
 
 Notlar:
 - `Tarih` hücreleri tarih biçiminde olmalı (`gg.aa.yyyy` metni de kabul edilir).
-- `Hedef` / `Dinlen` süre biçiminde (ör. `[mm]:ss`) veya `04:45` gibi metin olabilir.
+- `Hedef` / `Dinlen` `00:01:30` biçiminde yazılmalı (Sheets `1:30`'u 1 saat 30 dk sanar). Betik yazdığı süreleri
+  saat haneli yazar: planlanan `[h]:mm:ss`, ölçülen (Gerçek, seans Süre) `[h]:mm:ss.0`.
 - Aynı tarihte her set benzersiz bir `Sıra` değerine sahip olmalı.
 
-## 2. Apps Script'i kurma ve yayınlama
+## 2. Apps Script'leri kurma ve yayınlama (iki betik)
 
+| Dosya | Betik (bu depodan) | Telefonda Ayarlar → Bağlantılar |
+|---|---|---|
+| idman | `idman.gs` (eski Code.gs + Salon.gs birleşimi) | **idman** (gerekli) |
+| idmanRef | `idmanRef.gs` (eski SporRef.gs + salon kataloğu) | **idmanRef** (salon ve CSS için) |
+
+Her dosya için:
 1. Tabloyu açın → **Uzantılar → Apps Script**.
-2. Varsayılan `Code.gs` içeriğini silin, bu depodaki `Code.gs`'i yapıştırıp kaydedin.
-3. **Token üretme:** Üstteki fonksiyon listesinden `tokenUret`'i seçip **Çalıştır**'a basın.
-   İlk seferde Google yetki ister; onaylayın. Betik `@OnlyCurrentDoc` ile işaretlidir:
-   yalnızca bu tabloya erişim ister, Drive'daki diğer dosyalara erişemez. **Yürütme günlüğü**'nde
-   `Yeni token: …` satırı çıkar; bu değeri kopyalayın. Token, *Proje Ayarları →
-   Script Properties* altında `TOKEN` adıyla saklanır. (Daha sonra görmek için
-   `tokenGoster`'i çalıştırın; değiştirmek için `tokenUret`'i tekrar çalıştırın ve
-   telefondaki ayarı güncelleyin.)
-4. **Dağıt → Yeni dağıtım** → tür: **Web uygulaması**.
-   - *Şu kullanıcı olarak yürüt:* **Ben**
-   - *Erişimi olan:* **Herkes**
-5. **Dağıt**'a basın ve verilen `https://script.google.com/macros/s/…/exec` adresini kopyalayın.
+2. Varsa eski kodu silin, bu depodaki ilgili `.gs` dosyasını yapıştırıp kaydedin (tek dosya).
+3. **Token üretme:** fonksiyon listesinden `tokenUret`'i seçip **Çalıştır**. İlk seferde Google yetki ister; onaylayın.
+   Betik `@OnlyCurrentDoc` ile işaretlidir: yalnızca bağlı olduğu tabloya erişir. **Yürütme günlüğü**'ndeki
+   `Yeni token: …` değerini kopyalayın (sonradan `tokenGoster`).
+4. **Dağıt → Yeni dağıtım** → tür: **Web uygulaması** · *Şu kullanıcı olarak yürüt:* **Ben** · *Erişimi olan:* **Herkes**.
+5. `https://script.google.com/macros/s/…/exec` adresini kopyalayıp telefonda **Ayarlar → Bağlantılar**'a girin.
 
-`Code.gs`'i güncellediğinizde **Dağıt → Dağıtımları yönet → (kalem) → Sürüm: Yeni sürüm**
-ile yayınlayın; böylece adres değişmez. İzin kapsamı değiştiyse (ör. `@OnlyCurrentDoc`
-eklendiğinde) düzenleyicide bir fonksiyonu (`tokenGoster`) bir kez çalıştırıp yeni izni onaylayın.
+Betiği güncellediğinizde **Dağıt → Dağıtımları yönet → (kalem) → Sürüm: Yeni sürüm** ile yayınlayın; adres değişmez.
 
 ### Anahtarı (token) yenileme
 
@@ -101,44 +111,43 @@ gönderilmeyi bekleyen kayıtlar kalır).
 
 Hızlı kontrol: `/exec` adresini tarayıcıda açınca `{"ok":true,…}` görmelisiniz.
 
-## 2b. Salon ve sporRef betikleri (isteğe bağlı)
+## 2b. Sayfa ayrıntıları (13.2 adlarıyla)
 
 Her dosyaya **kendi** betiği kurulur; adımlar yukarıdakiyle aynıdır (Uzantılar → Apps Script →
 dosyayı yapıştır → `tokenUret` → Dağıt → Web uygulaması, *Ben* / *Herkes*). Her betiğin
 anahtarı ayrıdır. Adresler ve anahtarlar telefonda **Ayarlar → Bağlantılar**'a girilir;
-salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
+idmanRef boş bırakılırsa salon ve CSS bölgeleri kapalı kalır.
 
 | Dosya | Betik | Okur | Yazar |
 |---|---|---|---|
-| YuzmeProgram | `Code.gs` | Plan | eski, seans, arsiv |
-| SalonTakip | `Salon.gs` | H, hkEtki, ref, idman, plan (varsa) | idman (en üste), plan (sürüm 13) |
-| sporRef | `SporRef.gs` | zone, css, alet, bilgi, RPE, MSI, fazBilgi; isteğe bağlı kisit, yuzmeKas, drill | css (yalnızca CSS testi: sona yeni satır) |
+| idman | `idman.gs` | havuzPlan, salonVeri, salonPlan (varsa) | havuzVeri, havuzSeans (en üste), havuzPlan'dan günün satırlarını siler; salonVeri (en üste), salonPlan |
+| idmanRef | `idmanRef.gs` | zone, css, alet, bilgi (BW dahil), RPE, MSI, faz, salonHar, salonHKEtki; isteğe bağlı kisit, yuzmeKas, drill | css (yalnızca CSS testi: sona yeni satır) |
 
-**SalonTakip** (`Salon.gs`):
-- `idman`: A–J sırası değişmez — `Tarih, No, Hareket, Set, Tekrar, Ağırlık, Nabız, RPE, MSI, Açıklama`
+**idman (salon)** (`idman.gs`):
+- `salonVeri`: A–J sırası değişmez — `Tarih, No, Hareket, Set, Tekrar, Ağırlık, Nabız, RPE, MSI, Açıklama`
   (`v2` formülü bu sütunları sırasıyla okur). Hareket süresi **K** sütununa (`Süre`) yazılır;
   başlık yoksa ilk kayıtta açılır (K başka başlıkla doluysa hata verir, hiçbir şey yazılmaz).
 - Yazma kuralları: Tarih gerçek tarih, sayılar sayı, vücut ağırlığı tam olarak `Vücut`;
   **Tekrar** setlerin ortalaması (ör. 9,67), set ayrıntısı **Açıklama**'da (`Setler: 11-9-9`).
   Aynı gün ikinci kez yazılmaz (`DUPLICATE`).
-- `H`: `Exercise, Goal Tag, Equipment, BW Coefficient, Swim Transfer Coefficient, …`;
-  isteğe bağlı **Video** sütunu `H!A:E`'den sonra (yalnızca youtube.com / youtu.be adresleri gösterilir).
-- `hkEtki`: `Exercise, Muscle Group, Muscle, Kinetic Chain, Yük Etki Oranı`.
-- Sürüm 12, `H`'de isteğe bağlı üç başlık okur (varsa): **Kısıt** (ör. `squat>90`, `zıplama`),
+- `salonHar`: `Exercise, Goal Tag, Equipment, BW Coefficient, Swim Transfer Coefficient, …`;
+  isteğe bağlı **Video** sütunu `salonHar!A:E`'den sonra (yalnızca youtube.com / youtu.be adresleri gösterilir).
+- `salonHKEtki`: `Exercise, Muscle Group, Muscle, Kinetic Chain, Yük Etki Oranı`.
+- Sürüm 12, `salonHar`'da isteğe bağlı üç başlık okur (varsa): **Kısıt** (ör. `squat>90`, `zıplama`),
   **Alternatif** (güvenli hareket adı), **Görsel** (free-exercise-db kimliği; bilgi kartı için ad eşlemesini geçersiz kılar).
   Boş bırakılırsa uygulama kısıtları hareket adından, kartı ad benzerliğinden bulur.
 - **Sürüm 13 — `plan` sayfası** (yalnızca ekleme; ilk "Programa yaz"da betik kendisi açar):
   `Tarih, Sıra, Hareket, Set, Tekrar, Ağırlık, Süre, Dinlen, Süperset, Not, Durum`. Bir günün planı yazılınca
   o tarihin eski satırları yenileriyle değişir; idman bitince o günün satırlarına `Durum = yapıldı` yazılır (silinmez).
   Sayfa yoksa `getSalon` cevabı eskisiyle aynıdır.
-- `hkEtki` grupları İngilizce kalabilir (`Shoulders`, `Arms`, `Core` …); uygulama 10 Türkçe gruba çevirir.
+- `salonHKEtki` grupları İngilizce kalabilir (`Shoulders`, `Arms`, `Core` …); uygulama 10 Türkçe gruba çevirir.
 
-**sporRef** (`SporRef.gs`, salt okuma):
+**idmanRef** (`idmanRef.gs`, salt okuma):
 - `zone` (`Zone, Alt Sınır, Üst Sınır, Tür, Türkçe Adı`): PACE satırları CSS'e eklenen sn/100 m
   sınırları (alt ≤ fark < üst; `−19` gibi Unicode eksi kabul edilir).
 - `css` (`Tarih_ilk, Tarih_son, CSS (sn), Alet, Havuz`): idman gününe, havuza ve alete göre seçilir;
   alet adları `alet` sayfasındaki kod/ad ile eşlenir (`PB` = `Pullbuoy`). Günü kapsayan satır yoksa
-  en son değer kullanılır ve Ayarlar'da "CSS güncel değil" yazar. sporRef bağlı değilse CSS Ayarlar'dan elle girilir.
+  en son değer kullanılır ve Ayarlar'da "CSS güncel değil" yazar. idmanRef bağlı değilse CSS Ayarlar'dan elle girilir.
 - `RPE`, `MSI`: başlıksız tek sütun (`7–8 — Zor, …`); salon girişinde ve Ayarlar'da açıklama olarak gösterilir.
 - **Sürüm 12, isteğe bağlı sayfalar** (yoksa uygulama varsayılanlarla çalışır; eski sayfalara dokunulmaz):
   - `kisit` (`Kural, Değer, Açıklama`): `tani` (Değer: tanı adı, Açıklama: kural metni), `br_ay_max` (10),
@@ -148,7 +157,7 @@ salon ve sporRef boş bırakılırsa o bölüm kapalı kalır.
   - `yuzmeKas` (`Stil, Grup, Katsayı`): yüzme yükünün kas gruplarına dağılımı (ör. `FR, Omuz, 0.35`).
   - `drill` (`Ad, Video, Açıklama`): set açıklamasında drill adı geçerse ▶ video bağlantısı çıkar.
 - **CSS testi** (Ayarlar → CSS testi yap): 400 m ve 200 m süresinden CSS = (t400 − t200) / 2;
-  sporRef bağlıysa `css` sayfasının **sonuna** bir satır eklenir (`Tarih_ilk`, `CSS`, `Kaynak = idmanSK CSS testi`), eski satırlar durur.
+  idmanRef bağlıysa `css` sayfasının **sonuna** bir satır eklenir (`Tarih_ilk`, `CSS`, `Kaynak = idmanSK CSS testi`), eski satırlar durur.
 
 ### Sürüm 12'ye geçiş
 
@@ -334,6 +343,16 @@ alamazsa **LOCKED**).
 Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
 `WRITE_MISMATCH`, `MISSING_COLUMN`, `NO_SHEET`, `BAD_REQUEST`, `SERVER`.
 
+### Sürüm 13.2'ye geçiş (iki dosya, iki betik)
+
+1. **idman** dosyasında: Uzantılar → Apps Script → eski kodu silip `idman.gs`'i yapıştır → `tokenUret` → Dağıt
+   (yeni dağıtım ya da mevcut dağıtımda "Yeni sürüm"). Sayfa adları: havuzPlan, havuzVeri, havuzSeans, salonVeri, salonPlan.
+2. **idmanRef** dosyasında: aynı adımlar `idmanRef.gs` ile. Sayfa adları: zone, css, alet, bilgi (BW satırı dahil),
+   RPE, MSI, faz, salonHar, salonHKEtki.
+3. Telefonda **Ayarlar → Bağlantılar**: idman ve idmanRef adresleri + anahtarları → Kaydet ve bağlan. Ayrı salon
+   bağlantısı artık yok (eski kayıt yok sayılır).
+4. Eski `arsiv` sayfası artık kullanılmaz (silinebilir).
+
 ### Sürüm 13'e geçiş
 
 1. SalonTakip'te `Salon.gs`'i yenisiyle değiştirip **Yeni sürüm** olarak dağıtın (adres ve anahtar değişmez).
@@ -343,6 +362,15 @@ Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
    `frame-src https://www.youtube-nocookie.com` eklendi. İnternet yokken fotoğraf ve adımlar gösterilir.
 3. Telefonda yeni yerel anahtarlar: `ysk.hazir` (hazır olma kontrolleri, 60 gün), `ysk.hareketNot` (harekete sabit not);
    ayarlar: `yer` (Salon/Ev/Otel), `bildirim`. Ayarlar → Yedek indir: anahtarlar hariç JSON.
+
+## Sürüm 13.2'de neler var
+
+- **İki dosya, iki betik:** idman (havuzPlan, havuzVeri, havuzSeans, salonVeri, salonPlan) ve idmanRef (referanslar +
+  salonHar, salonHKEtki, bilgi BW, faz). Uygulamada iki bağlantı; salon idman bağlantısını kullanır, hareket kataloğu
+  idmanRef'ten gelir. Arşiv kaldırıldı. Kurulum ve geçiş: bölüm 1–2 ve "Sürüm 13.2'ye geçiş".
+- **Süre biçimleri:** betik süreleri saat haneli yazar (planlanan `[h]:mm:ss`, ölçülen `[h]:mm:ss.0`).
+- **Tablonun hesapladığı sütunlar:** havuzVeri/salonVeri'de betiğin doldurmadığı sütunlarda üstteki satırın formülü
+  yeni satırlara kopyalanır; değer yazılmaz, sütunlar kaymaz.
 
 ## Sürüm 13.1'de neler var
 
@@ -419,9 +447,9 @@ hesaplanır. Garmin verisi aynı set alanlarını (Gerçek, Kulaç, Nabız, Not)
 
 ```sh
 sh tests/run-all.sh           # hepsi
-node tests/test-gas.cjs       # Code.gs ana akış (sahte SpreadsheetApp, bağımlılık yok)
-node tests/test-gas-edge.cjs  # Code.gs uç durumlar: kimlik, başlıklar, tarih/süre biçimleri, geri alma, kilit, arsiv
-node tests/test-gas-salon.cjs # Salon.gs ve SporRef.gs: okuma, idman'a yazma (A–J + K Süre), DUPLICATE, geri alma
+node tests/test-gas.cjs       # idman.gs yüzme ana akış (sahte SpreadsheetApp, bağımlılık yok)
+node tests/test-gas-edge.cjs  # idman.gs uç durumlar: kimlik, başlıklar, tarih/süre biçimleri, geri alma, kilit
+node tests/test-gas-salon.cjs # idman.gs salon + idmanRef.gs: okuma, idman'a yazma (A–J + K Süre), DUPLICATE, geri alma
 node tests/test-data.mjs      # data.js: 3 bağlantı, önbellek, kuyruk (yüzme + salon), geçmiş, hata kodları
 node tests/test-ref.mjs       # ref.js: CSS seçimi (gün/havuz/alet), 7 bölge, RPE/MSI açıklaması
 node tests/test-duzen.mjs     # duzen.js: ekle/sil, olay kaydırma, plan farkı notu, kısıtlar

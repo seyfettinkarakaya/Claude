@@ -84,7 +84,7 @@ sc('Salon programı: haftalık görünüm; boş güne planla → "Programa yaz" 
   await p.click('#home-gym'); await s.waitScreen('salon-start');
   await p.click('[data-ss="prog"]'); await s.waitScreen('salon-prog');
   assert.match(await txt(s, '#pg-title'), /21 Eylül Pazartesi – 27 Eylül Pazar/);
-  assert.match(await txt(s, '#pg-body'), /"plan" sayfası gerekir/);
+  assert.match(await txt(s, '#pg-body'), /salonPlan sayfası gerekir/);
   assert.match(await txt(s, '[data-pg-gun="2026-09-23"]'), /Çarşamba.*🏊 yüzme/);
   await p.click('[data-pg="planla"][data-t="2026-09-24"]'); await s.waitScreen('salon-plan');
   await p.click('[data-sp-grup="Shoulders"]'); await p.click('#sp-next');
@@ -219,7 +219,7 @@ sc('Yedek (P12) ve bildirim ayarı (P11): Ayarlar\'dan JSON yedeği iner (anahta
   const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#pref-yedek')]);
   assert.equal(dl.suggestedFilename(), 'idmansk-yedek-2026-09-23.json');
   const j = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8'));
-  assert.equal(j.uygulama, 'idmanSK'); // 13.1.0: uygulama adı
+  assert.equal(j.uygulama, 'idmanSK'); // 13.2.0: uygulama adı
   assert.ok(j.veriler['ysk.hazir'] && !j.veriler['ysk.config'], 'anahtarlar yedekte yok');
 });
 
@@ -274,8 +274,8 @@ sc('Bu hafta: hazır olma "dinlen" bugünü kapatır; yüzme programı 3 günü 
   assert.match(await txt(s, '.sp-faz'), /Döngü · 2\. hafta Hacim\+ — salon: çekiş kuvveti/);
 });
 
-// --- 13.1.0 ---------------------------------------------------------------------------------
-sc('13.1.0 faz takvimi (fazBilgi) + döngü/yasak (kisit) ve yüzme/salon ayrı günler: ana sayfa iki halka, Bu hafta, salon planlama notu, Form ve denge', async ({ launch }) => {
+// --- 13.2.0 ---------------------------------------------------------------------------------
+sc('13.2.0 faz takvimi (fazBilgi) + döngü/yasak (kisit) ve yüzme/salon ayrı günler: ana sayfa iki halka, Bu hafta, salon planlama notu, Form ve denge', async ({ launch }) => {
   const ref = sampleRef();
   ref.kisit = new Sheet('kisit', ['Kural', 'Değer', 'Açıklama'], [['gun_hafta_yuzme', 3, ''], ['gun_hafta_salon', 2, ''], ['salon_dk', 50, ''], ['salon_rpe', 5, ''],
     ['dongu_F1', 'Hacim, Hacim+, Hacim+, Dinlenme', ''], ['yasak_F1', 'SP, Kuvvet', '']]);
@@ -301,7 +301,7 @@ sc('13.1.0 faz takvimi (fazBilgi) + döngü/yasak (kisit) ve yüzme/salon ayrı 
   assert.match(await txt(s, '#fm-body'), /Normal hafta = yüzme 3 seans × 65 dk × RPE 6 \+ salon 2 × 50 dk × RPE 5/);
 });
 
-sc('13.1.0 yüzme: geçerli CSS yoksa uyarı ve bölge yok; çok kısa tekrar sorulur; biten setin tekrar süresi idmanda düzeltilir, özete yansır', async ({ launch }) => {
+sc('13.2.0 yüzme: geçerli CSS yoksa uyarı ve bölge yok; çok kısa tekrar sorulur; biten setin tekrar süresi idmanda düzeltilir, özete yansır', async ({ launch }) => {
   const s = await launch(); const p = s.page; // sporRef yok, elle CSS yok
   await s.openToday();
   await p.waitForFunction(() => /CSS girilmedi/.test(document.getElementById('toast').textContent));
@@ -322,7 +322,7 @@ sc('13.1.0 yüzme: geçerli CSS yoksa uyarı ve bölge yok; çok kısa tekrar so
   assert.match(notes[0], /⚠ 1\. tekrar 1:00 \(düzeltildi\)/, 'kısa tekrar özette de işaretli');
 });
 
-sc('13.1.0 salon: artış önerisinde "Hiçbiri" son değerlerle başlar; biten setlerin tekrarı ve ağırlığı sonradan düzeltilir', async ({ launch }) => {
+sc('13.2.0 salon: artış önerisinde "Hiçbiri" son değerlerle başlar; biten setlerin tekrarı ve ağırlığı sonradan düzeltilir', async ({ launch }) => {
   const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);

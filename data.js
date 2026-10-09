@@ -78,14 +78,16 @@ function pick(c) {
 export function getConfig(target = 'yuzme') {
   const c = load(KEYS.config, null);
   if (!c || typeof c !== 'object') return pick(null);
-  return target === 'yuzme' ? pick(c) : pick(c[target]);
+  // 13.2: salon işlemleri de "idman" betiğinde (eski ayrı SalonTakip bağlantısı yok sayılır)
+  return target === 'yuzme' || target === 'salon' ? pick(c) : pick(c[target]);
 }
 
 export function setConfig({ apiUrl, token }, target = 'yuzme') {
   const c = load(KEYS.config, null);
   const all = c && typeof c === 'object' ? c : {};
   const v = { apiUrl: String(apiUrl || '').trim(), token: String(token || '').trim() };
-  if (target === 'yuzme') store(KEYS.config, { ...all, ...v });
+  if (target === 'salon') return; // salon ayrı bağlantı değil (idman betiği)
+  if (target === 'yuzme') store(KEYS.config, { ...all, ...v, salon: undefined });
   else store(KEYS.config, { ...all, [target]: v.apiUrl || v.token ? v : undefined });
 }
 
@@ -95,6 +97,8 @@ export function clearConfig() {
 }
 
 export function isConfigured(target = 'yuzme') {
+  // Salon: girişler idman betiğinde, hareket kataloğu idmanRef'te → ikisi de gerekli
+  if (target === 'salon') return isConfigured('yuzme') && isConfigured('ref');
   const c = getConfig(target);
   return Boolean(c.apiUrl && c.token);
 }
@@ -428,7 +432,7 @@ const validSalon = (d) => Boolean(d && Array.isArray(d.katalog) && Array.isArray
 /** Cevap beklenen biçimde değilse (yanlış betik, eski dağıtım) BAD_RESPONSE; önbelleğe yazılmaz. */
 export async function getRef() {
   const data = await call('getRef', {}, 'ref');
-  if (!validRef(data)) throw new ApiError('BAD_RESPONSE', 'sporRef cevabı beklenen biçimde değil. Adres SporRef.gs betiğinin mi, yeni sürüm dağıtıldı mı?');
+  if (!validRef(data)) throw new ApiError('BAD_RESPONSE', 'idmanRef cevabı beklenen biçimde değil. Adres idmanRef betiğinin mi (idmanRef.gs), yeni sürüm dağıtıldı mı?');
   store(KEYS.ref, { data, savedAt: Date.now() });
   return data;
 }
@@ -448,15 +452,28 @@ export function addCss(payload) {
 // ---------------------------------------------------------------------------
 
 export async function getSalon() {
+  if (!getCachedRef() && isConfigured('ref')) await getRef().catch(() => {}); // katalog idmanRef'ten
   const data = await call('getSalon', {}, 'salon');
-  if (!validSalon(data)) throw new ApiError('BAD_RESPONSE', 'Salon cevabı beklenen biçimde değil. Adres Salon.gs betiğinin mi, yeni sürüm dağıtıldı mı?');
+  if (!validSalon(data)) throw new ApiError('BAD_RESPONSE', 'Salon cevabı beklenen biçimde değil. Adres idman betiğinin mi (idman.gs), yeni sürüm dağıtıldı mı?');
   store(KEYS.salon, { data, savedAt: Date.now() });
-  return data;
+  return refIle(data);
+}
+
+/**
+ * 13.2: hareket kataloğu (salonHar), kas etkileri (salonHKEtki) ve vücut ağırlığı (bilgi BW) idmanRef'te;
+ * idman betiği bunları boş gönderir → önbellekteki idmanRef verisiyle tamamlanır.
+ */
+function refIle(d) {
+  const r = getCachedRef();
+  const x = r && r.data;
+  if (!x) return d;
+  const al = (k) => (Array.isArray(d[k]) && d[k].length ? d[k] : Array.isArray(x[k]) ? x[k] : []);
+  return { ...d, katalog: al('katalog'), etki: al('etki'), bw: al('bw') };
 }
 
 export function getCachedSalon() {
   const r = load(KEYS.salon, null);
-  return r && validSalon(r.data) ? r : null;
+  return r && validSalon(r.data) ? { ...r, data: refIle(r.data) } : null;
 }
 
 export function saveSalon(payload) {

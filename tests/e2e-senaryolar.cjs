@@ -312,7 +312,7 @@ sc('sporRef: CSS güne/havuza/alete göre; 7 bölge; Ayarlar özeti; elle CSS gi
   // WU 1×200 4:00 → 2:00/100, CSS 2:00 (25 m, 06.07–30.09) → EN3
   assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 2:00/100 · EN3');
   assert.ok(await p.$('.w-item.is-active .w-pace b.zc.z4'));
-  await s.goTo(1); // Drill: bölge yok (13.1.0: TEC etiketi)
+  await s.goTo(1); // Drill: bölge yok (13.2.0: TEC etiketi)
   assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 2:10/100 · TEC');
   await s.goTo(2); // 1:30/100, CSS 2:00 → fark −30 → SP3
   assert.strictEqual(await s.text('.w-item.is-active .w-pace'), 'Tempo 1:30/100 · SP3');
@@ -322,7 +322,7 @@ sc('sporRef: CSS güne/havuza/alete göre; 7 bölge; Ayarlar özeti; elle CSS gi
   await p.reload(); await s.waitScreen('home');
   await p.click('#home-settings'); await s.waitScreen('setup');
   assert.ok(await p.isHidden('#pref-css-field'));
-  assert.match(await s.text('#pref-css-ref'), /sporRef'ten: 1:55 \/100 m 06\.07–30\.09 · 50 m/);
+  assert.match(await s.text('#pref-css-ref'), /idmanRef'ten: 1:55 \/100 m 06\.07–30\.09 · 50 m/);
   assert.doesNotMatch(await s.text('#pref-css-ref'), /güncel değil/);
   assert.strictEqual(await p.$$eval('#pref-zones .zone', (e) => e.length), 7);
   assert.match(await s.text('#pref-zones .z4'), /EN3\s*Yüksek Aerobik\s*1:52 – 1:58/);
@@ -343,7 +343,7 @@ sc('sporRef: bugünü kapsayan CSS yoksa en son değer ve "güncel değil" uyar�
 sc('sporRef beklenmeyen cevap verirse çökmez: idman açılır, Ayarlar sebebi yazar, elle CSS kullanılır', async ({ launch }) => {
   const s = await launch({ ref: true }); const p = s.page;
   s.net.override = (b) => (b.action === 'getRef' ? { ok: true, data: { uygulama: 'başka betik' } } : null);
-  await p.evaluate(() => { localStorage.removeItem('ysk.ref'); localStorage.setItem('ysk.prefs', JSON.stringify({ ses: true, css: 117, havuz: 25 })); }); // 13.1.0: varsayılan CSS yok, elle girilmiş
+  await p.evaluate(() => { localStorage.removeItem('ysk.ref'); localStorage.setItem('ysk.prefs', JSON.stringify({ ses: true, css: 117, havuz: 25 })); }); // 13.2.0: varsayılan CSS yok, elle girilmiş
   await p.reload(); await s.waitScreen('home');
   await s.openToday();
   await s.goTo(2);
@@ -353,7 +353,7 @@ sc('sporRef beklenmeyen cevap verirse çökmez: idman açılır, Ayarlar sebebi 
   await p.evaluate(() => { localStorage.removeItem('ysk.session'); });
   await p.reload(); await s.waitScreen('home');
   await p.click('#home-settings'); await s.waitScreen('setup');
-  await p.waitForFunction(() => /sporRef okunamadı: sporRef cevabı beklenen biçimde değil/.test(document.getElementById('pref-css-ref').textContent));
+  await p.waitForFunction(() => /idmanRef okunamadı: idmanRef cevabı beklenen biçimde değil/.test(document.getElementById('pref-css-ref').textContent));
   assert.ok(await p.isVisible('#pref-css-field'), 'elle CSS alanı görünür');
   // Önbellekte geçerli veri varken: o kullanılır, uyarı yine yazılır
   s.net.override = null;
@@ -362,24 +362,24 @@ sc('sporRef beklenmeyen cevap verirse çökmez: idman açılır, Ayarlar sebebi 
   s.net.override = (b) => (b.action === 'getRef' ? { ok: true, data: {} } : null);
   await p.reload(); await s.waitScreen('home');
   await p.click('#home-settings'); await s.waitScreen('setup');
-  await p.waitForFunction(() => /sporRef'ten: 2:00.*Son okuma başarısız/.test(document.getElementById('pref-css-ref').textContent));
+  await p.waitForFunction(() => /idmanRef'ten: 2:00.*Son okuma başarısız/.test(document.getElementById('pref-css-ref').textContent));
   assert.deepStrictEqual(s.errors, []);
 });
 
-sc('Kurulum: 3 bağlantı; isteğe bağlılar boş geçilir; eksik/yanlış/aynı adres uyarısı', async ({ launch }) => {
+sc('Kurulum: 2 bağlantı (13.2: idman + idmanRef); isteğe bağlı boş geçilir; eksik/yanlış/aynı adres uyarısı', async ({ launch }) => {
   const s = await launch({ configured: false }); const p = s.page;
   await s.waitScreen('setup');
+  assert.equal(await p.$$eval('#setup-salon-url', (e) => e.length), 0, 'ayrı salon bağlantısı yok');
   await p.fill('#setup-url', 'https://script.google.com/macros/s/TEST/exec'); await p.fill('#setup-token', 'secret');
-  await p.fill('#setup-salon-url', 'https://script.google.com/macros/s/SALON/exec');
+  await p.fill('#setup-ref-url', REF_API);
   await p.click('#setup-save');
-  assert.match(await s.text('#setup-msg'), /^Salon: anahtar boş/);
-  await p.fill('#setup-salon-url', '');
+  assert.match(await s.text('#setup-msg'), /^idmanRef: anahtar boş/);
   await p.fill('#setup-ref-url', 'https://script.google.com/macros/s/TEST/exec'); await p.fill('#setup-ref-token', 'refkey');
   await p.click('#setup-save');
   assert.match(await s.text('#setup-msg'), /adresi farklı olmalı/);
   await p.fill('#setup-ref-url', REF_API); await p.fill('#setup-ref-token', 'yanlis');
   await p.click('#setup-save');
-  await p.waitForFunction(() => /sporRef: anahtar hatalı/.test(document.getElementById('setup-msg').textContent));
+  await p.waitForFunction(() => /idmanRef: anahtar hatalı/.test(document.getElementById('setup-msg').textContent));
   assert.ok(await p.isVisible('#setup-back'), 'yüzme bağlandı: geri dönülebilir');
   await p.fill('#setup-ref-token', 'refkey'); await p.click('#setup-save');
   await s.waitScreen('home');
@@ -942,7 +942,7 @@ sc('Salon: kurulmadıysa Ayarlar; son idmanı tekrarla → BAŞLA/BİTTİ, tekra
   await p.click('#home-gym'); await s.waitScreen('salon-start');
   assert.match(await slText(s, '#ss-body'), /SON İDMAN · 20 EYLÜL.*Band Bent Over Row.*4 × 20 · 15 kg · RPE 7,5.*Standard Pull-up.*3 × 11-9-9 · Vücut · RPE 9,5 · MSI 1/);
   await p.click('[data-ss="repeat"]');
-  // 13.1.0: artış önerisi sorulur (sormadan uygulanmaz); bantta kg değil tekrar (+1); ⚠ (RPE 9,5) listede yok
+  // 13.2.0: artış önerisi sorulur (sormadan uygulanmaz); bantta kg değil tekrar (+1); ⚠ (RPE 9,5) listede yok
   await s.waitModal('Artış önerisi · 1 hareket');
   assert.match(await slText(s, '#modal-body'), /Band Bent Over Row\s*20 → 21 tekrar/);
   await s.modalClick('Seçilenleri uygula'); await s.waitScreen('salon');
@@ -968,11 +968,11 @@ sc('Salon: kurulmadıysa Ayarlar; son idmanı tekrarla → BAŞLA/BİTTİ, tekra
   }
   await p.waitForSelector('#sl-giris:not([hidden])');
   assert.match(await slText(s, '#sg-body'), /SETLER\s*20-18-20-20\s*ORT\.\s*19,5/);
-  // 13.1.0: nabız boş başlar (ölçülmediyse yazılmaz); ilk dokunuş geçen değerden (123) başlatır
+  // 13.2.0: nabız boş başlar (ölçülmediyse yazılmaz); ilk dokunuş geçen değerden (123) başlatır
   assert.match(await slText(s, '#sg-body'), /—\s*ölçmediysen boş kalır · ± ile gir · geçen 123/);
   await p.click('[data-sg-hr="1"]'); await p.click('[data-sg-hr="1"]'); await p.click('[data-sg-hr="1"]');
   await p.click('[data-sg="rpe"][data-v="8"]');
-  assert.match(await slText(s, '#sg-body'), /Zor, set sonlarında zorlanma\. \(sporRef\)/);
+  assert.match(await slText(s, '#sg-body'), /Zor, set sonlarında zorlanma\. \(idmanRef\)/);
   await p.click('[data-sg="msi"][data-v="0.5"]');
   assert.match(await slText(s, '#sg-body'), /Hafif his\./);
   await p.fill('#sg-not', 'Band yeşil');
@@ -1030,7 +1030,7 @@ sc('Salon planlama: dağılım, öncelik, puanlı liste (⚠ ağrı), sıra, pla
   await p.click('[data-sp-ex="Band Bent Over Row"]'); await p.click('[data-sp-ex="Front Plank"]'); await p.click('[data-sp-ex="Band Lat Pulldown"]');
   await p.click('#sp-next');
   assert.match(await slText(s, '#sp-body'), /3 hareket · ~/);
-  assert.match(await slText(s, '.sp-pl >> nth=0'), /Band Bent Over Row.*öneri: \+1 tekrar.*4 × 20.*15 kg/, '13.1.0: öneri gösterilir, sormadan uygulanmaz; bantta kg yok');
+  assert.match(await slText(s, '.sp-pl >> nth=0'), /Band Bent Over Row.*öneri: \+1 tekrar.*4 × 20.*15 kg/, '13.2.0: öneri gösterilir, sormadan uygulanmaz; bantta kg yok');
   assert.match(await slText(s, '.sp-pl >> nth=1'), /Front Plank.*3 × 30 sn.*Vücut/);
   await p.click('[data-sp-mv="1:-1"]');
   await p.click('#sp-next'); await s.waitScreen('salon');
@@ -1074,7 +1074,7 @@ sc('Salon: bağlantı yokken kayıt kuyruğa alınır, bağlantı gelince saveSa
   await s.waitScreen('home');
   await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
   await p.click('#home-gym'); await s.waitScreen('salon-start');
-  await p.click('[data-ss="repeat"]'); await s.waitModal('Artış önerisi'); await s.modalClick('Hiçbiri'); await s.waitScreen('salon'); // 13.1.0: öneri sorulur
+  await p.click('[data-ss="repeat"]'); await s.waitModal('Artış önerisi'); await s.modalClick('Hiçbiri'); await s.waitScreen('salon'); // 13.2.0: öneri sorulur
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   await slTap(s, 20); await slPress(s); await s.adv(3);
   await p.click('#sl-back'); await s.modalClick('İdmanı bitir ve kaydet');
@@ -1152,8 +1152,7 @@ sc('Düzenle / Sonrasına ekle / Sil (+ Geri al); tabloya plan farkı notu, ekle
   assert.deepStrictEqual(rows[2].slice(0, 5), ['', 'MS', 2, 100, 'BK']);
   assert.match(rows[2][5], /^idmanda eklendi/);
   assert.ok(Math.abs(E.data[2][col('Hedef')] * 86400 - 85) < 1e-6);
-  const A = s.env.sheets.arsiv; const ac = (k) => A.data[0].indexOf(k);
-  assert.deepStrictEqual(A.data.slice(1).map((r) => r[ac('Tekrar')]), [1, 4, 4, 2, 1], 'arsiv: özgün plan');
+  assert.ok(!s.env.sheets.arsiv, '13.2: arşiv yok');
   const h = (await s.ls('ysk.history'))[0];
   assert.deepStrictEqual(h.setler.map((x) => x.tekrar), [1, 4, 6, 2, 2]);
 });

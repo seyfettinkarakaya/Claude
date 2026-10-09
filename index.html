@@ -18,13 +18,13 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="fonts/fonts.css?v=13.1.0">
-  <link rel="stylesheet" href="style.css?v=13.1.0">
-  <script type="module" src="app.js?v=13.1.0"></script>
+  <link rel="stylesheet" href="fonts/fonts.css?v=13.2.0">
+  <link rel="stylesheet" href="style.css?v=13.2.0">
+  <script type="module" src="app.js?v=13.2.0"></script>
 </head>
 <body>
 
-  <!-- Kurulum / Ayarlar: 3 bağlantı (yüzme, salon, sporRef), ses, CSS temposu -->
+  <!-- Kurulum / Ayarlar: 2 bağlantı (idman, idmanRef), ses, CSS temposu -->
   <section id="screen-setup" class="screen" hidden>
     <header class="topbar">
       <button class="icon-btn" id="setup-back" aria-label="Geri" hidden>‹</button>
@@ -32,9 +32,9 @@
     </header>
     <div class="scroll pad">
       <h2 class="set-h">Bağlantılar</h2>
-      <p class="muted">Her tablonun kendi Apps Script'i var; her biri yalnızca kendi dosyasını görür. Adres <b>/exec</b> ile biter. Bilgiler yalnızca bu cihazda saklanır.</p>
+      <p class="muted">İki tablo, her birinin kendi Apps Script'i var; her biri yalnızca kendi dosyasını görür. Adres <b>/exec</b> ile biter. Bilgiler yalnızca bu cihazda saklanır.</p>
 
-      <h3 class="conn-h">Yüzme <small>YuzmeProgram · gerekli</small></h3>
+      <h3 class="conn-h">idman <small>yüzme + salon girişleri · gerekli</small></h3>
       <label class="field">
         <span>Apps Script adresi</span>
         <input id="setup-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
@@ -44,17 +44,7 @@
         <input id="setup-token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="tokenUret() çıktısı">
       </label>
 
-      <h3 class="conn-h">Salon <small>SalonTakip · isteğe bağlı</small></h3>
-      <label class="field">
-        <span>Apps Script adresi</span>
-        <input id="setup-salon-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="boş: salon kapalı">
-      </label>
-      <label class="field">
-        <span>Gizli anahtar (token)</span>
-        <input id="setup-salon-token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
-      </label>
-
-      <h3 class="conn-h">sporRef <small>CSS, bölgeler, RPE/MSI · isteğe bağlı</small></h3>
+      <h3 class="conn-h">idmanRef <small>CSS, bölgeler, hareket kataloğu · salon için gerekli</small></h3>
       <label class="field">
         <span>Apps Script adresi</span>
         <input id="setup-ref-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="boş: CSS elle girilir">
@@ -126,7 +116,7 @@
       </div>
       <button class="home-card gym" id="home-gym">
         <span class="hc-hd"><span class="hc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span><b class="hc-name">Salon</b><span class="hc-soon" id="home-gym-badge">KURULMADI</span></span>
-        <span class="hc-desc" id="home-gym-desc">Ayarlar'dan SalonTakip bağlantısını gir.</span>
+        <span class="hc-desc" id="home-gym-desc">Ayarlar'dan idman ve idmanRef bağlantılarını gir.</span>
       </button>
       <div class="home-gym-go" id="home-gym-go" hidden>
         <div class="hgg-info" id="home-gym-info"></div>
@@ -185,7 +175,7 @@
     <div class="scroll pad" id="ss-body"></div>
   </section>
 
-  <!-- Salon programı (sürüm 13): SalonTakip "plan" sayfası, haftalık -->
+  <!-- Salon programı: idman!salonPlan sayfası, haftalık -->
   <section id="screen-salon-prog" class="screen days salon-prog" hidden>
     <header class="days-top">
       <button class="icon-btn" id="pg-back" aria-label="Geri">‹</button>

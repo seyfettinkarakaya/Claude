@@ -81,11 +81,30 @@ function sampleSalon(extraIdman = []) {
   };
 }
 
+/** Eski SalonTakip!ref BW satırları → idmanRef!bilgi (Kısaltma = BW, ilk, son, kg). */
+function bilgiBw(refSheet, bilgi) {
+  const rows = refSheet.data.slice(1).filter((r) => String(r[0]).toUpperCase() === 'BW').map((r) => ['BW', r[1], r[2], r[3]]);
+  const b = bilgi || new Sheet('bilgi', ['Kısaltma', 'Tam Adı', 'Açıklama', 'Açıklama.2']);
+  b.data.push(...rows);
+  return b;
+}
+
 async function launch(opts = {}) {
-  const env = makeEnv({ Plan: new Sheet('Plan', PLAN_H, opts.rows || samplePlan()), eski: new Sheet('eski', ESKI_H), seans: new Sheet('seans', SEANS_H) });
-  const envs = { TEST: env, REF: makeEnv(opts.refSheets || sampleRef(), 'refkey', 'SporRef.gs') };
+  // 13.2: iki betik — idman.gs (yüzme + salon girişleri: havuzPlan/havuzVeri/havuzSeans, salonVeri/salonPlan) ve
+  // idmanRef.gs (bölgeler, CSS, … + salonHar/salonHKEtki/bilgi BW). Test kurguları eski sayfa adlarıyla yazılır (fakegas ALIAS).
   const salonSheets = opts.salonSheets || (opts.salon ? sampleSalon() : null);
-  if (salonSheets) envs.SALON = makeEnv(salonSheets, 'salonkey', 'Salon.gs');
+  const giris = { Plan: new Sheet('Plan', PLAN_H, opts.rows || samplePlan()), eski: new Sheet('eski', ESKI_H), seans: new Sheet('seans', SEANS_H) };
+  const refSheets = { ...(opts.refSheets || sampleRef()) };
+  if (salonSheets) {
+    giris.idman = salonSheets.idman;
+    if (salonSheets.plan) giris.plan = salonSheets.plan;
+    if (salonSheets.H) refSheets.H = salonSheets.H;
+    if (salonSheets.hkEtki) refSheets.hkEtki = salonSheets.hkEtki;
+    if (salonSheets.ref) refSheets.bilgi = bilgiBw(salonSheets.ref, refSheets.bilgi);
+  }
+  const env = makeEnv(giris);
+  const envs = { TEST: env, REF: makeEnv(refSheets, 'refkey', 'idmanRef.gs') };
+  if (salonSheets) envs.SALON = { sheets: env.sheets, CDate: env.CDate }; // salon artık idman betiğinde
   const net = { offline: Boolean(opts.offline), delay: {}, override: null, calls: [], external: [] };
   const browser = opts.browser;
   const ctx = await browser.newContext({ viewport: opts.viewport || { width: 440, height: 956 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
@@ -124,8 +143,7 @@ async function launch(opts = {}) {
   await page.goto(`http://localhost:${opts.port}/`);
   if (opts.configured !== false) {
     const cfg = { apiUrl: API, token: 'secret' };
-    if (opts.ref) cfg.ref = { apiUrl: REF_API, token: 'refkey' };
-    if (salonSheets) cfg.salon = { apiUrl: SALON_API, token: 'salonkey' };
+    if (opts.ref || salonSheets) cfg.ref = { apiUrl: REF_API, token: 'refkey' }; // salon kataloğu idmanRef'te
     await page.evaluate((c) => localStorage.setItem('ysk.config', JSON.stringify(c)), cfg);
     if (opts.storage) await page.evaluate((s) => { for (const [k, v] of Object.entries(s)) localStorage.setItem(k, JSON.stringify(v)); }, opts.storage);
     await page.reload();

@@ -1,24 +1,24 @@
 // idmanSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=13.1.0';
-import { Wheel } from './wheel.js?v=13.1.0';
-import * as zaman from './zaman.js?v=13.1.0';
-import * as ref from './ref.js?v=13.1.0';
-import * as duzen from './duzen.js?v=13.1.0';
-import * as salon from './salon.js?v=13.1.0';
-import * as grup from './grup.js?v=13.1.0';
-import * as kisit from './kisit.js?v=13.1.0';
-import * as yuk from './yuk.js?v=13.1.0';
-import * as harita from './harita.js?v=13.1.0';
-import * as bilgi from './bilgi.js?v=13.1.0';
-import * as analiz from './analiz.js?v=13.1.0';
-import * as video from './video.js?v=13.1.0';
-import * as hazir from './hazir.js?v=13.1.0';
-import { VIDEOLAR } from './videolar.js?v=13.1.0';
-import * as model from './model.js?v=13.1.0';
+import * as data from './data.js?v=13.2.0';
+import { Wheel } from './wheel.js?v=13.2.0';
+import * as zaman from './zaman.js?v=13.2.0';
+import * as ref from './ref.js?v=13.2.0';
+import * as duzen from './duzen.js?v=13.2.0';
+import * as salon from './salon.js?v=13.2.0';
+import * as grup from './grup.js?v=13.2.0';
+import * as kisit from './kisit.js?v=13.2.0';
+import * as yuk from './yuk.js?v=13.2.0';
+import * as harita from './harita.js?v=13.2.0';
+import * as bilgi from './bilgi.js?v=13.2.0';
+import * as analiz from './analiz.js?v=13.2.0';
+import * as video from './video.js?v=13.2.0';
+import * as hazir from './hazir.js?v=13.2.0';
+import { VIDEOLAR } from './videolar.js?v=13.2.0';
+import * as model from './model.js?v=13.2.0';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '13.1.0';
+export const APP_VERSION = '13.2.0';
 
 const $ = (id) => document.getElementById(id);
 
@@ -236,11 +236,11 @@ function cssUyarisi(tarih = todayKey()) {
   const r = sporRef();
   if (r && r.css.length) {
     const c = ref.cssFor(r, { tarih, havuz: prefs().havuz, alet: '' });
-    if (!c) return 'sporRef css sayfasında ekipmansız CSS satırı yok: tempo bölgesi gösterilmiyor.';
-    if (c.stale) return `sporRef css sayfasında bu tarihi kapsayan satır yok (son: ${c.son || c.ilk}): tempo bölgesi gösterilmiyor. Güncel CSS satırı ekle.`;
+    if (!c) return 'idmanRef css sayfasında ekipmansız CSS satırı yok: tempo bölgesi gösterilmiyor.';
+    if (c.stale) return `idmanRef css sayfasında bu tarihi kapsayan satır yok (son: ${c.son || c.ilk}): tempo bölgesi gösterilmiyor. Güncel CSS satırı ekle.`;
     return '';
   }
-  return prefs().css ? '' : "CSS girilmedi: Ayarlar'dan CSS gir ya da sporRef bağla; o zamana kadar tempo bölgesi gösterilmiyor.";
+  return prefs().css ? '' : "CSS girilmedi: Ayarlar'dan CSS gir ya da idmanRef bağla; o zamana kadar tempo bölgesi gösterilmiyor.";
 }
 
 /** sporRef'i arka planda tazeler; bölge önbelleğini sıfırlar. */
@@ -415,9 +415,8 @@ function endSessionLocally() {
 // ---------------------------------------------------------------------------
 
 const CONN = [
-  { target: 'yuzme', url: 'setup-url', token: 'setup-token', ad: 'Yüzme' },
-  { target: 'salon', url: 'setup-salon-url', token: 'setup-salon-token', ad: 'Salon' },
-  { target: 'ref', url: 'setup-ref-url', token: 'setup-ref-token', ad: 'sporRef' },
+  { target: 'yuzme', url: 'setup-url', token: 'setup-token', ad: 'idman' },
+  { target: 'ref', url: 'setup-ref-url', token: 'setup-ref-token', ad: 'idmanRef' },
 ];
 
 function showSetup(canGoBack) {
@@ -471,11 +470,8 @@ async function saveSetup() {
   btn.disabled = true;
   btn.textContent = 'Bağlanıyor…';
   try {
-    const [yuzme, ...rest] = await Promise.allSettled([
-      data.getDates(),
-      data.isConfigured('salon') ? data.getSalon() : null,
-      data.isConfigured('ref') ? data.getRef() : null,
-    ]);
+    const [yuzme, refR] = await Promise.allSettled([data.getDates(), data.isConfigured('ref') ? data.getRef() : null]);
+    const [salonR] = await Promise.allSettled([data.isConfigured('salon') && yuzme.status === 'fulfilled' ? data.getSalon() : null]); // katalog için idmanRef önce
     const errs = [];
     if (yuzme.status === 'fulfilled') {
       state.dates = yuzme.value.dates;
@@ -484,8 +480,9 @@ async function saveSetup() {
     } else {
       errs.push(connError(CONN[0], yuzme.reason));
     }
-    rest.forEach((r, i) => { if (r.status === 'rejected') errs.push(connError(CONN[i + 1], r.reason)); });
-    if (rest[1].status === 'fulfilled') { state.ref = okRef(rest[1].value); state.refErr = null; } else if (rest[1].reason) state.refErr = rest[1].reason.message;
+    if (refR.status === 'rejected') errs.push(connError(CONN[1], refR.reason));
+    if (salonR.status === 'rejected') errs.push(connError({ ad: 'Salon (idman)' }, salonR.reason));
+    if (refR.status === 'fulfilled') { state.ref = okRef(refR.value); state.refErr = null; } else if (refR.reason) state.refErr = refR.reason.message;
     if (!errs.length) return showHome();
     fail(`${errs.join(' ')} Ayarlar kaydedildi; sol üstten ana sayfaya geçebilirsiniz.`);
     $('setup-back').hidden = false;
@@ -529,11 +526,11 @@ function renderPrefs() {
   $('pref-css-note').hidden = fromRef;
   $('pref-css-ref').hidden = !fromRef && !refErr;
   if (refErr && !fromRef) {
-    $('pref-css-ref').innerHTML = `<em>sporRef okunamadı: ${esc(refErr)}</em><small>CSS şimdilik aşağıdaki elle girilen değerden.</small>`;
+    $('pref-css-ref').innerHTML = `<em>idmanRef okunamadı: ${esc(refErr)}</em><small>CSS şimdilik aşağıdaki elle girilen değerden.</small>`;
   } else if (fromRef) {
     $('pref-css-ref').innerHTML = c
-      ? `sporRef'ten: <b>${fmtDur(c.css)}</b> /100 m <span>${dm(c.ilk)}–${dm(c.son)} · ${c.havuz} m</span>${c.stale ? '<em>CSS güncel değil: bugünü kapsayan satır yok — tempo bölgesi gösterilmiyor. sporRef css sayfasına güncel satır ekle.</em>' : ''}${refErr ? `<em>Son okuma başarısız: ${esc(refErr)} Kayıtlı değerler kullanılıyor.</em>` : ''}<small>Aletli setlerde alete göre ayrı CSS kullanılır; aleti tabloda olmayan sette bölge gösterilmez.</small>`
-      : 'sporRef\'te aletsiz CSS satırı yok.';
+      ? `idmanRef'ten: <b>${fmtDur(c.css)}</b> /100 m <span>${dm(c.ilk)}–${dm(c.son)} · ${c.havuz} m</span>${c.stale ? '<em>CSS güncel değil: bugünü kapsayan satır yok — tempo bölgesi gösterilmiyor. idmanRef css sayfasına güncel satır ekle.</em>' : ''}${refErr ? `<em>Son okuma başarısız: ${esc(refErr)} Kayıtlı değerler kullanılıyor.</em>` : ''}<small>Aletli setlerde alete göre ayrı CSS kullanılır; aleti tabloda olmayan sette bölge gösterilmez.</small>`
+      : 'idmanRef\'te aletsiz CSS satırı yok.';
   } else if (document.activeElement !== $('pref-css')) {
     $('pref-css').value = p.css ? fmtDur(p.css) : '';
   }
@@ -1258,7 +1255,7 @@ function renderForm() {
     blokHtml = `<div class="fm-blok">${fdT.dongu.map((a, i) => `<div class="${i === fdT.i ? 'on' : ''}"><b>${i + 1}</b><small>${esc(a)}</small></div>`).join('')}</div>
       <p class="fm-bt"><b>${esc(fazEtiket(fdT))} · ${esc(fdT.F.ad)}</b> — salon: ${esc(fdT.F.salon)} · yüzme: ${esc(fdT.F.yuzme)}</p>
       ${fdT.yasak.length ? `<p class="fm-acik">Bu fazda yok: ${esc(fdT.yasak.join(', ').toLocaleUpperCase('tr'))}</p>` : ''}
-      <p class="fm-acik">Faz takvimi sporRef fazBilgi sayfasından; döngü ve yasaklar kisit sayfasından (dongu_F…, yasak_F…).</p>`;
+      <p class="fm-acik">Faz takvimi idmanRef faz sayfasından; döngü ve yasaklar kisit sayfasından (dongu_F…, yasak_F…).</p>`;
   } else if (p.blokBas) {
     const hf = Math.floor((Date.parse(salon.haftaBasi(G.bugun)) - Date.parse(p.blokBas)) / (7 * 86400000));
     const bh = ((hf % 4) + 4) % 4;
@@ -1394,7 +1391,7 @@ function renderBuHafta() {
       ${g.isler.some((x) => x.tur === 'salon' && x.kaynak === 'oneri') ? `<button class="btn btn-block" data-bh="salon" data-t="${g.tarih}" data-dk="${g.isler.find((x) => x.tur === 'salon').sure || 65}">📅 Salonu planla · programa yaz</button>` : ''}
     </div>`).join('')}
     ${olcum.length ? `<p class="sp-lb">ÖLÇÜM</p>${olcum.map((o) => (/^CSS/.test(o) ? `<button class="hw-g hw-test" data-bh="css">📏 ${esc(o)} · testi yap ›</button>` : `<p class="hw-g">📏 ${esc(o)}</p>`)).join('')}` : ''}
-    <p class="sp-note">Yük = süre (dk) × zorluk (RPE). Yüzme programı yüzme tablosunda (Code.gs) kalır; önerilen salon günü düzenleyip SalonTakip "plan" sayfasına yazabilirsin.</p>`;
+    <p class="sp-note">Yük = süre (dk) × zorluk (RPE). Yüzme programı idman dosyasındaki havuzPlan'da kalır; önerilen salon günü düzenleyip salonPlan sayfasına yazabilirsin.</p>`;
   for (const el of $('bh-body').querySelectorAll('[data-w]')) el.style.width = `${el.dataset.w}%`;
 }
 
@@ -1700,7 +1697,7 @@ async function openDate(tarih) {
   if (!r.plan.setler || !r.plan.setler.length) {
     await modal({
       title: 'Set bulunamadı',
-      body: `<p>${esc(fmtDateTR(tarih))} için Plan sayfasında satır yok.</p>`,
+      body: `<p>${esc(fmtDateTR(tarih))} için havuzPlan sayfasında satır yok.</p>`,
       actions: [{ label: 'Tamam', value: true }],
     });
     return showDays();
@@ -2632,7 +2629,7 @@ async function cssTestiAc() {
   });
   const refVar = data.isConfigured('ref');
   const sec = await modal({ title: 'CSS testi', body, actions: [
-    ...(refVar ? [{ label: "sporRef'e yaz", value: 'ref', cls: 'btn-primary' }] : []),
+    ...(refVar ? [{ label: "idmanRef'e yaz", value: 'ref', cls: 'btn-primary' }] : []),
     { label: refVar ? 'Yalnızca telefonda' : 'Telefonda kullan', value: 'tel', cls: refVar ? '' : 'btn-primary' },
     { label: 'Vazgeç', value: '' },
   ] });
@@ -2644,9 +2641,9 @@ async function cssTestiAc() {
     await refreshRef();
     state.zones = null;
     renderPrefs();
-    toast(`CSS ${fmtDur(css)} sporRef'e yazıldı (yeni satır; eskiler duruyor)`, 3000);
+    toast(`CSS ${fmtDur(css)} idmanRef'e yazıldı (yeni satır; eskiler duruyor)`, 3000);
   } catch (err) {
-    await modal({ title: 'sporRef\'e yazılamadı', body: `<p>${esc(err.message)}</p><p class="muted">SporRef.gs'in yeni sürümü dağıtıldı mı? (addCss)</p>`, actions: [{ label: 'Tamam', value: '' }] });
+    await modal({ title: 'idmanRef\'e yazılamadı', body: `<p>${esc(err.message)}</p><p class="muted">idmanRef.gs'in yeni sürümü dağıtıldı mı? (addCss)</p>`, actions: [{ label: 'Tamam', value: '' }] });
   }
 }
 
@@ -3530,10 +3527,7 @@ function showDone({ ok, result }) {
   $('done-title').textContent = ok ? 'Kaydedildi' : 'Kaydedilemedi';
   let text;
   if (ok) {
-    text = result.arsivlenenSet === undefined
-      // Eski Code.gs: arsiv yok, satırlar silinir (Code.gs yeniden dağıtılmalı).
-      ? `${result.yazilanSet} set "eski" sayfasına yazıldı, ${result.silinenSet} satır Plan'dan silindi.`
-      : `${result.yazilanSet} set "eski" sayfasına yazıldı, ${result.arsivlenenSet} plan satırı "arsiv" sayfasına taşındı.`;
+    text = `${result.yazilanSet} set havuzVeri sayfasına yazıldı, ${result.silinenSet} satır havuzPlan'dan silindi.`;
     if (result.uyari) text += ` ${result.uyari}`;
     text += ' Seans bu telefonda da saklandı.';
   } else {
@@ -3629,7 +3623,7 @@ function renderHomeGym() {
   if (!data.isConfigured('salon')) {
     badge.textContent = 'KURULMADI';
     badge.hidden = false;
-    desc.textContent = "Ayarlar'dan SalonTakip bağlantısını gir.";
+    desc.textContent = "Ayarlar'dan idman ve idmanRef bağlantılarını gir.";
     return;
   }
   const s = data.loadSalonSession();
@@ -4164,8 +4158,8 @@ function slPlusSet() {
 
 let hdb = null; // hareketdb.js (yalnızca kart açılınca yüklenir)
 let adb = null; // adimlar.js (Türkçe adımlar, yalnızca kart açılınca)
-const adimYukle = () => adb || (adb = import('./adimlar.js?v=13.1.0').then((m) => m.ADIMLAR).catch(() => ({})));
-const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=13.1.0'));
+const adimYukle = () => adb || (adb = import('./adimlar.js?v=13.2.0').then((m) => m.ADIMLAR).catch(() => ({})));
+const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=13.2.0'));
 let bilgiTimer = null;
 
 /** Hareketin videosu (H · Video önce, sonra uygulamadaki liste) ya da null. */
@@ -4599,13 +4593,13 @@ function renderGiris() {
     <div class="es-row sg-hr"><div><b class="n">${G.nabiz == null ? '—' : G.nabiz}</b><small>${G.nabiz == null ? ' ölçmediysen boş kalır · ± ile gir' : ' atım/dk'}${G.gecen != null ? ` · geçen ${G.gecen}` : ''}</small></div>
       <div class="es-stp"><button data-sg-hr="-5" aria-label="Nabız 5 azalt">−5</button><button data-sg-hr="-1" aria-label="Nabız azalt">−</button><button data-sg-hr="1" aria-label="Nabız artır">+</button></div></div>
     <p class="sg-lb">RPE</p>${grid('rpe', salon.RPE_DEGERLER, G.rpe, `<button data-sg="rpe" data-v="" class="${G.rpe == null ? 'is-on' : ''}">—</button>`)}
-    ${rpeText ? `<p class="sg-desc">${esc(rpeText)} <span>(sporRef)</span></p>` : ''}
+    ${rpeText ? `<p class="sg-desc">${esc(rpeText)} <span>(idmanRef)</span></p>` : ''}
     <p class="sg-lb">YEDEKTE TEKRAR (RIR) <small>— son sette kaç tekrar daha yapabilirdin? RPE'yi doldurur</small></p>
     <div class="sg-grid sg-rir">${[0, 1, 2, 3, 4].map((r) => `<button data-sg-rir="${r}" class="${G.rir === r ? 'is-on' : ''}">${r === 4 ? '4+' : r}</button>`).join('')}</div>
     <p class="sg-lb">SON SET</p>
     <div class="sg-grid sg-tur">${[['', 'normal'], ['düşürme seti', 'düşürme'], ['tükenişe kadar', 'tükeniş']].map(([v, l]) => `<button data-sg-tur="${v}" class="${(G.tur || '') === v ? 'is-on' : ''}">${l}</button>`).join('')}</div>
     <p class="sg-lb">MSI</p>${grid('msi', salon.MSI_DEGERLER, G.msi)}
-    ${msiText ? `<p class="sg-desc">${esc(msiText)} <span>(sporRef)</span></p>` : ''}
+    ${msiText ? `<p class="sg-desc">${esc(msiText)} <span>(idmanRef)</span></p>` : ''}
     <label class="es-blk"><span class="es-l">NOT</span><textarea id="sg-not" rows="2" autocomplete="off">${esc(G.not)}</textarea></label>`;
   const next = slNextOpen(G.h);
   $('sg-save-sub').textContent = next >= 0 ? `sıradaki: ${slH()[next].ad}` : 'idman biter · özet';
@@ -4825,8 +4819,8 @@ function renderSalonProgram() {
       ${rows.length ? `<ul class="hgg-ls">${liste}</ul><div class="pg-act">${yapildi ? '' : `<button class="btn btn-primary" data-pg="basla" data-t="${t}">İdmana başla</button>`}<button class="btn" data-pg="duzenle" data-t="${t}">Düzenle</button><button class="btn" data-pg="sil" data-t="${t}">Sil</button></div>`
         : t >= bugun ? `<button class="btn btn-block pg-ekle" data-pg="planla" data-t="${t}">＋ Bu güne salon planla</button>` : ''}</div>`);
   }
-  $('pg-body').innerHTML = `${destek ? '' : '<p class="bi-off">Programı tabloda tutmak için SalonTakip\'e "plan" sayfası gerekir: ilk kez "Programa yaz" deyince betik sayfayı kendisi açar (Salon.gs sürüm 13).</p>'}${gunler.join('')}
-    <p class="sp-note">Program SalonTakip'in "plan" sayfasında durur; masada planla, salonda uygula. Yapılan gün "yapıldı" işaretlenir, silinmez.</p>`;
+  $('pg-body').innerHTML = `${destek ? '' : '<p class="bi-off">Programı tabloda tutmak için idman dosyasında salonPlan sayfası gerekir: ilk kez "Programa yaz" deyince betik sayfayı kendisi açar.</p>'}${gunler.join('')}
+    <p class="sp-note">Program idman dosyasının salonPlan sayfasında durur; masada planla, salonda uygula. Yapılan gün "yapıldı" işaretlenir, silinmez.</p>`;
 }
 
 async function onSalonProgramClick(e) {
@@ -4860,7 +4854,7 @@ async function programaYaz() {
   let t = P.hedefTarih;
   if (!t) {
     const gunler = Array.from({ length: 7 }, (_, i) => yuk.gunEkle(todayKey(), i));
-    t = await modal({ title: 'Hangi güne?', body: '<p>Plan SalonTakip\'in "plan" sayfasına yazılır; o günün eski planı değişir.</p>', actions: [...gunler.map((g, i) => ({ label: `${i === 0 ? 'Bugün' : i === 1 ? 'Yarın' : ''} ${fmtDateTR(g)}`.trim(), value: g, cls: i === 0 ? 'btn-primary' : '' })), { label: 'Vazgeç', value: '' }] });
+    t = await modal({ title: 'Hangi güne?', body: '<p>Plan idman dosyasının salonPlan sayfasına yazılır; o günün eski planı değişir.</p>', actions: [...gunler.map((g, i) => ({ label: `${i === 0 ? 'Bugün' : i === 1 ? 'Yarın' : ''} ${fmtDateTR(g)}`.trim(), value: g, cls: i === 0 ? 'btn-primary' : '' })), { label: 'Vazgeç', value: '' }] });
     if (!t) return;
   }
   const hareketler = P.liste.map((x) => ({ hareket: x.ad, set: x.set, tekrar: x.sure ? 1 : x.tekrar, agirlik: x.agirlik, sure: x.sure || '', dinlen: x.dinlen, ss: x.ss ? String(P.liste.findIndex((y) => y.ss === x.ss) + 1) : '' }));
@@ -4875,7 +4869,7 @@ async function programYaz(t, hareketler) {
     if (state.screen === 'salon-prog') renderSalonProgram();
     return true;
   } catch (err) {
-    toast(err.code === 'UNKNOWN_ACTION' ? 'Salon.gs eski: sürüm 13 betiğini yapıştırıp yeniden dağıt.' : `Yazılamadı: ${err.message}`, 4500);
+    toast(err.code === 'UNKNOWN_ACTION' ? 'idman betiği eski: idman.gs\'i yapıştırıp yeniden dağıt.' : `Yazılamadı: ${err.message}`, 4500);
     return false;
   }
 }

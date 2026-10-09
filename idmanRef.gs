@@ -1,7 +1,7 @@
 /**
  * @OnlyCurrentDoc
  *
- * YüzmeSK — sporRef arka ucu
+ * idmanSK — idmanRef arka ucu (eski SporRef.gs; + salon kataloğu, kas etkileri, vücut ağırlığı)
  *
  * sporRef tablosuna bağlı (container-bound) betik olarak kurulur ve web
  * uygulaması olarak yayınlanır (erişim: herkes, çalıştıran: ben). Yalnızca
@@ -35,7 +35,7 @@ function doPost(e) {
 }
 
 function doGet() {
-  return reply_({ ok: true, data: { uygulama: 'YüzmeSK sporRef', surum: 1 } });
+  return reply_({ ok: true, data: { uygulama: 'idmanSK idmanRef', surum: 2 } });
 }
 
 function handle_(req) {
@@ -100,7 +100,11 @@ function getRef_() {
     alet: readAlet_(ss),
     rpe: readColumn_(ss, 'RPE'),
     msi: readColumn_(ss, 'MSI'),
-    faz: readFaz_(ss, tz)
+    faz: readFaz_(ss, tz),
+    // Salon referansları (eski SalonTakip H / hkEtki / ref BW)
+    katalog: readKatalog_(ss),
+    etki: readEtki_(ss),
+    bw: readBw_(ss, tz)
   };
   // Sürüm 12 sayfaları: yalnızca tabloda varsa cevaba eklenir (eski tablolarda cevap aynı kalır).
   if (ss.getSheetByName('kisit')) out.kisit = readKisit_(ss);
@@ -161,7 +165,7 @@ function addCss_(req) {
   row[cC] = Math.round(css * 10) / 10;
   if (cAl >= 0) row[cAl] = String(req.alet || '').slice(0, 40);
   if (cH >= 0) row[cH] = Number(req.havuz) === 50 ? 50 : 25;
-  if (cKa >= 0) row[cKa] = 'YüzmeSK CSS testi';
+  if (cKa >= 0) row[cKa] = 'idmanSK CSS testi';
   var at = t.sheet.getLastRow() + 1;
   t.sheet.getRange(at, 1, 1, w).setValues([row]);
   return { satir: at, tarih: tarih, css: row[cC] };
@@ -207,7 +211,7 @@ function readBilgi_(ss) {
   var cK = col_(t, 'Kısaltma', true), cA = col_(t, 'Tam Adı', true), cD = col_(t, 'Açıklama', false), cD2 = col_(t, 'Açıklama.2', false);
   t.values.forEach(function (r) {
     var k = text_(r, cK);
-    if (!k) return;
+    if (!k || k.toUpperCase() === 'BW') return; // BW satırı vücut ağırlığıdır (readBw_)
     out[k] = { ad: text_(r, cA), aciklama: text_(r, cD), aciklama2: text_(r, cD2) };
   });
   return out;
@@ -223,7 +227,7 @@ function readAlet_(ss) {
 }
 
 function readFaz_(ss, tz) {
-  var t = optSheet_(ss, 'fazBilgi');
+  var t = optSheet_(ss, 'faz') || optSheet_(ss, 'fazBilgi'); // idmanRef: faz (eski adı fazBilgi)
   if (!t) return [];
   var cS = col_(t, 'Sezon', false), cF = col_(t, 'Faz', true), cI = col_(t, 'Tarih_ilk', true), cE = col_(t, 'Tarih_son', true);
   var cA = col_(t, 'Ad', false), cO = col_(t, 'Odak', false);
@@ -548,4 +552,57 @@ function fail_(code, message) {
 
 function reply_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------------------
+// Salon referansları: salonHar (eski H), salonHKEtki (eski hkEtki), bilgi BW (eski ref)
+// ---------------------------------------------------------------------------
+
+var SHEET_HAR = 'salonHar';
+var SHEET_HKETKI = 'salonHKEtki';
+
+function readKatalog_(ss) {
+  if (!ss.getSheetByName(SHEET_HAR)) return [];
+  var t = readSheet_(ss, SHEET_HAR);
+  var cE = col_(t, 'Exercise', true), cG = col_(t, 'Goal Tag', false), cQ = col_(t, 'Equipment', false);
+  var cB = col_(t, 'BW Coefficient', false), cV = col_(t, 'Video', false);
+  // İsteğe bağlı (sürüm 12): Kısıt (ör. "squat>90", "zıplama"), Alternatif (güvenli hareket adı), Görsel (free-exercise-db kimliği)
+  var cK = col_(t, 'Kısıt', false), cA = col_(t, 'Alternatif', false), cGo = col_(t, 'Görsel', false);
+  // "Swim Transfer Coefficient" (başlık kısaltılmış olabilir) — ilk eşleşen sütun.
+  var cS = -1;
+  t.headers.forEach(function (h, i) { if (cS < 0 && normalize_(h).indexOf('swim transfer') === 0) cS = i; });
+  return t.values.filter(function (r) { return text_(r, cE); }).map(function (r) {
+    var k = katalogRow_(r);
+    if (text_(r, cK)) k.kisit = text_(r, cK);
+    if (text_(r, cA)) k.alternatif = text_(r, cA);
+    if (text_(r, cGo)) k.gorsel = text_(r, cGo);
+    return k;
+  });
+  function katalogRow_(r) {
+    var video = text_(r, cV);
+    return {
+      ad: text_(r, cE), amac: text_(r, cG), ekipman: text_(r, cQ),
+      bw: toNumber_(cell_(r, cB)), stc: toNumber_(cell_(r, cS)),
+      video: /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(video) ? video : ''
+    };
+  }
+}
+
+function readEtki_(ss) {
+  if (!ss.getSheetByName(SHEET_HKETKI)) return [];
+  var t = readSheet_(ss, SHEET_HKETKI);
+  var cE = col_(t, 'Exercise', true), cG = col_(t, 'Muscle Group', true), cM = col_(t, 'Muscle', false);
+  var cK = col_(t, 'Kinetic Chain', false), cO = col_(t, 'Yük Etki Oranı', true);
+  return t.values.filter(function (r) { return text_(r, cE) && toNumber_(r[cO]) !== null; }).map(function (r) {
+    return { ad: text_(r, cE), grup: text_(r, cG), kas: text_(r, cM), zincir: text_(r, cK), oran: toNumber_(r[cO]) };
+  });
+}
+
+/** bilgi sayfasındaki "BW" satırları (Kısaltma = BW; sonra ilk tarih, son tarih, kg): vücut ağırlığı. */
+function readBw_(ss, tz) {
+  if (!ss.getSheetByName('bilgi')) return [];
+  var t = readSheet_(ss, 'bilgi');
+  return t.values.filter(function (r) { return text_(r, 0).toUpperCase() === 'BW'; }).map(function (r) {
+    return { ilk: dateKey_(r[1], tz), son: dateKey_(r[2], tz), kg: toNumber_(r[3]) };
+  }).filter(function (b) { return b.kg !== null; });
 }

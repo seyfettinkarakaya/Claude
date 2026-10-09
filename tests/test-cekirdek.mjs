@@ -278,7 +278,7 @@ t('model: hafta planı — Cuma yüzme, salon yüzmeye komşu olmayan güne, yap
   assert.deepEqual(M.olcumZamani({ bugun: '2026-10-01', sonCssTarih: '2026-08-20', fazNo: 3 }), ['CSS testi (400 + 200): son test 42 gün önce', 'Dinlenme haftası: salonda tahmini 1RM ve ağrı (MSI) eğilimini gözden geçir']);
 });
 
-t('13.1.0: kisit — yüzme/salon gün ayrımı, döngü ve yasak satırları; normal hafta', () => {
+t('13.2.0: kisit — yüzme/salon gün ayrımı, döngü ve yasak satırları; normal hafta', () => {
   const KK = K.kurallar({ kisit: [{ kural: 'gun_hafta_yuzme', deger: 3 }, { kural: 'gun_hafta_salon', deger: 2 }, { kural: 'salon_dk', deger: 50 }, { kural: 'salon_rpe', deger: 5 },
     { kural: 'döngü_F1', deger: 'Hacim, Hacim+, Hacim+, Dinlenme' }, { kural: 'yasak_F1', deger: 'SP, Kuvvet' }] });
   assert.deepEqual([KK.gunHafta, KK.gunHaftaSalon, KK.salonDk, KK.salonRpe], [3, 2, 50, 5]);
@@ -290,7 +290,7 @@ t('13.1.0: kisit — yüzme/salon gün ayrımı, döngü ve yasak satırları; n
   assert.deepEqual([Y.haftaGunleri(L, '2026-09-24'), Y.haftaGunleri(L, '2026-09-24', 'yuzme'), Y.haftaGunleri(L, '2026-09-24', 'salon')], [2, 2, 1]);
 });
 
-t('13.1.0: faz takvimi + döngü + yasak; elle döngü; hafta planında ayrı yüzme/salon', () => {
+t('13.2.0: faz takvimi + döngü + yasak; elle döngü; hafta planında ayrı yüzme/salon', () => {
   const KK = K.kurallar({ kisit: [{ kural: 'dongu_F1', deger: 'Hacim, Hacim+, Hacim+, Dinlenme' }, { kural: 'yasak_F1', deger: 'SP, Kuvvet' }, { kural: 'gun_hafta_salon', deger: 2 }] });
   const takvim = [{ faz: 'F1', ilk: '2026-10-12', son: '2026-12-20', ad: 'Aerobik taban', odak: 'omuz toleransı' }];
   let f = M.fazDurumu({ bugun: '2026-10-28', takvim, K: KK });
@@ -310,7 +310,7 @@ t('13.1.0: faz takvimi + döngü + yasak; elle döngü; hafta planında ayrı y�
   assert.match(P2[1].uyarilar.join(), /~95 dk.*80 dk bütçeyi aşıyor/);
 });
 
-t('13.1.0: artış önerisi bantta tekrar; öneri listesi; öğrenen salon süresi; kısa tekrar; yüzme süre oranı; Scull/Test', () => {
+t('13.2.0: artış önerisi bantta tekrar; öneri listesi; öğrenen salon süresi; kısa tekrar; yüzme süre oranı; Scull/Test', () => {
   const g = [{ tarih: '2026-09-20', hareket: 'Band Row', set: 4, tekrar: 20, agirlik: 15, rpe: 7.5, msi: 0, aciklama: '' },
     { tarih: '2026-09-20', hareket: 'Press', set: 3, tekrar: 10, agirlik: 12.5, rpe: 7, msi: 0, aciklama: '' }];
   assert.deepEqual([S.oneri(g, 'Band Row', { ekipman: 'Band' }).text, S.oneri(g, 'Band Row', { ekipman: 'Band' }).tekrar], ['+1 tekrar', 21]);
