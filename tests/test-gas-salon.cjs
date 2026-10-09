@@ -186,12 +186,25 @@ test('savePlan / planYapildi (sürüm 13): plan sayfası yoksa açılır, gün s
   assert.deepStrictEqual(r.data, { yazilan: 1, silinen: 2 }, 'aynı gün yenilenir');
   const plan = e.call({ action: 'getSalon' }).data.plan;
   assert.deepStrictEqual(plan.map((x) => [x.tarih, x.sira, x.hareket, x.agirlik, x.durum]), [['2026-10-07', 1, 'Band Seated Row', 15, ''], ['2026-10-09', 1, 'Push-up (Standard)', 'Vücut', '']]);
-  assert.deepStrictEqual(e.call({ action: 'planYapildi', tarih: '2026-10-07' }).data, { isaretlenen: 1 });
-  assert.strictEqual(e.call({ action: 'getSalon' }).data.plan[0].durum, 'yapıldı');
+  // 13.2.1 (bilinçli değişiklik): planYapildi artık "yapıldı" işaretlemez, günün satırlarını siler (havuz gibi).
+  assert.deepStrictEqual(e.call({ action: 'planYapildi', tarih: '2026-10-07' }).data, { silinen: 1 });
+  assert.deepStrictEqual(e.call({ action: 'getSalon' }).data.plan.map((x) => x.tarih), ['2026-10-09']);
   assert.strictEqual(JSON.stringify(e.sheets.idman.data), idman0, 'idman sayfası değişmedi');
   assert.deepStrictEqual(e.call({ action: 'savePlan', tarih: '2026-10-09', hareketler: [] }).data, { yazilan: 0, silinen: 1 }, 'boş plan = günü sil');
   assert.strictEqual(e.call({ action: 'savePlan', tarih: '7.10.2026', hareketler: [] }).error, 'BAD_REQUEST');
-  assert.strictEqual(salonEnv().call({ action: 'planYapildi', tarih: '2026-10-07' }).data.isaretlenen, 0, 'sayfa yoksa bir şey yapmaz');
+  assert.strictEqual(salonEnv().call({ action: 'planYapildi', tarih: '2026-10-07' }).data.silinen, 0, 'sayfa yoksa bir şey yapmaz');
+});
+
+test('13.2.1: saveSalon sonrası günün salonPlan satırları silinir, diğer günler kalır; plan sayfası yoksa sorun yok', () => {
+  const e = salonEnv();
+  e.call({ action: 'savePlan', tarih: '2026-10-07', hareketler: [{ hareket: 'Band Seated Row', set: 4, tekrar: 15, agirlik: 15 }, { hareket: 'Deadbug', set: 3, tekrar: 10, agirlik: 'Vücut' }] });
+  e.call({ action: 'savePlan', tarih: '2026-10-09', hareketler: [{ hareket: 'Push-up (Standard)', set: 3, tekrar: 15, agirlik: 'Vücut' }] });
+  const r = e.call({ action: 'saveSalon', tarih: '2026-10-07', hareketler: [{ hareket: 'Band Seated Row', set: 1, tekrar: 15, agirlik: 15, sure: '03:00' }] });
+  assert.ok(r.ok, JSON.stringify(r)); assert.deepStrictEqual(r.data, { yazilan: 1, silinenPlan: 2 });
+  assert.deepStrictEqual(e.call({ action: 'getSalon' }).data.plan.map((x) => x.tarih), ['2026-10-09']);
+  assert.ok(e.call({ action: 'getSalon' }).data.gecmis.some((x) => x.tarih === '2026-10-07'), 'salonVeri\'ye yazıldı');
+  const r2 = salonEnv().call({ action: 'saveSalon', tarih: '2026-10-07', hareketler: [{ hareket: 'X', set: 1, tekrar: 1, sure: '01:00' }] });
+  assert.ok(r2.ok); assert.deepStrictEqual(r2.data, { yazilan: 1, silinenPlan: 0 });
 });
 
 test('13.2 yeni sayfa adları (eşleme yok): idman havuzPlan/havuzVeri/havuzSeans/salonVeri/salonPlan; idmanRef salonHar/salonHKEtki/bilgi BW/faz', () => {

@@ -232,7 +232,7 @@ Sütunlar: `Tarih, Sıra, Hareket, Set, Tekrar, Ağırlık, Süre, Dinlen, Süpe
 | Süre | Süreli hareketlerde saniye (ör. `45`); diğerlerinde boş |
 | Dinlen | Saniye (ör. `90`) |
 | Süperset | Aynı harf → süperset (ör. iki satıra `A`) |
-| Durum | **Boş bırak**. Uygulama idman bitince "yapıldı" yazar |
+| Durum | **Boş bırak**. Kullanılmıyor: idman bitince günün satırları silinir (13.2.1) |
 
 Kurallar:
 - Kısıta takılan hareketleri (squat > 90°, zıplama, koşu) uygulama gizler ve varsa güvenli alternatifi önerir. Ben de önermeyeyim.

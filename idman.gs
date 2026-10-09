@@ -881,18 +881,17 @@ function savePlan_(req) {
   return { yazilan: rows.length, silinen: silinen };
 }
 
-/** planYapildi { tarih } — o günün plan satırlarına Durum = yapıldı (sayfa yoksa bir şey yapmaz). */
+/** planYapildi { tarih } — 13.2.1: o günün salonPlan satırları silinir (sayfa yoksa bir şey yapmaz). */
 function planYapildi_(req) {
   var tarih = requireDate_(req.tarih);
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss.getSheetByName(SHEET_SALON_PLAN)) return { isaretlenen: 0 };
-  var tz = ss.getSpreadsheetTimeZone();
+  return { silinen: deletePlanDay_(ss, tarih, ss.getSpreadsheetTimeZone()) };
+}
+
+function deletePlanDay_(ss, tarih, tz) {
+  if (!ss.getSheetByName(SHEET_SALON_PLAN)) return 0;
   var t = readSheet_(ss, SHEET_SALON_PLAN);
-  var c = planCols_(t);
-  if (c.durum < 0) return { isaretlenen: 0 };
-  var n = 0;
-  rowsForDate_(t, c.tarih, tarih, tz).forEach(function (i) { t.sheet.getRange(i + 2, c.durum + 1).setValues([['yapıldı']]); n++; });
-  return { isaretlenen: n };
+  return deleteDateRows_(t.sheet, planCols_(t).tarih, tarih, tz);
 }
 
 function readGecmis_(ss, tz) {
@@ -974,7 +973,15 @@ function saveSalon_(req) {
     SpreadsheetApp.flush();
     throw appError_('WRITE_MISMATCH', 'idman sayfasına ' + rows.length + ' satır beklenirken farklı sayı bulundu.');
   }
-  return { yazilan: rows.length };
+  // 13.2.1: havuz gibi — yapılan idman salonVeri'de, günün salonPlan satırları silinir (arşiv yok).
+  var out = { yazilan: rows.length, silinenPlan: 0 };
+  try {
+    out.silinenPlan = deletePlanDay_(ss, tarih, tz);
+  } catch (err) {
+    console.error('salon plan sil: ' + ((err && err.stack) || err));
+    out.uyari = 'İdman kaydedildi ancak salonPlan satırları silinemedi.';
+  }
+  return out;
 }
 
 /** "Süre" başlığı yoksa K sütununa (Açıklama'dan sonraki ilk sütun) yazılır. */

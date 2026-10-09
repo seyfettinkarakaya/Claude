@@ -4753,7 +4753,7 @@ async function saveSalonForm() {
   try {
     await data.saveSalon(payload);
     keepSalonHistory(payload, 'sent');
-    if (sl.ses.programTarih) data.salonProgramYapildi(sl.ses.programTarih).then(() => loadSalon()).catch(() => {}); // program satırları "yapıldı"
+    if (sl.ses.programTarih) data.salonProgramYapildi(sl.ses.programTarih).then(() => loadSalon()).catch(() => {}); // program satırları silinir (saveSalon zaten sildiyse etkisiz)
 
     slEnd();
     showHome();
@@ -4820,7 +4820,7 @@ function renderSalonProgram() {
         : t >= bugun ? `<button class="btn btn-block pg-ekle" data-pg="planla" data-t="${t}">＋ Bu güne salon planla</button>` : ''}</div>`);
   }
   $('pg-body').innerHTML = `${destek ? '' : '<p class="bi-off">Programı tabloda tutmak için idman dosyasında salonPlan sayfası gerekir: ilk kez "Programa yaz" deyince betik sayfayı kendisi açar.</p>'}${gunler.join('')}
-    <p class="sp-note">Program idman dosyasının salonPlan sayfasında durur; masada planla, salonda uygula. Yapılan gün "yapıldı" işaretlenir, silinmez.</p>`;
+    <p class="sp-note">Program idman dosyasının salonPlan sayfasında durur; masada planla, salonda uygula. Yapılan idman salonVeri'ye yazılır, o günün satırları plandan silinir.</p>`;
 }
 
 async function onSalonProgramClick(e) {

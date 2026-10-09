@@ -138,7 +138,7 @@ idmanRef boş bırakılırsa salon ve CSS bölgeleri kapalı kalır.
   Boş bırakılırsa uygulama kısıtları hareket adından, kartı ad benzerliğinden bulur.
 - **Sürüm 13 — `plan` sayfası** (yalnızca ekleme; ilk "Programa yaz"da betik kendisi açar):
   `Tarih, Sıra, Hareket, Set, Tekrar, Ağırlık, Süre, Dinlen, Süperset, Not, Durum`. Bir günün planı yazılınca
-  o tarihin eski satırları yenileriyle değişir; idman bitince o günün satırlarına `Durum = yapıldı` yazılır (silinmez).
+  o tarihin eski satırları yenileriyle değişir; idman bitince salonVeri'ye yazılır ve o günün satırları salonPlan'dan silinir (13.2.1, havuz gibi; arşiv yok).
   Sayfa yoksa `getSalon` cevabı eskisiyle aynıdır.
 - `salonHKEtki` grupları İngilizce kalabilir (`Shoulders`, `Arms`, `Core` …); uygulama 10 Türkçe gruba çevirir.
 
@@ -372,6 +372,7 @@ Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
   salon bağlantısı için bekleme süresi 60 sn (büyük idman dosyası + yeni dağıtımın ilk çağrısı).
   havuzSeans sayfası isteğe bağlı: yoksa seans satırı yazılmaz; planlar havuzPlan/salonPlan'dan okunur,
   biten idmanlar havuzVeri/salonVeri'ye yazılır.
+  Salon da havuz gibi: idman kaydedilince günün salonPlan satırları silinir (artık "yapıldı" işareti yok).
 - **Süre biçimleri:** betik süreleri saat haneli yazar (planlanan `[h]:mm:ss`, ölçülen `[h]:mm:ss.0`).
 - **Tablonun hesapladığı sütunlar:** havuzVeri/salonVeri'de betiğin doldurmadığı sütunlarda üstteki satırın formülü
   yeni satırlara kopyalanır; değer yazılmaz, sütunlar kaymaz.
