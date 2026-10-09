@@ -24,6 +24,7 @@ const KEYS = {
 export const TARGETS = ['yuzme', 'salon', 'ref'];
 
 const REQUEST_TIMEOUT_MS = 30000;
+const SLOW_TIMEOUT_MS = 60000; // getSalon: salonVeri birleşik idman dosyasında
 
 // Bu hatalar geçicidir: kayıt kuyruğa alınır ve sonra yeniden denenir.
 const TRANSIENT_CODES = new Set(['NETWORK', 'HTTP', 'BAD_RESPONSE', 'LOCKED', 'SERVER', 'TIMEOUT']);
@@ -132,12 +133,12 @@ export function setPrefs(patch) {
 // Apps Script çağrısı
 // ---------------------------------------------------------------------------
 
-async function call(action, body = {}, target = 'yuzme') {
+async function call(action, body = {}, target = 'yuzme', timeoutMs = REQUEST_TIMEOUT_MS) {
   const { apiUrl, token } = getConfig(target);
   if (!apiUrl || !token) throw new ApiError('NO_CONFIG', 'Sunucu adresi veya anahtar tanımlı değil.');
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let res;
   try {
     // text/plain: CORS ön kontrolü (preflight) tetiklenmesin diye.
@@ -453,7 +454,7 @@ export function addCss(payload) {
 
 export async function getSalon() {
   if (!getCachedRef() && isConfigured('ref')) await getRef().catch(() => {}); // katalog idmanRef'ten
-  const data = await call('getSalon', {}, 'salon');
+  const data = await call('getSalon', {}, 'salon', SLOW_TIMEOUT_MS); // büyük idman dosyası + soğuk başlangıç
   if (!validSalon(data)) throw new ApiError('BAD_RESPONSE', 'Salon cevabı beklenen biçimde değil. Adres idman betiğinin mi (idman.gs), yeni sürüm dağıtıldı mı?');
   store(KEYS.salon, { data, savedAt: Date.now() });
   return refIle(data);

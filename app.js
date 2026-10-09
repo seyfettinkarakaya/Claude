@@ -1,24 +1,24 @@
 // idmanSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=13.2.0';
-import { Wheel } from './wheel.js?v=13.2.0';
-import * as zaman from './zaman.js?v=13.2.0';
-import * as ref from './ref.js?v=13.2.0';
-import * as duzen from './duzen.js?v=13.2.0';
-import * as salon from './salon.js?v=13.2.0';
-import * as grup from './grup.js?v=13.2.0';
-import * as kisit from './kisit.js?v=13.2.0';
-import * as yuk from './yuk.js?v=13.2.0';
-import * as harita from './harita.js?v=13.2.0';
-import * as bilgi from './bilgi.js?v=13.2.0';
-import * as analiz from './analiz.js?v=13.2.0';
-import * as video from './video.js?v=13.2.0';
-import * as hazir from './hazir.js?v=13.2.0';
-import { VIDEOLAR } from './videolar.js?v=13.2.0';
-import * as model from './model.js?v=13.2.0';
+import * as data from './data.js?v=13.2.1';
+import { Wheel } from './wheel.js?v=13.2.1';
+import * as zaman from './zaman.js?v=13.2.1';
+import * as ref from './ref.js?v=13.2.1';
+import * as duzen from './duzen.js?v=13.2.1';
+import * as salon from './salon.js?v=13.2.1';
+import * as grup from './grup.js?v=13.2.1';
+import * as kisit from './kisit.js?v=13.2.1';
+import * as yuk from './yuk.js?v=13.2.1';
+import * as harita from './harita.js?v=13.2.1';
+import * as bilgi from './bilgi.js?v=13.2.1';
+import * as analiz from './analiz.js?v=13.2.1';
+import * as video from './video.js?v=13.2.1';
+import * as hazir from './hazir.js?v=13.2.1';
+import { VIDEOLAR } from './videolar.js?v=13.2.1';
+import * as model from './model.js?v=13.2.1';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '13.2.0';
+export const APP_VERSION = '13.2.1';
 
 const $ = (id) => document.getElementById(id);
 
@@ -4158,8 +4158,8 @@ function slPlusSet() {
 
 let hdb = null; // hareketdb.js (yalnızca kart açılınca yüklenir)
 let adb = null; // adimlar.js (Türkçe adımlar, yalnızca kart açılınca)
-const adimYukle = () => adb || (adb = import('./adimlar.js?v=13.2.0').then((m) => m.ADIMLAR).catch(() => ({})));
-const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=13.2.0'));
+const adimYukle = () => adb || (adb = import('./adimlar.js?v=13.2.1').then((m) => m.ADIMLAR).catch(() => ({})));
+const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=13.2.1'));
 let bilgiTimer = null;
 
 /** Hareketin videosu (H · Video önce, sonra uygulamadaki liste) ya da null. */

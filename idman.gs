@@ -489,7 +489,12 @@ function readSheet_(ss, name, opts) {
   var headers = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
   var t = { sheet: sheet, name: name, headers: headers, map: headerMap_(headers), values: [], display: [], formats: [] };
   if (lastRow > 1 && lastCol) {
-    var range = sheet.getRange(2, 1, lastRow - 1, lastCol);
+    var width = lastCol;
+    if (opts.cols) { // yalnızca gereken başlıklara kadar oku (sağdaki formül sütunları okunmaz)
+      var m = headerMap_(headers);
+      width = opts.cols.reduce(function (w, h) { var k = normalize_(h); return k in m ? Math.max(w, m[k] + 1) : w; }, 1);
+    }
+    var range = sheet.getRange(2, 1, lastRow - 1, width);
     t.values = range.getValues();
     if (opts.display) t.display = range.getDisplayValues();
     if (opts.formats) t.formats = range.getNumberFormats();
@@ -889,8 +894,10 @@ function planYapildi_(req) {
 }
 
 function readGecmis_(ss, tz) {
-  var t = readSheet_(ss, SHEET_IDMAN, { display: true });
+  var keys = Object.keys(IDMAN_COL).map(function (k) { return IDMAN_COL[k]; });
+  var t = readSheet_(ss, SHEET_IDMAN, { cols: keys }); // tüm sayfanın görünen değeri yerine yalnızca Süre sütunu
   var c = idmanCols_(t, false);
+  var sureDisp = c.sure >= 0 && t.values.length ? t.sheet.getRange(2, c.sure + 1, t.values.length, 1).getDisplayValues() : [];
   var out = [];
   t.values.forEach(function (r, i) {
     var tarih = dateKey_(r[c.tarih], tz);
@@ -901,7 +908,7 @@ function readGecmis_(ss, tz) {
       set: toNumber_(r[c.set]), tekrar: toNumber_(r[c.tekrar]),
       agirlik: normalize_(ag) === normalize_(VUCUT) ? VUCUT : toNumber_(ag),
       nabiz: toNumber_(cell_(r, c.nabiz)), rpe: toNumber_(cell_(r, c.rpe)), msi: toNumber_(cell_(r, c.msi)),
-      aciklama: text_(r, c.aciklama), sure: c.sure >= 0 ? durationText_(t.display[i][c.sure]) : ''
+      aciklama: text_(r, c.aciklama), sure: c.sure >= 0 ? durationText_(sureDisp[i][0]) : ''
     });
   });
   return out;
