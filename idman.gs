@@ -284,15 +284,15 @@ function finishSession_(req) {
   var tz = ss.getSpreadsheetTimeZone();
   var plan = readSheet_(ss, SHEET_PLAN, { formats: true });
   var eski = readSheet_(ss, SHEET_ESKI);
-  var seans = readSheet_(ss, SHEET_SEANS);
+  var seans = ss.getSheetByName(SHEET_SEANS) ? readSheet_(ss, SHEET_SEANS) : null; // havuzSeans isteğe bağlı
   var eskiTarihCol = col_(eski, COL.tarih, true);
-  var seansTarihCol = col_(seans, SEANS_COL.tarih, true);
+  var seansTarihCol = seans ? col_(seans, SEANS_COL.tarih, true) : -1;
 
   // 1) Yinelenme kontrolü. seans sayfası da kontrol edilir: hiç set
   //    tamamlanmadan kapatılan bir seans eski'ye satır yazmaz, ikinci
   //    gönderimi yakalamanın tek yolu budur.
   if (rowsForDate_(eski, eskiTarihCol, tarih, tz).length ||
-      rowsForDate_(seans, seansTarihCol, tarih, tz).length) {
+      (seans && rowsForDate_(seans, seansTarihCol, tarih, tz).length)) {
     throw appError_('DUPLICATE', tarih + ' tarihli seans zaten kaydedilmiş.');
   }
 
@@ -358,11 +358,13 @@ function finishSession_(req) {
         'havuzVeri sayfasına ' + done.length + ' satır beklenirken ' + yazilan + ' satır bulundu.');
     }
 
-    // 4) seans sayfasına tek satır.
-    seansWritten = writeRows_(seans, [buildSeansRow_(seans, tarih, seansIn, tz)], true); // en yeni üstte
-    SpreadsheetApp.flush();
-    if (countDateInColumn_(seans.sheet, seansTarihCol, tarih, tz) !== 1) {
-      throw appError_('WRITE_MISMATCH', 'havuzSeans satırı doğrulanamadı.');
+    // 4) seans sayfasına tek satır (sayfa varsa).
+    if (seans) {
+      seansWritten = writeRows_(seans, [buildSeansRow_(seans, tarih, seansIn, tz)], true); // en yeni üstte
+      SpreadsheetApp.flush();
+      if (countDateInColumn_(seans.sheet, seansTarihCol, tarih, tz) !== 1) {
+        throw appError_('WRITE_MISMATCH', 'havuzSeans satırı doğrulanamadı.');
+      }
     }
   } catch (err) {
     rollback_(seansWritten, seansTarihCol, tarih, tz);

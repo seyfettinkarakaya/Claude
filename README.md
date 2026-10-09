@@ -370,6 +370,8 @@ Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
   idmanRef'ten gelir. Arşiv kaldırıldı. Kurulum ve geçiş: bölüm 1–2 ve "Sürüm 13.2'ye geçiş".
 - **13.2.1:** salon geçmişi daha hızlı okunur (salonVeri'de yalnızca gereken sütunlar, görünen değer yalnızca Süre);
   salon bağlantısı için bekleme süresi 60 sn (büyük idman dosyası + yeni dağıtımın ilk çağrısı).
+  havuzSeans sayfası isteğe bağlı: yoksa seans satırı yazılmaz; planlar havuzPlan/salonPlan'dan okunur,
+  biten idmanlar havuzVeri/salonVeri'ye yazılır.
 - **Süre biçimleri:** betik süreleri saat haneli yazar (planlanan `[h]:mm:ss`, ölçülen `[h]:mm:ss.0`).
 - **Tablonun hesapladığı sütunlar:** havuzVeri/salonVeri'de betiğin doldurmadığı sütunlarda üstteki satırın formülü
   yeni satırlara kopyalanır; değer yazılmaz, sütunlar kaymaz.

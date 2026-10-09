@@ -186,4 +186,14 @@ test('büyük plan: 200 set, sıra ve toplamlar doğru', () => {
   assert.strictEqual(r.data.yazilanSet, 200); assert.strictEqual(r.data.silinenSet, 200);
 });
 
+test('13.2.1: havuzSeans sayfası yoksa setler havuzVeri\'ye yazılır, plan silinir; yineleme havuzVeri\'den yakalanır', () => {
+  const e = makeEnv({ Plan: new Sheet('Plan', H, [row('2026-09-29', 1, 'WU', 1, 100), row('2026-09-29', 2, 'MS', 1, 100)]), eski: new Sheet('eski', ESKI_H) });
+  const r = e.call(fin('2026-09-29', [{ sira: 1, tamamlandi: true }, { sira: 2, tamamlandi: true }]));
+  assert.ok(r.ok, JSON.stringify(r));
+  assert.strictEqual(r.data.yazilanSet, 2); assert.strictEqual(r.data.silinenSet, 2);
+  assert.strictEqual(e.sheets.eski.getLastRow(), 3);
+  assert.ok(!e.sheets.seans, 'havuzSeans oluşturulmaz');
+  assert.strictEqual(e.call(fin('2026-09-29', [])).error, 'DUPLICATE');
+});
+
 console.log(`idman.gs uç durum testleri: TAMAM (${n} senaryo)`);
