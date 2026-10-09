@@ -150,13 +150,11 @@ Bant hareketleri 61, esneme 57. Örnek ekranlar yerelde üretilir (`tasarim/v28/
   dokunmama + formül kopyalama. [x] Uygulamada 2 bağlantı (salon = idman; katalog idmanRef'ten). [x] CSS testi kaynağı
   "idmanSK CSS testi".
 - [ ] **Kullanıcı:** iki betiği yapıştır + `tokenUret` + dağıt; telefonda Ayarlar → idman ve idmanRef bağlantıları.
-- [ ] **salonSeans sayfası?** (kullanıcı sorusu 09.10): bkz. öneri aşağıda — karar bekliyor.
-  Öneri: evet, `idman!salonSeans` (`Tarih, Süre, RPE, MSI, Yer, Hareket, Set, Hacim, Açıklama`), havuzSeans'ın
-  eşi. Neden: tek yük modeli seans RPE × toplam süreye dayanıyor (sRPE salon için de geçerli, seans bitince tek RPE);
-  bugün salon seans RPE'si hareket RPE'lerinin ortalamasından, süre hareket sürelerinin toplamından türetiliyor
-  (ısınma, geçişler, dinlenme eksik). Ayrıca seans MSI'sı bölge bölge (havuzla aynı biçim), yer (Salon/Ev/Otel) ve
-  not tek yerde. Uygulama: salon idmanı bitince yüzmedeki gibi RPE + MSI adımı; betik salonSeans'a tek satır yazar
-  (sayfa yoksa açar). Dağıtım gerekir; bir sonraki betik güncellemesiyle birlikte yapılabilir.
+- [ ] **salonSeans sayfası** (karar 09.10: olsun; "uygula" bekliyor): `idman!salonSeans` sütunları
+  `Tarih, Süre, RPE, MSI, Yer, Açıklama` (Hareket sayısı / Set / Hacim yok). havuzSeans'ın eşi: tek satır, idman sonu
+  RPE + MSI adımı (yüzmedeki gibi), Süre = ilk hareketten bitişe gerçek süre. Yük modeli salon için bu satırı kullanır
+  (yoksa bugünkü tahmin: hareket süreleri toplamı × ortalama hareket RPE'si). Sayfa yoksa yazılmaz (havuzSeans gibi
+  isteğe bağlı). idman.gs dağıtımı gerekir.
 
 ### Bütünleşik yüzme + salon modeli — araştırma önerileri (08.10.2026; "uygula" bekliyor)
 Rapor: `reports/Bütünleşik yüzme salon idman modeli.md` (notlar: `research_notes/…`). Kod incelemesine göre çoğu
