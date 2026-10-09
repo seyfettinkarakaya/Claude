@@ -363,6 +363,20 @@ Hata kodları: `AUTH`, `LOCKED`, `DUPLICATE`, `NOT_FOUND`, `PLAN_MISMATCH`,
 3. Telefonda yeni yerel anahtarlar: `ysk.hazir` (hazır olma kontrolleri, 60 gün), `ysk.hareketNot` (harekete sabit not);
    ayarlar: `yer` (Salon/Ev/Otel), `bildirim`. Ayarlar → Yedek indir: anahtarlar hariç JSON.
 
+## Sürüm 13.3'te neler var
+
+- **Salon kartı yüzme kartı gibi:** ana sayfadaki salon kartı planı idman dosyasının **salonPlan** sayfasından okur
+  (yüzmedeki havuzPlan gibi). Bugünün planı, yoksa sıradaki planlı gün gösterilir: gün başlığı, metro çizgisi
+  (durak = hareket, renk = kas grubu, uzunluk = set), hareket listesi; **İdmanı aç** · **Takvim** · **＋ Planla**.
+  Plan yoksa "＋ İdman planla".
+- **salonVeri şablon değil:** "Son idmanı tekrarla / düzenle" kalktı. salonVeri yalnızca artış önerisi, rekorlar,
+  yük/form, haftalık set ve süre tahmini için okunur.
+- **Planlama salonPlan'a yazar:** planlamanın son adımında **Plana yaz** (gün seçilir); telefona yerel "hazır plan"
+  kaydedilmez (eski sürümden kalan yerel plan varsa bir kez kullanılır).
+- **Artış önerisi plana göre:** idman başında yalnızca plandaki değerden yüksek öneriler sorulur; "Hiçbiri" plandaki
+  değerlerle başlar.
+- İdman kaydedilince salonVeri'ye yazılır, o günün salonPlan satırları silinir (13.2.1).
+
 ## Sürüm 13.2'de neler var
 
 - **İki dosya, iki betik:** idman (havuzPlan, havuzVeri, havuzSeans, salonVeri, salonPlan) ve idmanRef (referanslar +

@@ -18,9 +18,9 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="fonts/fonts.css?v=13.2.1">
-  <link rel="stylesheet" href="style.css?v=13.2.1">
-  <script type="module" src="app.js?v=13.2.1"></script>
+  <link rel="stylesheet" href="fonts/fonts.css?v=13.3.0">
+  <link rel="stylesheet" href="style.css?v=13.3.0">
+  <script type="module" src="app.js?v=13.3.0"></script>
 </head>
 <body>
 
@@ -114,13 +114,19 @@
           <button class="hc-cal" id="home-swim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Takvim</button>
         </div>
       </div>
-      <button class="home-card gym" id="home-gym">
-        <span class="hc-hd"><span class="hc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span><b class="hc-name">Salon</b><span class="hc-soon" id="home-gym-badge">KURULMADI</span></span>
-        <span class="hc-desc" id="home-gym-desc">Ayarlar'dan idman ve idmanRef bağlantılarını gir.</span>
-      </button>
-      <div class="home-gym-go" id="home-gym-go" hidden>
-        <div class="hgg-info" id="home-gym-info"></div>
-        <div class="hc-btns"><button class="hc-open" id="home-gym-start"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>İdmana başla</button><button class="hc-cal" id="home-gym-planla">Planla</button></div>
+      <div class="home-card gym" id="home-gym-card">
+        <button class="hc-hd hc-hdb" id="home-gym"><span class="hc-ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg></span><b class="hc-name">Salon</b><span class="hc-soon" id="home-gym-badge">KURULMADI</span></button>
+        <p class="hc-desc" id="home-gym-desc">Ayarlar'dan idman ve idmanRef bağlantılarını gir.</p>
+        <div class="home-gym-go" id="home-gym-go" hidden>
+          <div class="hc-next">
+            <div class="hc-when" id="home-gym-tag"></div>
+            <div id="home-gym-metro"></div>
+            <div class="hc-meta" id="home-gym-meta"></div>
+            <div class="hgg-info" id="home-gym-info"></div>
+          </div>
+          <div class="hc-btns"><button class="hc-open" id="home-gym-start"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg><span id="home-gym-start-text">İdmanı aç</span></button><button class="hc-cal" id="home-gym-cal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Takvim</button></div>
+          <button class="hc-plan" id="home-gym-planla">＋ Planla</button>
+        </div>
       </div>
       <button class="home-row" id="home-form">
         <span><b>Form ve denge</b><small>Yük, toparlanma, stil, blok</small></span>

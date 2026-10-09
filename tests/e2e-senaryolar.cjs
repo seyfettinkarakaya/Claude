@@ -1,7 +1,8 @@
 // Uçtan uca senaryolar: her biri temiz tarayıcı bağlamında, sahte Apps Script ile.
 //   NODE_PATH=$(npm root -g) node tests/e2e-senaryolar.cjs [filtre]
 const assert = require('assert');
-const { runScenarios, prow, D, REF_API, SALON_API } = require('./harness.cjs');
+const { runScenarios, prow, D, REF_API, SALON_API, sampleSalon } = require('./harness.cjs');
+const { Sheet } = require('./fakegas.cjs');
 
 const T23 = '2026-09-23';
 const stripDetay = (r) => (r.ok ? { ...r, data: r.data.map(({ detay, ...d }) => d) } : r);
@@ -929,19 +930,27 @@ const slTitle = (s) => s.page.$eval('#sl-wheel .w-item.is-active .sl-ad', (e) =>
 const slPress = (s) => s.page.$eval('#sl-main', (b) => b.click());
 const slTap = async (s, sec) => { await slPress(s); if (sec) await s.adv(sec); };
 
-sc('Salon: kurulmadıysa Ayarlar; son idmanı tekrarla → BAŞLA/BİTTİ, tekrar ±, hareket sonu nabız·RPE·MSI, özet, idman sayfasına yazılır', async ({ launch }) => {
+/** 13.3: salon idmanı salonPlan'dan başlar — bugüne son idmanın değerleriyle plan. */
+const salonPlanli = () => ({ ...sampleSalon(), plan: new Sheet('plan', ['Tarih', 'Sıra', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Süre', 'Dinlen', 'Süperset', 'Not', 'Durum'], [
+  [D(T23), 1, 'Band Bent Over Row', 4, 20, 15, '', 90, '', '', ''],
+  [D(T23), 2, 'Standard Pull-up', 3, 11, 'Vücut', '', 90, '', '', ''],
+  [D('2026-09-26'), 1, 'Front Plank', 3, 1, 'Vücut', 45, 60, '', '', ''],
+]) });
+
+// 13.3 (bilinçli değişiklik): "son idmanı tekrarla" yerine salonPlan'daki bugünün planı; kayıttan sonra günün plan satırları silinir.
+sc('Salon: kurulmadıysa Ayarlar; salonPlan içindeki bugünün planı → BAŞLA/BİTTİ, tekrar ±, hareket sonu nabız·RPE·MSI, özet, idman sayfasına yazılır', async ({ launch }) => {
   let s = await launch(); let p = s.page;
   await s.waitScreen('home');
   assert.strictEqual(await slText(s, '#home-gym-badge'), 'KURULMADI');
   await p.click('#home-gym'); await s.waitScreen('setup');
   await s.close();
-  s = await launch({ salon: true, ref: true }); p = s.page;
+  s = await launch({ salonSheets: salonPlanli(), ref: true }); p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
-  await p.waitForFunction(() => /Son idman/.test(document.getElementById('home-gym-desc').textContent));
+  await p.waitForFunction(() => /salonPlan · tablodan/.test(document.getElementById('home-gym-go').textContent));
   await p.click('#home-gym'); await s.waitScreen('salon-start');
-  assert.match(await slText(s, '#ss-body'), /SON İDMAN · 20 EYLÜL.*Band Bent Over Row.*4 × 20 · 15 kg · RPE 7,5.*Standard Pull-up.*3 × 11-9-9 · Vücut · RPE 9,5 · MSI 1/);
-  await p.click('[data-ss="repeat"]');
+  assert.match(await slText(s, '#ss-body'), /23 EYLÜL ÇARŞAMBA · BUGÜN · 2 HAREKET.*Band Bent Over Row\s*4 × 20 · 15 kg.*Standard Pull-up\s*3 × 11 · Vücut.*İdmanı aç.*26 EYLÜL.*Front Plank\s*3 × 45 sn.*Bu planla başla/);
+  await p.click('[data-ss="basla"][data-t="2026-09-23"]');
   // 13.2.0: artış önerisi sorulur (sormadan uygulanmaz); bantta kg değil tekrar (+1); ⚠ (RPE 9,5) listede yok
   await s.waitModal('Artış önerisi · 1 hareket');
   assert.match(await slText(s, '#modal-body'), /Band Bent Over Row\s*20 → 21 tekrar/);
@@ -999,6 +1008,7 @@ sc('Salon: kurulmadıysa Ayarlar; son idmanı tekrarla → BAŞLA/BİTTİ, tekra
     [2, 'Standard Pull-up', 1, 11, 'Vücut', '', '', '', 'Setler: 11'],
   ]);
   assert.ok(I.data[1][0] instanceof s.envs.SALON.CDate && I.data[1][0].toISOString().startsWith('2026-09-23'));
+  assert.deepStrictEqual(s.envs.SALON.sheets.plan.data.slice(1).filter((r) => r[2]).map((r) => r[2]), ['Front Plank'], 'günün plan satırları silindi');
   const sure = Math.round(I.data[1][10] * 86400);
   assert.ok(sure >= 4 * 30 + 3 * 63 && sure < 4 * 31 + 3 * 64 + 3, `Row süresi ${sure}`);
   assert.strictEqual(await s.ls('ysk.salonSession'), null);
@@ -1070,11 +1080,11 @@ sc('Salon planlama: dağılım, öncelik, puanlı liste (⚠ ağrı), sıra, pla
 });
 
 sc('Salon: bağlantı yokken kayıt kuyruğa alınır, bağlantı gelince saveSalon ile gönderilir', async ({ launch }) => {
-  const s = await launch({ salon: true }); const p = s.page;
+  const s = await launch({ salonSheets: salonPlanli() }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => localStorage.getItem('ysk.salon'));
   await p.click('#home-gym'); await s.waitScreen('salon-start');
-  await p.click('[data-ss="repeat"]'); await s.waitModal('Artış önerisi'); await s.modalClick('Hiçbiri'); await s.waitScreen('salon'); // 13.2.0: öneri sorulur
+  await p.click('[data-ss="basla"][data-t="2026-09-23"]'); await s.waitModal('Artış önerisi'); await s.modalClick('Hiçbiri'); await s.waitScreen('salon'); // 13.2.0: öneri sorulur
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   await slTap(s, 20); await slPress(s); await s.adv(3);
   await p.click('#sl-back'); await s.modalClick('İdmanı bitir ve kaydet');

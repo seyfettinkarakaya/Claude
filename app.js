@@ -1,24 +1,24 @@
 // idmanSK — arayüz. Veriye yalnızca data.js üzerinden erişir.
 
-import * as data from './data.js?v=13.2.1';
-import { Wheel } from './wheel.js?v=13.2.1';
-import * as zaman from './zaman.js?v=13.2.1';
-import * as ref from './ref.js?v=13.2.1';
-import * as duzen from './duzen.js?v=13.2.1';
-import * as salon from './salon.js?v=13.2.1';
-import * as grup from './grup.js?v=13.2.1';
-import * as kisit from './kisit.js?v=13.2.1';
-import * as yuk from './yuk.js?v=13.2.1';
-import * as harita from './harita.js?v=13.2.1';
-import * as bilgi from './bilgi.js?v=13.2.1';
-import * as analiz from './analiz.js?v=13.2.1';
-import * as video from './video.js?v=13.2.1';
-import * as hazir from './hazir.js?v=13.2.1';
-import { VIDEOLAR } from './videolar.js?v=13.2.1';
-import * as model from './model.js?v=13.2.1';
+import * as data from './data.js?v=13.3.0';
+import { Wheel } from './wheel.js?v=13.3.0';
+import * as zaman from './zaman.js?v=13.3.0';
+import * as ref from './ref.js?v=13.3.0';
+import * as duzen from './duzen.js?v=13.3.0';
+import * as salon from './salon.js?v=13.3.0';
+import * as grup from './grup.js?v=13.3.0';
+import * as kisit from './kisit.js?v=13.3.0';
+import * as yuk from './yuk.js?v=13.3.0';
+import * as harita from './harita.js?v=13.3.0';
+import * as bilgi from './bilgi.js?v=13.3.0';
+import * as analiz from './analiz.js?v=13.3.0';
+import * as video from './video.js?v=13.3.0';
+import * as hazir from './hazir.js?v=13.3.0';
+import { VIDEOLAR } from './videolar.js?v=13.3.0';
+import * as model from './model.js?v=13.3.0';
 
 // Telefonun güncel kodu çalıştırıp çalıştırmadığını görmek için ekranda gösterilir.
-export const APP_VERSION = '13.2.1';
+export const APP_VERSION = '13.3.0';
 
 const $ = (id) => document.getElementById(id);
 
@@ -3620,38 +3620,66 @@ function planRows(d, opts) {
 function renderHomeGym() {
   const badge = $('home-gym-badge');
   const desc = $('home-gym-desc');
-  if (!data.isConfigured('salon')) {
+  const go = $('home-gym-go');
+  const kur = data.isConfigured('salon');
+  $('home-gym-card').classList.toggle('off', !kur);
+  if (!kur) {
     badge.textContent = 'KURULMADI';
     badge.hidden = false;
     desc.textContent = "Ayarlar'dan idman ve idmanRef bağlantılarını gir.";
+    go.hidden = true;
     return;
   }
+  desc.textContent = '';
   const s = data.loadSalonSession();
-  if (s) {
-    badge.textContent = 'DEVAM EDİYOR';
-    badge.hidden = false;
-    desc.textContent = `${s.hareketler.length} hareket${s.events.length ? ' · başladı' : ''} · devam etmek için dokun`;
-    return;
-  }
-  badge.hidden = true;
-  const d = salonData();
-  const w = d && salon.lastWorkout(d.gecmis);
-  const hz = salonHazir();
-  desc.textContent = hz && hz.tur === 'plan'
-    ? `Hazır plan · ${hz.hareketler.length} hareket · ~${fmtDur(salonTahmin(hz.hareketler))}`
-    : w ? `Son idman ${fmtDateTR(w.tarih)} · ${w.rows.length} hareket` : 'İdman planla ya da son idmanı tekrarla.';
-  renderGymGo(hz);
+  badge.textContent = 'DEVAM EDİYOR';
+  badge.hidden = !s;
+  renderGymGo(s ? null : salonHazir(), s);
 }
 
-/** Ana sayfada başlatılabilecek salon idmanı: kaydedilmiş plan, yoksa son idman (öneriler uygulanmış). */
+/** Tarih anahtarı → "Bugün · Çarşamba 23 Eylül" / "Cuma · 25 Eylül" (yüzme kartıyla aynı). */
+function gunBasligi(k) {
+  const today = todayKey();
+  const dt = parseKey(k);
+  const date = `${GUNLER[dt.getDay()]} ${dt.getDate()} ${AYLAR[dt.getMonth()]}`;
+  if (k === today) return `Bugün <span>· ${date}</span>`;
+  if (k === addDays(today, 1)) return `Yarın <span>· ${date}</span>`;
+  return `${GUNLER[dt.getDay()]} <span>· ${dt.getDate()} ${AYLAR[dt.getMonth()]}</span>`;
+}
+
+/** Salon metrosu: durak = hareket, renk = kas grubu, uzunluk = set sayısı (yüzmede durak = set, renk = blok). */
+function salonMetroSvg(list) {
+  const W = 360;
+  const tot = list.reduce((a, x) => a + Math.max(1, x.set || 0), 0) || 1;
+  let x = 0;
+  const segs = [];
+  const dots = [];
+  for (const h of list) {
+    const w = (W * Math.max(1, h.set || 0)) / tot;
+    const c = grupRenk(grupOf(h.ad));
+    segs.push(`<line x1="${(x + 2).toFixed(1)}" y1="14" x2="${(x + w - 2).toFixed(1)}" y2="14" stroke="${c}" stroke-width="6" stroke-linecap="round"/>`);
+    dots.push(`<circle cx="${(x + w / 2).toFixed(1)}" cy="14" r="6.5" fill="#141B23" stroke="${c}" stroke-width="3.5"/>`);
+    x += w;
+  }
+  return `<svg class="metro" viewBox="0 0 ${W} 28" preserveAspectRatio="none" aria-hidden="true">${segs.join('')}${dots.join('')}</svg>`;
+}
+
+/** Programdaki (yapılmamış) gün listesi, sıralı. */
+const programGunleri = () => [...new Set(salonProgram().filter((r) => !r.durum).map((r) => r.tarih))].sort();
+
+/**
+ * 13.3: ana sayfada başlatılabilecek salon idmanı — tek kaynak salonPlan (yüzmedeki havuzPlan gibi):
+ * bugünün planı, yoksa sıradaki planlı gün. (Eski sürümde telefona kaydedilmiş plan varsa önce o.)
+ * salonVeri'deki son idman artık şablon değildir.
+ */
 function salonHazir() {
   const p = data.loadSalonPlan();
   if (p) return { tur: 'plan', hareketler: p.hareketler, oncelik: p.oncelik || {}, kaydedildi: p.kaydedildi };
-  const pr = programGun(todayKey());
-  if (pr.length && !pr.every((r) => r.durum)) return { tur: 'program', hareketler: programHareketler(pr), tarih: todayKey() };
-  const d = salonData();
-  const w = d && salon.lastWorkout(d.gecmis);
-  return w ? { tur: 'son', hareketler: w.hareketler, tarih: w.tarih } : null;
+  const bugun = todayKey();
+  const gunler = programGunleri();
+  const t = gunler.includes(bugun) ? bugun : gunler.find((g) => g > bugun);
+  if (!t) return null;
+  return { tur: 'program', hareketler: programHareketler(programGun(t).filter((r) => !r.durum)), tarih: t };
 }
 
 /** Salon süre tahmini (sn): geçmişteki gerçek sürelerden öğrenir (Süre sütunu), yoksa formül. */
@@ -3666,53 +3694,88 @@ const oneriOf = (ad) => (salonData() ? salon.oneri(salonData().gecmis, ad, { eki
  * İdman başında artış önerilerini sorar (sormadan uygulanmaz). Seçilenler uygulanır (kartta "geri al" ile),
  * seçilmeyenler son yapılan değerle başlar. Vazgeçilirse null.
  */
-async function oneriSor(hareketler) {
+async function oneriSor(hareketler, { plan = false } = {}) {
   const list = hareketler.map((x) => ({ ...x }));
   const d = salonData();
-  const on = d ? salon.oneriListesi(d.gecmis, list, ekipmanOf) : [];
+  const on = plan ? planOneriListesi(list) : d ? salon.oneriListesi(d.gecmis, list, ekipmanOf) : [];
   if (!on.length) return list;
   const sec = new Set(on.map((x) => x.i));
   const el = document.createElement('div');
   const deger = (x, o) => (o.text.includes('kg') ? `${fmtKg(x.agirlik)} → ${fmtKg(o.agirlik)}` : o.sure && o.sure !== x.sure ? `${x.sure} → ${o.sure} sn` : `${fmtDec(x.tekrar)} → ${fmtDec(o.tekrar)} tekrar`);
   const ciz = () => {
-    el.innerHTML = `<p class="oy-not">Son idmanda RPE ≤ 8 ve ağrı yok. Seçtiğin harekette değer artar; seçmediğin son yaptığınla başlar.</p>
+    el.innerHTML = `<p class="oy-not">Son idmanda RPE ≤ 8 ve ağrı yok. Seçtiğin harekette değer artar; seçmediğin ${plan ? 'plandaki değerle' : 'son yaptığınla'} başlar.</p>
       ${on.map((x) => `<button class="oy-r${sec.has(x.i) ? ' is-on' : ''}" data-oy="${x.i}"><span>${esc(x.ad)}</span><b class="n">${esc(deger(list[x.i], x.o))}</b><i>${sec.has(x.i) ? '✓' : ''}</i></button>`).join('')}`;
   };
   ciz();
   el.addEventListener('click', (e) => { const b = e.target.closest('[data-oy]'); if (!b) return; const i = Number(b.dataset.oy); if (sec.has(i)) sec.delete(i); else sec.add(i); ciz(); });
-  const v = await modal({ title: `Artış önerisi · ${on.length} hareket`, body: el, actions: [{ label: 'Seçilenleri uygula', value: 'uygula', cls: 'btn-primary' }, { label: 'Hiçbiri · son değerlerle', value: 'hic' }, { label: 'Vazgeç', value: '' }] });
+  const v = await modal({ title: `Artış önerisi · ${on.length} hareket`, body: el, actions: [{ label: 'Seçilenleri uygula', value: 'uygula', cls: 'btn-primary' }, { label: plan ? 'Hiçbiri · plandaki değerlerle' : 'Hiçbiri · son değerlerle', value: 'hic' }, { label: 'Vazgeç', value: '' }] });
   if (!v) return null;
   if (v === 'uygula') for (const x of on) if (sec.has(x.i)) salon.uygulaOneri(list[x.i], x.o);
   return list;
 }
 
-function renderGymGo(hz) {
+function renderGymGo(hz, ses) {
   const box = $('home-gym-go');
-  if (!hz || !data.isConfigured('salon') || data.loadSalonSession()) { box.hidden = true; return; }
-  const n = hz.tur === 'son' && salonData() ? salon.oneriListesi(salonData().gecmis, hz.hareketler, ekipmanOf).length : hz.hareketler.filter((x) => x._oneri).length;
-  const pay = {};
-  for (const x of hz.hareketler) { const g = grupOf(x.ad); if (g) pay[g] = (pay[g] || 0) + x.set; }
-  const k = kapsam(hz.hareketler);
-  const gk = Object.entries(k);
   const N = 5;
-  const satir = (x) => `<li><i data-bg="${grupRenk(grupOf(x.ad))}"></i><span>${esc(x.ad)}</span><b class="n">${x.set}×${x.sure ? `${x.sure}sn` : fmtDec(x.tekrar)}</b></li>`;
-  $('home-gym-info').innerHTML = `<span class="hgg-hd"><span class="hgg-k">${hz.tur === 'plan' ? 'HAZIR PLAN' : hz.tur === 'program' ? 'BUGÜNÜN PROGRAMI · TABLODAN' : `SON İDMAN · ${esc(fmtDateTR(hz.tarih).toLocaleUpperCase('tr'))}`}</span><button class="hgg-ed" id="home-gym-edit">Düzenle</button></span>
-    <span class="hgg-bar">${gk.map(([g, v]) => `<i data-bg="${grup.grupRenk(g)}" data-grow="${v}"></i>`).join('')}</span>
-    <span class="hgg-gr">${gk.slice(0, 4).map(([g, v]) => `<span><i data-bg="${grup.grupRenk(g)}"></i>${esc(g)} <b>%${v}</b></span>`).join('')}${gk.length > 4 ? `<span class="mu">+${gk.length - 4}</span>` : ''}</span>
-    <ul class="hgg-ls">${hz.hareketler.slice(0, N).map(satir).join('')}</ul>
-    ${hz.hareketler.length > N ? `<details class="hgg-more"><summary>+${hz.hareketler.length - N} hareket daha</summary><ul class="hgg-ls">${hz.hareketler.slice(N).map(satir).join('')}</ul></details>` : ''}
-    <span class="hgg-m">${hz.hareketler.length} hareket · ${fmtSure(salonTahmin(hz.hareketler))}${n ? ` · ${n} harekette ilerleme önerisi` : ''}</span>`;
+  const satir = (x) => `<li><i data-bg="${grupRenk(grupOf(x.ad))}"></i><span>${esc(x.ad)}</span><b class="n">${x.set}×${x.sure ? `${x.sure} sn` : fmtDec(x.tekrar)}${typeof x.agirlik === 'number' ? ` · ${fmtKg(x.agirlik)}` : ''}</b></li>`;
+  let when;
+  let list = null;
+  let meta = '';
+  let src = '';
+  let ana = 'İdmanı aç';
+  if (ses) {
+    when = 'Devam eden idman';
+    list = ses.hareketler;
+    meta = `${list.length} hareket${ses.events.length ? ' · başladı' : ''}`;
+    ana = 'Devam et';
+  } else if (hz) {
+    when = gunBasligi(hz.tarih || todayKey());
+    list = hz.hareketler;
+    const set = list.reduce((a, x) => a + (x.set || 0), 0);
+    meta = `${list.length} hareket · ${set} set · ${fmtSure(salonTahmin(list))}`;
+    const bugun = !hz.tarih || hz.tarih === todayKey();
+    src = hz.tur === 'plan' ? 'Telefonda kayıtlı plan (eski sürüm)' : bugun ? 'salonPlan · tablodan' : 'salonPlan · bugün plan yok, sıradaki gün';
+    if (!bugun) ana = 'Bu planla başla';
+  } else {
+    when = 'Plan yok';
+    meta = 'Sırada salon planı yok';
+    src = salonData() ? "Tabloda salonPlan'a yazabilir ya da burada planlayabilirsin." : 'Plan yükleniyor…';
+    ana = '＋ İdman planla';
+  }
+  $('home-gym-tag').innerHTML = when;
+  $('home-gym-metro').innerHTML = list && list.length ? salonMetroSvg(list) : '';
+  $('home-gym-meta').textContent = meta;
+  $('home-gym-info').innerHTML = list && !ses ? `<ul class="hgg-ls">${list.slice(0, N).map(satir).join('')}</ul>
+    ${list.length > N ? `<details class="hgg-more"><summary>+${list.length - N} hareket daha</summary><ul class="hgg-ls">${list.slice(N).map(satir).join('')}</ul></details>` : ''}
+    ${src ? `<p class="hgg-src">${esc(src)}</p>` : ''}` : src ? `<p class="hgg-src">${esc(src)}</p>` : '';
   paint($('home-gym-info'));
+  $('home-gym-start-text').textContent = ana;
+  $('home-gym-start').querySelector('svg').style.display = list ? '' : 'none';
+  $('home-gym-planla').hidden = Boolean(ses) || !list;
+  $('home-gym-planla').textContent = hz && hz.tarih && hz.tarih !== todayKey() ? '＋ Bugün için planla' : '＋ Planla (başka gün / yeni)';
   box.hidden = false;
 }
 
-function onGymStart() {
+/** Plandaki değerden yüksek artış önerileri (planda zaten yazılı olan değer önerilmez). */
+function planOneriListesi(list) {
+  const d = salonData();
+  if (!d) return [];
+  return salon.oneriListesi(d.gecmis, list, ekipmanOf).filter(({ i, o }) => {
+    const x = list[i];
+    return (typeof o.agirlik === 'number' && typeof x.agirlik === 'number' && o.agirlik > x.agirlik)
+      || (!x.sure && o.tekrar > x.tekrar && o.agirlik === x.agirlik) || (x.sure && o.sure > x.sure);
+  });
+}
+
+/** İdmanı aç: devam eden idman, plan (artış önerisi sorulur) ya da plan yoksa planlama. */
+async function onGymStart() {
   if (data.loadSalonSession()) return onHomeGym();
   const hz = salonHazir();
-  if (!hz) return showSalonStart();
-  if (hz.tur === 'son') return oneriSor(hz.hareketler).then((h) => { if (h) startSalon(h); });
+  if (!hz) return showSalonPlan();
+  const h = await oneriSor(hz.hareketler, { plan: true });
+  if (!h) return;
   if (hz.tur === 'plan') data.clearSalonPlan();
-  sl.ses = salon.newSession(todayKey(), hz.hareketler.map((x) => ({ ...x })));
+  sl.ses = salon.newSession(todayKey(), h);
   if (hz.tur === 'program') sl.ses.programTarih = hz.tarih;
   if (hz.oncelik) sl.ses.oncelik = { ...hz.oncelik };
   slPersist();
@@ -3738,6 +3801,7 @@ async function loadSalon() {
 }
 
 function showSalonStart() {
+  state.pgHome = false;
   show('salon-start');
   renderSalonStart();
   loadSalon();
@@ -3752,35 +3816,42 @@ function renderSalonStart() {
       : '<p class="empty">Yükleniyor…</p>';
     return;
   }
-  const w = salon.lastWorkout(d.gecmis);
-  const last = w ? `
-    <div class="ss-card">
-      <p class="ss-k">SON İDMAN · ${esc(fmtDateTR(w.tarih).toLocaleUpperCase('tr'))}</p>
-      ${w.rows.map((r) => {
-        const reps = salon.parseSetler(r.aciklama);
-        return `<div class="ss-row"><i data-bg="${grupInfo(r.hareket).renk}"></i><span><b>${esc(r.hareket)}</b>
-          <small>${r.set || ''} × ${esc(reps ? reps.map(fmtDec).join('-') : fmtDec(r.tekrar))} · ${esc(fmtKg(r.agirlik))}${r.rpe != null ? ` · RPE ${fmtDec(r.rpe)}` : ''}${r.msi != null ? ` · MSI ${fmtDec(r.msi)}` : ''}</small></span></div>`;
-      }).join('')}
-    </div>
-    <button class="btn btn-primary btn-block" data-ss="repeat">Son idmanı tekrarla</button>
-    <button class="btn btn-block set-gap" data-ss="edit">Son idmanı düzenle (şablon)</button>` : '<p class="empty">idman sayfasında kayıt yok.</p>';
-  body.innerHTML = `${last}<button class="btn btn-block set-gap" data-ss="plan">Yeni idman planla</button>
+  // 13.3: yalnızca salonPlan'daki planlı günler (salonVeri'deki son idman şablon değil)
+  const bugun = todayKey();
+  const gunler = programGunleri().filter((t) => t >= bugun);
+  const kart = (t) => {
+    const rows = programGun(t).filter((r) => !r.durum);
+    const list = programHareketler(rows);
+    return `<div class="ss-card" data-ss-gun="${t}">
+      <p class="ss-k">${esc(fmtDateTR(t).toLocaleUpperCase('tr'))}${t === bugun ? ' · BUGÜN' : ''} · ${list.length} HAREKET · ${esc(fmtSure(salonTahmin(list)))}</p>
+      ${rows.map((r) => `<div class="ss-row"><i data-bg="${grupInfo(r.hareket).renk}"></i><span><b>${esc(r.hareket)}</b>
+        <small>${r.set || ''} × ${r.sure ? `${r.sure} sn` : esc(fmtDec(r.tekrar))}${r.agirlik !== '' && r.agirlik != null ? ` · ${esc(fmtKg(r.agirlik))}` : ''}</small></span></div>`).join('')}
+      <div class="pg-act"><button class="btn btn-primary" data-ss="basla" data-t="${t}">${t === bugun ? 'İdmanı aç' : 'Bu planla başla'}</button><button class="btn" data-ss="duzenle" data-t="${t}">Düzenle</button></div>
+    </div>`;
+  };
+  body.innerHTML = `${gunler.length ? gunler.map(kart).join('') : `<p class="empty">salonPlan'da sırada plan yok. Tabloda yazabilir ya da burada planlayabilirsin.</p>`}
+    <button class="btn btn-block set-gap${gunler.length ? '' : ' btn-primary'}" data-ss="plan">＋ Yeni idman planla</button>
     <button class="btn btn-block set-gap" data-ss="prog">📅 Salon programı (hafta)</button>
     ${sl.err ? `<p class="muted set-gap">Çevrimdışı: son alınan veri gösteriliyor.</p>` : ''}`;
   paint(body);
 }
 
-function onSalonStartClick(e) {
+async function onSalonStartClick(e) {
   const b = e.target.closest('[data-ss]');
   if (!b) return;
   const act = b.dataset.ss;
+  const t = b.dataset.t;
   if (act === 'retry') { sl.err = null; renderSalonStart(); loadSalon(); }
-  else if (act === 'repeat') {
-    const w = salon.lastWorkout(salonData().gecmis);
-    if (w) oneriSor(w.hareketler).then((h) => { if (h) startSalon(h); });
-  } else if (act === 'edit') {
-    const w = salon.lastWorkout(salonData().gecmis);
-    if (w) showSalonPlanSablon({ tur: 'son', hareketler: w.hareketler, tarih: w.tarih });
+  else if (act === 'basla') {
+    const h = await oneriSor(programHareketler(programGun(t).filter((r) => !r.durum)), { plan: true });
+    if (!h) return;
+    sl.ses = salon.newSession(todayKey(), h);
+    sl.ses.programTarih = t;
+    slPersist();
+    openSalon();
+  } else if (act === 'duzenle') {
+    showSalonPlanSablon({ tur: 'program', hareketler: programHareketler(programGun(t)), tarih: t });
+    if (sl.plan) { sl.plan.hedefTarih = t; renderSalonPlan(); }
   } else if (act === 'plan') showSalonPlan();
   else if (act === 'prog') showSalonProgram();
 }
@@ -4158,8 +4229,8 @@ function slPlusSet() {
 
 let hdb = null; // hareketdb.js (yalnızca kart açılınca yüklenir)
 let adb = null; // adimlar.js (Türkçe adımlar, yalnızca kart açılınca)
-const adimYukle = () => adb || (adb = import('./adimlar.js?v=13.2.1').then((m) => m.ADIMLAR).catch(() => ({})));
-const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=13.2.1'));
+const adimYukle = () => adb || (adb = import('./adimlar.js?v=13.3.0').then((m) => m.ADIMLAR).catch(() => ({})));
+const hdbYukle = () => hdb || (hdb = import('./hareketdb.js?v=13.3.0'));
 let bilgiTimer = null;
 
 /** Hareketin videosu (H · Video önce, sonra uygulamadaki liste) ya da null. */
@@ -4795,6 +4866,7 @@ function programHareketler(rows) {
 }
 
 function showSalonProgram(bas) {
+  if (state.screen === 'salon-start') state.pgHome = false; // geri: geldiği yer
   state.pgBas = bas || salon.haftaBasi(todayKey());
   show('salon-prog');
   renderSalonProgram();
@@ -4829,7 +4901,9 @@ async function onSalonProgramClick(e) {
   const t = b.dataset.t;
   const rows = programGun(t);
   if (b.dataset.pg === 'basla') {
-    sl.ses = salon.newSession(todayKey(), programHareketler(rows));
+    const h = await oneriSor(programHareketler(rows), { plan: true });
+    if (!h) return;
+    sl.ses = salon.newSession(todayKey(), h);
     sl.ses.programTarih = t;
     slPersist();
     openSalon();
@@ -4995,12 +5069,12 @@ function renderSalonPlan() {
           ${i < P.liste.length - 1 ? `<button class="sp-ss${x.ss && P.liste[i + 1].ss === x.ss ? ' is-on' : ''}" data-sp-ss="${i}">${x.ss && P.liste[i + 1].ss === x.ss ? '⛓ süperset · ayır' : '⛓ süperset yap'}</button>` : ''}`;
       }).join('')}
       <button class="btn btn-block sp-ekle" data-sp-add>＋ Hareket ekle</button>
-      <button class="btn btn-block sp-ekle" data-sp-prog>📅 ${P.hedefTarih ? `Programa yaz · ${esc(fmtDateTR(P.hedefTarih))}` : 'Programa yaz (gün seç)'}</button>
-      <p class="sp-note">Set, tekrar, ağırlık: sağdaki değere dokun. Plan yalnızca telefonda tutulur.</p>`;
+      <p class="sp-note">Set, tekrar, ağırlık: sağdaki değere dokun. "Plana yaz" planı idman dosyasının salonPlan sayfasına yazar${P.hedefTarih ? ` (${esc(fmtDateTR(P.hedefTarih))})` : ' (gün seçilir)'}; ana sayfada yüzme planı gibi görünür.</p>`;
     next.textContent = 'İdmana başla';
     next.disabled = !P.liste.length;
   }
   $('sp-save').hidden = P.step !== 2;
+  $('sp-save').textContent = 'Plana yaz';
   $('sp-save').disabled = !P.liste.length;
   if (P.step === 0) next.disabled = false;
   paint(body);
@@ -5185,14 +5259,9 @@ function onSalonPlanNext() {
   openSalon();
 }
 
-/** Planı kaydet: ana sayfada "Hazır plan" olarak bekler (yalnızca telefonda). */
+/** 13.3: Plana yaz — salonPlan sayfasına (gün: hedef gün ya da seçim). Telefona yerel plan artık kaydedilmez. */
 function onSalonPlanSave() {
-  const P = sl.plan;
-  if (!P || !P.liste.length) return;
-  data.saveSalonPlan({ kaydedildi: Date.now(), oncelik: { ...P.oncelik }, hareketler: P.liste.map((x) => ({ ...x })) });
-  sl.plan = null;
-  showHome();
-  toast('Plan kaydedildi: ana sayfada "İdmana başla" ile başlar', 3000);
+  programaYaz();
 }
 
 function onSalonPlanBack() {
@@ -5245,7 +5314,14 @@ function wireSalon() {
   $('bi-close').addEventListener('click', bilgiKapat);
   $('home-gym-start').addEventListener('click', onGymStart);
   $('yz-ara').addEventListener('click', onYzAra);
-  $('home-gym-planla').addEventListener('click', () => (data.isConfigured('salon') ? showSalonPlan() : showSetup(true)));
+  $('home-gym-planla').addEventListener('click', () => {
+    if (!data.isConfigured('salon')) return showSetup(true);
+    state.pgHome = true; // Plana yaz → Takvim → geri: ana sayfa
+    const hz = salonHazir();
+    showSalonPlan();
+    if (sl.plan && hz && hz.tarih && hz.tarih !== todayKey()) sl.plan.hedefTarih = todayKey(); // "Bugün için planla"
+  });
+  $('home-gym-cal').addEventListener('click', () => { if (!data.isConfigured('salon')) return showSetup(true); showSalonProgram(); state.pgHome = true; loadSalon(); });
 }
 
 function wire() {
@@ -5288,11 +5364,10 @@ function wire() {
     toast('Yedek indirildi', 2000);
   });
   $('bi-body').addEventListener('click', onBilgiClick);
-  $('pg-back').addEventListener('click', () => showSalonStart());
+  $('pg-back').addEventListener('click', () => (state.pgHome ? showHome() : showSalonStart()));
   $('pg-prev').addEventListener('click', () => { state.pgBas = yuk.gunEkle(state.pgBas, -7); renderSalonProgram(); });
   $('pg-next').addEventListener('click', () => { state.pgBas = yuk.gunEkle(state.pgBas, 7); renderSalonProgram(); });
   $('pg-body').addEventListener('click', onSalonProgramClick);
-  $('home-gym-info').addEventListener('click', (e) => { if (e.target.closest('#home-gym-edit')) showSalonPlanSablon(salonHazir()); });
   $('home-hafta').addEventListener('click', () => showHaftaOzeti());
   $('fm-back').addEventListener('click', showHome);
   $('hz-back').addEventListener('click', showHome);

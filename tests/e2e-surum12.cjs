@@ -39,6 +39,16 @@ function salonV12(extraIdman = []) {
   };
 }
 exports.salonV12 = salonV12;
+const PLAN_H = ['Tarih', 'Sıra', 'Hareket', 'Set', 'Tekrar', 'Ağırlık', 'Süre', 'Dinlen', 'Süperset', 'Not', 'Durum'];
+/** 13.3: salon idmanı salonPlan'dan başlar — bugüne (23 Eylül) son idmanın değerleriyle plan yazar. */
+function bugunPlanli(sh, rows) {
+  sh.plan = new Sheet('plan', PLAN_H, rows || [
+    [D('2026-09-23'), 1, 'Dumbbell Shoulder Press', 3, 10, 12.5, '', 90, '', '', ''],
+    [D('2026-09-23'), 2, 'Band Bent Over Row', 3, 15, 15, '', 90, '', '', ''],
+  ]);
+  return sh;
+}
+exports.bugunPlanli = bugunPlanli;
 
 async function toPlanList(s, gruplar) {
   const p = s.page;
@@ -69,36 +79,53 @@ sc('Kısıt: ağırlıklı squat ve zıplama listede gizli, gösterilince ⊘ + 
   assert.equal(await p.$$eval('.sp-ex.is-yasak [data-sp-ex]', (e) => e.length), 0, 'yasaklı hareket seçilemez');
 });
 
-sc('Ana sayfadan doğrudan giriş: son idman (öneri uygulanmış) → Planla → Kaydet → "Hazır plan" → İdmana başla; plan tüketilir', async ({ launch }) => {
-  const s = await launch({ salonSheets: salonV12(), ref: true, viewport: { width: 390, height: 844 } }); const p = s.page;
+// 13.3 (bilinçli değişiklik): ana sayfa salon kartı yüzme kartı gibi salonPlan'dan; planlama salonPlan'a yazar ("Hazır plan" ve son idman şablonu yok).
+sc('Ana sayfa salon kartı: bugünün salonPlan planı (metro + liste) → Planla → Plana yaz (yarın) → salonPlan; İdmanı aç → öneri sorulur, "plandaki değerlerle" başlar', async ({ launch }) => {
+  const sh = bugunPlanli(salonV12());
+  const s = await launch({ salonSheets: sh, ref: true, viewport: { width: 390, height: 844 } }); const p = s.page;
   await s.waitScreen('home');
-  await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
-  assert.match(await txt(s, '#home-gym-go'), /SON İDMAN · 20 EYLÜL PAZAR\s*Düzenle\s*Omuz %40\s*Sırt %35.*Dumbbell Shoulder Press\s*3×10\s*Band Bent Over Row\s*3×15\s*2 hareket · ~10 dk · 2 harekette ilerleme önerisi/);
-  // Planla → Omuz → hareket → Kaydet
+  await p.waitForFunction(() => /salonPlan/.test(document.getElementById('home-gym-go').textContent));
+  assert.match(await txt(s, '#home-gym-go'), /Bugün · Çarşamba 23 Eylül\s*2 hareket · 6 set · ~\d+ dk\s*Dumbbell Shoulder Press\s*3×10 · 12,5 kg\s*Band Bent Over Row\s*3×15 · 15 kg\s*salonPlan · tablodan\s*İdmanı aç\s*Takvim\s*＋ Planla/);
+  assert.equal(await p.$$eval('#home-gym-metro .metro circle', (c) => c.length), 2, 'durak = hareket');
+  // Planla → Omuz → hareket → Plana yaz → Yarın
   await p.click('#home-gym-planla'); await s.waitScreen('salon-plan');
   await p.click('[data-sp-grup="Shoulders"]'); await p.click('#sp-next');
   await p.click('[data-sp-ex="Band External Rotation"]'); await p.click('[data-sp-ex="Dumbbell Shoulder Press"]');
-  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/p2.png` });
   await p.click('#sp-next');
-  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/p3.png` });
-  assert.equal(await p.isHidden('#sp-save'), false);
-  await p.click('#sp-save'); await s.waitScreen('home');
-  assert.equal((await s.ls('ysk.salonPlan')).hareketler.length, 2);
-  assert.match(await txt(s, '#home-gym-desc'), /Hazır plan · 2 hareket/);
-  assert.match(await txt(s, '#home-gym-go'), /HAZIR PLAN\s*Düzenle.*Band External Rotation\s*3×10\s*Dumbbell Shoulder Press\s*3×10/);
-  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  assert.equal(await txt(s, '#sp-save'), 'Plana yaz');
+  await p.click('#sp-save'); await s.waitModal('Hangi güne?'); await s.modalClick('Yarın');
+  await s.waitScreen('salon-prog');
+  assert.equal(await s.ls('ysk.salonPlan'), null, 'telefona yerel plan yazılmaz');
+  assert.deepEqual(sh.plan.data.slice(1).filter((r) => r[2]).map((r) => [new Date(r[0]).getDate(), r[2]]), [[23, 'Dumbbell Shoulder Press'], [23, 'Band Bent Over Row'], [24, 'Band External Rotation'], [24, 'Dumbbell Shoulder Press']]);
+  await p.click('#pg-back'); await s.waitScreen('home');
+  assert.match(await txt(s, '#home-gym-go'), /Bugün · Çarşamba 23 Eylül/);
+  await p.click('#home-gym-start'); await s.waitModal('Artış önerisi · 2 hareket');
+  assert.match(await txt(s, '#modal-body'), /seçmediğin plandaki değerle başlar/);
+  await s.modalClick('Hiçbiri · plandaki değerlerle'); await s.waitScreen('salon');
   await p.waitForSelector('#sl-wheel .w-item.is-active');
   const ses = await s.ls('ysk.salonSession');
-  assert.deepEqual(ses.hareketler.map((x) => x.ad), ['Band External Rotation', 'Dumbbell Shoulder Press']);
-  assert.deepEqual(ses.oncelik, { Shoulders: 1 });
-  assert.equal(await s.ls('ysk.salonPlan'), null, 'başlayınca plan tüketilir');
-  // 13.2.0: planda öneri sormadan uygulanmaz — Shoulder Press son yapılan değerle, öneri yazılı
-  await s.goTo(1, '#sl-wheel');
-  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/geri.png` });
+  assert.deepEqual(ses.hareketler.map((x) => [x.ad, x.agirlik, x.tekrar]), [['Dumbbell Shoulder Press', 12.5, 10], ['Band Bent Over Row', 15, 15]]);
+  assert.equal(ses.programTarih, '2026-09-23');
   assert.match(await txt(s, '#sl-wheel .w-item.is-active .w-card'), /Hedef 3 × 10 · 12,5 kg.*öneri: \+2,5 kg/);
-  assert.equal((await s.ls('ysk.salonSession')).hareketler[1].agirlik, 12.5);
 });
 
+sc('Ana sayfa salon kartı: bugün plan yok → sıradaki gün ("Bu planla başla"), hiç plan yok → "＋ İdman planla"; planda zaten yüksek değer önerilmez', async ({ launch }) => {
+  const sh = bugunPlanli(salonV12(), [[D('2026-09-25'), 1, 'Dumbbell Shoulder Press', 3, 10, 15, '', 90, '', '', ''], [D('2026-09-20'), 1, 'Front Plank', 3, 1, 'Vücut', 45, 60, '', '', '']]);
+  const s = await launch({ salonSheets: sh, ref: true }); const p = s.page;
+  await s.waitScreen('home');
+  await p.waitForFunction(() => /salonPlan/.test(document.getElementById('home-gym-go').textContent));
+  assert.match(await txt(s, '#home-gym-go'), /Cuma · 25 Eylül\s*1 hareket · 3 set.*Dumbbell Shoulder Press\s*3×10 · 15 kg\s*salonPlan · bugün plan yok, sıradaki gün\s*Bu planla başla\s*Takvim\s*＋ Bugün için planla/);
+  await p.click('#home-gym-start'); await s.waitScreen('salon'); // 15 kg planda: +2,5 kg önerisi sorulmaz
+  const ses = await s.ls('ysk.salonSession');
+  assert.equal(ses.tarih, '2026-09-23'); assert.equal(ses.programTarih, '2026-09-25'); assert.equal(ses.hareketler[0].agirlik, 15);
+  await s.close();
+  const s2 = await launch({ salonSheets: salonV12(), ref: true }); const p2 = s2.page;
+  await s2.waitScreen('home');
+  await p2.waitForFunction(() => /Sırada salon planı yok/.test(document.getElementById('home-gym-go').textContent));
+  assert.match(await txt(s2, '#home-gym-go'), /Plan yok\s*Sırada salon planı yok.*＋ İdman planla\s*Takvim/);
+  assert.equal(await p2.isHidden('#home-gym-planla'), true);
+  await p2.click('#home-gym-start'); await s2.waitScreen('salon-plan');
+});
 /** Haritadaki grubun merkezine dokunur (harita.js META). */
 async function hmTap(s, view, g) {
   const p = s.page;
@@ -158,7 +185,7 @@ sc('Kas haritası: dokun → seç (renkler sabit, ✓), tekrar dokun → bırak;
 });
 
 const slPress = (s) => s.page.$eval('#sl-main', (b) => b.click());
-/** Ana sayfadan son idmanı başlatır; 13.2.0'dan beri artış önerisi sorulur (secim: modal düğmesi). */
+/** Ana sayfadan salon idmanını başlatır (13.3: salonPlan'daki plan); artış önerisi sorulur (secim: modal düğmesi). */
 async function gymBasla(s, secim = 'Seçilenleri uygula') {
   await s.page.click('#home-gym-start');
   await s.page.waitForSelector('#modal:not([hidden]), #screen-salon:not([hidden])');
@@ -172,7 +199,7 @@ async function setler(s, n) {
 }
 
 sc('İdman: ısınma (kayda sayılmaz), set sırasında ağrı 1,5 → hafiflet; hareket sonu MSI ve not hazır; rekor; özet hacim + kaslar + rekor + kıyas', async ({ launch }) => {
-  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  const s = await launch({ salonSheets: bugunPlanli(salonV12()), ref: true }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
   await gymBasla(s);
@@ -220,7 +247,7 @@ sc('İdman: ısınma (kayda sayılmaz), set sırasında ağrı 1,5 → hafiflet;
 });
 
 sc('İdman: set sırasında ağrı 2 → hareket durur (yapılan setle), hareket sonu MSI 2 ve "durduruldu" notu', async ({ launch }) => {
-  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+  const s = await launch({ salonSheets: bugunPlanli(salonV12()), ref: true }); const p = s.page;
   await s.waitScreen('home');
   await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
   await gymBasla(s);
@@ -512,16 +539,19 @@ sc('Form ve denge: uzun aradan sonra iki hafif yüzme → "yük hızlı arttı" 
   if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/form-donus.png` });
 });
 
-sc('Son idmanı şablon al: ana sayfa Düzenle → planın 3. adımı; değere dokun → set/ağırlık düzenle; çıkar; ＋ Hareket ekle; Kaydet → hazır plan; idman ekranında düzenleme hâlâ çalışır', async ({ launch }) => {
-  const s = await launch({ salonSheets: salonV12(), ref: true }); const p = s.page;
+// 13.3 (bilinçli değişiklik): şablon salonVeri'deki son idman değil, salonPlan'daki plan; Kaydet → "Plana yaz" (salonPlan).
+sc('Planı düzenle: Salon ekranında salonPlan günü → Düzenle → planın 3. adımı; değere dokun → set/ağırlık düzenle; çıkar; ＋ Hareket ekle; Plana yaz → salonPlan; idman ekranında düzenleme hâlâ çalışır', async ({ launch }) => {
+  const sh = bugunPlanli(salonV12());
+  const s = await launch({ salonSheets: sh, ref: true }); const p = s.page;
   await s.waitScreen('home');
-  await p.waitForFunction(() => !document.getElementById('home-gym-go').hidden);
-  if (process.env.SHOT) { await p.$eval('#home-gym-go', (e) => e.scrollIntoView({ block: 'center' })); await p.screenshot({ path: `${process.env.SHOT}/home-gym.png` }); }
-  await p.click('#home-gym-edit'); await s.waitScreen('salon-plan');
-  if (process.env.SHOT) await p.screenshot({ path: `${process.env.SHOT}/sablon.png` });
-  assert.equal(await txt(s, '#sp-title'), 'Son idmandan plan');
+  await p.waitForFunction(() => /salonPlan/.test(document.getElementById('home-gym-go').textContent));
+  await p.click('#home-gym'); await s.waitScreen('salon-start');
+  assert.match(await txt(s, '#ss-body'), /23 EYLÜL.*BUGÜN · 2 HAREKET.*Dumbbell Shoulder Press\s*3 × 10 · 12,5 kg.*Band Bent Over Row.*İdmanı aç\s*Düzenle\s*＋ Yeni idman planla/);
+  assert.doesNotMatch(await txt(s, '#ss-body'), /SON İDMAN|Son idmanı/, 'salonVeri şablonu yok');
+  await p.click('[data-ss="duzenle"][data-t="2026-09-23"]'); await s.waitScreen('salon-plan');
+  assert.equal(await txt(s, '#sp-title'), 'Programı düzenle');
   assert.deepEqual(await p.$$eval('.sp-pl .sp-m b', (e) => e.map((x) => x.textContent)), ['Dumbbell Shoulder Press', 'Band Bent Over Row']);
-  // Shoulder Press: set 3 → 4, ağırlık 12,5 → 10 (13.2.0: şablonda öneri uygulanmaz)
+  // Shoulder Press: set 3 → 4, ağırlık 12,5 → 10
   await p.click('[data-sp-ed="0"]'); await p.waitForSelector('#screen-salon-plan #sl-edit:not([hidden])');
   assert.match(await txt(s, '#se-tag'), /1\/2 · DÜZENLE/);
   await p.click('[data-se="set:1"]'); await p.click('[data-se="agirlik:-1"]');
@@ -531,18 +561,23 @@ sc('Son idmanı şablon al: ana sayfa Düzenle → planın 3. adımı; değere d
   await p.click('[data-sp-rm="1"]');
   await p.click('[data-sp-add]');
   await p.waitForSelector('.sp-ex');
-  assert.match(await txt(s, '[data-sp-ex="Dumbbell Shoulder Press"]'), /✓$/, 'şablondaki hareket seçili');
+  assert.match(await txt(s, '[data-sp-ex="Dumbbell Shoulder Press"]'), /✓$/, 'plandaki hareket seçili');
   await p.click('[data-sp-ex="Band External Rotation"]');
   await p.click('#sp-next');
   const ad = await p.$$eval('.sp-pl .sp-m b', (e) => e.map((x) => x.textContent));
   assert.deepEqual(ad, ['Dumbbell Shoulder Press', 'Band External Rotation']);
-  await p.click('#sp-save'); await s.waitScreen('home');
-  const plan = await s.ls('ysk.salonPlan');
-  assert.deepEqual([plan.hareketler[0].set, plan.hareketler[0].agirlik], [4, 10]);
-  assert.match(await txt(s, '#home-gym-go'), /HAZIR PLAN.*Dumbbell Shoulder Press\s*4×10/);
+  await p.click('#sp-save'); await s.waitScreen('salon-prog'); // gün belli: sorulmaz
+  const pr = sh.plan.data.slice(1).filter((r) => r[2]);
+  assert.deepEqual(pr.map((r) => r[2]), ['Dumbbell Shoulder Press', 'Band External Rotation']);
+  assert.deepEqual([pr[0][3], pr[0][5]], [4, 10]);
+  await p.click('#pg-back'); await s.waitScreen('salon-start');
   // İdmanda Düzenle (katman salon ekranına döner)
-  await p.click('#home-gym-start'); await s.waitScreen('salon');
+  await p.click('[data-ss="basla"][data-t="2026-09-23"]');
+  await p.waitForSelector('#modal:not([hidden]), #screen-salon:not([hidden])');
+  if (await p.isVisible('#modal')) await s.modalClick('Hiçbiri');
+  await s.waitScreen('salon');
   await p.waitForSelector('#sl-wheel .w-item.is-active');
+  assert.deepEqual((await s.ls('ysk.salonSession')).hareketler.slice(0, 1).map((x) => [x.set, x.agirlik]), [[4, 10]]);
   await p.click('#sl-wheel .w-item.is-active .w-tag'); await p.waitForSelector('#sl-detail:not([hidden])');
   await p.click('#sl-detail [data-sact="edit"]');
   await p.waitForSelector('#screen-salon #sl-edit:not([hidden])');

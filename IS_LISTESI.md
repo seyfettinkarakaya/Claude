@@ -690,6 +690,14 @@ Sürüm 8 görünümü korunuyor; v10/v11 önerileri beğenilmedi, görsel yenil
 
 ## Tamamlanan
 
+- [x] Sürüm 13.3.0 (dağıtım gerekmez; idman.gs 13.2.1 yeterli):
+  - Ana sayfa salon kartı yüzme kartıyla aynı yapı; plan yalnızca salonPlan'dan (bugün ya da sıradaki gün).
+  - "Son idmanı tekrarla/düzenle" kaldırıldı; salon ekranında salonPlan günleri (İdmanı aç / Bu planla başla / Düzenle).
+  - Planlama "Plana yaz" ile salonPlan'a yazar; Takvim (salon programı) ana sayfadan açılır, geri ana sayfaya döner.
+  - Artış önerisi yalnızca plandaki değerden yüksekse sorulur.
+  - Bilinçli test değişiklikleri: son idman şablonu / "Hazır plan" / "Programa yaz" düğmesi senaryoları salonPlan akışına çevrildi.
+- [x] Sürüm 13.2.1: getSalon hızlandı (gerekli sütunlar), 60 sn bekleme; havuzSeans isteğe bağlı; salon idmanı sonrası salonPlan satırları silinir.
+
 - [x] Sürüm 10.4:
   - Düğme **YÜZ / DUR**; ilk YÜZ idmanı ve 1. tekrarı birlikte başlatır (ayrı "İDMANA BAŞLA" yok).
   - 5+ tekrarlı setlerde şerit, "Tekrar 7/12", ortalama ve son 3 süre (12–20 tekrar sığar).
